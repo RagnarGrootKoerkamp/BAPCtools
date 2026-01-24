@@ -246,8 +246,8 @@ class Testcase:
 
         # Display name: everything after data/.
         self.name: str = str(self.short_path.with_suffix(""))
-        # cache for local test group yaml
-        self._test_group_yaml: Optional[TestGroup] = None
+        # cache for test_case.yaml
+        self._test_case_yaml: Optional[TestGroup] = None
 
     def __repr__(self) -> str:
         return self.name
@@ -255,28 +255,23 @@ class Testcase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def _parse_tmp_yaml(self, bar: BAR_TYPE) -> TestGroup:
-        if self._test_group_yaml is not None:
-            return self._test_group_yaml
-
-        yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
-        test_group_yaml = self.problem.get_test_case_yaml(yaml_path.parent, bar)
-
-        yaml_file = self.in_path.with_suffix(".yaml")
-        if not yaml_file.is_file():
-            return test_group_yaml
-        self._test_group_yaml = TestGroup.parse_yaml(
-            self.problem, yaml_file, test_group_yaml, bar, filename=yaml_path
-        )
-        return self._test_group_yaml
-
     def get_test_case_yaml(self, bar: BAR_TYPE) -> TestGroup:
         assert self.in_path.is_file()
 
-        if self.in_path.is_relative_to(self.problem.tmpdir / "data"):
-            return self._parse_tmp_yaml(bar)
+        if self._test_case_yaml is not None:
+            return self._test_case_yaml
+
         yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
-        return self.problem.get_test_case_yaml(yaml_path, bar)
+        test_group_yaml = self.problem.get_test_group_yaml(yaml_path.parent, bar)
+
+        yaml_file = self.in_path.with_suffix(".yaml")
+        if yaml_file.is_file():
+            self._test_case_yaml = TestGroup.parse_yaml(
+                self.problem, yaml_file, test_group_yaml, bar, filename=yaml_path
+            )
+        else:
+            self._test_case_yaml = test_group_yaml
+        return self._test_case_yaml
 
     def validator_hashes(
         self, cls: type[validate.AnyValidator], bar: BAR_TYPE
