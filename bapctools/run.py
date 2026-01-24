@@ -601,7 +601,6 @@ class Submission(program.Program):
         verdict = verdicts["."]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
         self.verdict = verdict
-        # TODO what color is intended here??
         color = Fore.GREEN if passed_permitted and passed_required else Fore.RED
 
         (salient_testcase, salient_duration) = verdicts.salient_test_case()
