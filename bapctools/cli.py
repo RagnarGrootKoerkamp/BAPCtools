@@ -703,7 +703,7 @@ Run this from one of:
         "-a",
         action="count",
         default=0,
-        help="Run all testcases. Use twice to continue even after timeouts.",
+        help="Run all testcases. Use this flag twice (`-aa`) to continue even after timeouts.",
     )
     runparser.add_argument(
         "--default-solution",
