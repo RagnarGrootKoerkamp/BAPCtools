@@ -15,6 +15,13 @@ let glob_path = =~"^(\(component_re)/)*\(component_re)$" & !~"\\*\\*"
 	[glob_path]: #submission
 }
 
+#SubmissionsJson: {
+    [string]: {
+        #submission
+        [string]: #expectation
+    }
+}
+
 #submission: {
 	language?: string
 	entrypoint?: string
