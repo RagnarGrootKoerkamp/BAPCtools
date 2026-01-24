@@ -76,8 +76,9 @@ with (
         p_in.flush()
 
     def read() -> str:
-        assert p.poll() is None, "Program terminated early"
         line = p_out.readline().strip()
+        if line == "":
+            assert p.poll() is None, "Program terminated early"
         assert line != "", "Read empty line or closed output pipe"
         print(f"Read: {line}", flush=True)
         return line
