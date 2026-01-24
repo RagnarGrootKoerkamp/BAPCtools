@@ -808,13 +808,7 @@ class Problem:
         if config.args.submissions:
             return submissions
         else:
-            return tuple(
-                s
-                for s in submissions
-                if all(
-                    e.permitted == {verdicts.Verdict.ACCEPTED} for e in s.expectations.all_matches()
-                )
-            )
+            return tuple(s for s in submissions if s.expectations.is_accepted())
 
     def expectations(problem) -> expectations.Expectations:
         if problem._expectations is not None:
