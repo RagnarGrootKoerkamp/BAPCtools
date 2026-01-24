@@ -200,8 +200,9 @@ class SubmissionExpectation:
     def all_matches(self, testcase: Optional[Testcase] = None) -> list[TestcaseExpectation]:
         if testcase is None:
             return self.expectations
-        # TODO: warn if if there is no match?
-        return [e for e in self.expectations if e.matches(testcase)]
+        matching = [e for e in self.expectations if e.matches(testcase)]
+        assert matching
+        return matching
 
     def all_permitted(self, testcase: Optional[Testcase] = None) -> set[Verdict]:
         permitted = set(EXPECTATION_VERDICTS)
