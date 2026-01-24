@@ -207,7 +207,7 @@ class SubmissionExpectation:
 
 
 # This store all data in the submissions.yaml
-class Expectation:
+class Expectations:
     def __init__(self, problem: "Problem") -> None:
         self.expectations: dict[str, SubmissionExpectation] = {}
         self._combined: dict[Path, SubmissionExpectation] = {}
