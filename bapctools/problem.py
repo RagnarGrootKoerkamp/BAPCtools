@@ -788,7 +788,7 @@ class Problem:
                 statement = (name.with_suffix(".interaction"),)
             else:
                 statement_in = [ext for ext in in_found if not ext.endswith(".download")]
-                statement_ans = [ext for ext in in_found if not ext.endswith(".download")]
+                statement_ans = [ext for ext in ans_found if not ext.endswith(".download")]
                 if statement_in and statement_ans:
                     statement = (
                         name.with_suffix(statement_in[0]),
@@ -796,7 +796,7 @@ class Problem:
                     )
 
             download_in = [ext for ext in in_found if not ext.endswith(".statement")]
-            download_ans = [ext for ext in in_found if not ext.endswith(".statement")]
+            download_ans = [ext for ext in ans_found if not ext.endswith(".statement")]
             if download_in and download_ans:
                 download = (name.with_suffix(download_in[0]), name.with_suffix(download_ans[0]))
 
