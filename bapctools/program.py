@@ -347,16 +347,21 @@ class Program:
             )
         return candidates
 
-    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> Path:
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[str, str, str]:
+        binary = self.tmpdir / "run"
+        mainfile = None
         if not self.has_deps:
-            if len(files) == 1:
-                return files[0]
+            assert files
             for f in sorted(files):
                 if f.name.lower().startswith("main"):
-                    return f
-            return sorted(files)[0]
+                    mainfile = f
+                    break
+            if mainfile is None:
+                mainfile = sorted(files)[0]
         else:
-            return self.tmpdir / self.source_files[0].name
+            mainfile = self.tmpdir / self.source_files[0].name
+        mainclass = mainfile.with_suffix("").name
+        return (str(binary), str(mainfile), str(mainclass))
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar) -> bool:
@@ -391,14 +396,13 @@ class Program:
                     bar.debug(f"Falling back to {name}.")
 
             self.language = lang
-            mainfile = self._get_entry_point(files, bar)
-            mainclass = str(mainfile.with_suffix("").name)
+            binary, mainfile, mainclass = self._get_entry_point(files, bar)
             self.env = {
                 "path": str(self.tmpdir),
                 # NOTE: This only contains files matching the winning language.
                 "files": " ".join(str(f) for f in files),
-                "binary": self.tmpdir / "run",
-                "mainfile": str(mainfile),
+                "binary": binary,
+                "mainfile": mainfile,
                 "mainclass": mainclass,
                 "Mainclass": mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
