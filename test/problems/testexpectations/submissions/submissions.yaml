@@ -21,7 +21,7 @@ ac_or_wa/metadata:
   authors: Bob Bobbington
   model_solution: False
 
-# check if basic brace expension works
+# check if basic brace expansion works
 expansion/ac.{py,cpp}:
   permitted: [AC]
 
