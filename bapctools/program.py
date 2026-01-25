@@ -546,7 +546,7 @@ class Program:
 
         # Check file names.
         for f in self.source_files:
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+            if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
                 bar.error(f"{str(f)} does not match file name regex {config.FILE_NAME_REGEX}")
                 return False

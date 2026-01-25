@@ -65,7 +65,7 @@ KNOWN_EXPECTATION_VERDICTS: Final[Mapping[str, Verdict]] = {
     v.short(): v for v in EXPECTATION_VERDICTS
 }
 
-COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
+SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
 
 
 def _compile_glob(raw: str) -> re.Pattern[str]:
@@ -73,7 +73,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
 
     def check_suspicious(token: str) -> None:
         nonlocal suspicious
-        match = COMPILED_SUSPICIOUS_GLOB_REGEX.search(token)
+        match = SUSPICIOUS_GLOB_REGEX.search(token)
         if suspicious is None and match is not None:
             suspicious = match.group()
 

@@ -244,8 +244,9 @@ def make_environment(builddir: Path) -> dict[str, str]:
     return env
 
 
-TEX_MAGIC_REGEX: Final[str] = "^%\\ ?!tex\\s+program\\s*=\\s*(.*)$"
-COMPILED_TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(TEX_MAGIC_REGEX, re.IGNORECASE)
+TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(
+    "^%\\ ?!tex\\s+program\\s*=\\s*(.*)$", re.IGNORECASE
+)
 
 
 def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
@@ -256,7 +257,7 @@ def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
         try:
             with tex_path.open() as f:
                 for line in f:
-                    match = COMPILED_TEX_MAGIC_REGEX.match(line)
+                    match = TEX_MAGIC_REGEX.match(line)
                     if match:
                         command = match.group(1).strip()
                         break

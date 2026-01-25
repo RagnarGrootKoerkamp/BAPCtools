@@ -298,7 +298,7 @@ class ProblemSettings:
         constants: dict[object, object] = parser.extract("constants", {})
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
-            if not isinstance(key, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(key):
+            if not isinstance(key, str) or not config.CONSTANT_NAME_REGEX.fullmatch(key):
                 warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
                 continue
 
@@ -314,7 +314,7 @@ class ProblemSettings:
 
                 if not isinstance(sub, str):
                     warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
-                elif not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(sub):
+                elif not config.CONSTANT_NAME_REGEX.fullmatch(sub):
                     warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 elif isinstance(variant, (int, float)):
                     warn(
@@ -637,7 +637,7 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+            if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 p._warn_once(t.name, f"Test case name {t.name} is not valid. Skipping.")
                 continue
             if f.with_suffix("").name == "test_group":
