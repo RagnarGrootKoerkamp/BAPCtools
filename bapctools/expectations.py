@@ -214,13 +214,14 @@ class SubmissionExpectation:
             permitted &= e.permitted
         return permitted
 
+    def root_expectations(self) -> list[TestcaseExpectation]:
+        return [e for e in self.expectations if e.test_case_glob is None]
+
     def is_accepted(self) -> bool:
         """
         A submission is considered accepted if its root TestcaseExpectation only permits AC
         """
-        return any(
-            e.permitted == {Verdict.ACCEPTED} for e in self.expectations if e.test_case_glob is None
-        )
+        return any(e.permitted == {Verdict.ACCEPTED} for e in self.root_expectations())
 
 
 # This store all data in the submissions.yaml

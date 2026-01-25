@@ -865,8 +865,23 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        def submissions_key(x: run.Submission) -> tuple[str, str]:
-            return (x.subdir, x.name)
+        def submissions_key(x: run.Submission) -> tuple[int, str, str]:
+            order = [
+                "accepted",
+                "wrong_answer",
+                "brute_force",
+                "time_limit_exceeded",
+                "run_time_error",
+                None,
+                "rejected",
+            ]
+            group = "accepted" if x.expectations.is_accepted() else x.subdir
+            group_key = order.index(group if group in order else None)
+            return (group_key, x.subdir, x.name)
+
+            required = list({v for e in x.expectations.root_expectations() for v in e.required})
+            group = (0, required[0]) if len(required) == 1 else (1, verdicts.VERDICTS[0])
+            return (group, x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
