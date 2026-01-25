@@ -877,11 +877,7 @@ class Problem:
             ]
             group = "accepted" if x.expectations.is_accepted() else x.subdir
             group_key = order.index(group if group in order else None)
-            return (group_key, x.subdir, x.name)
-
-            required = list({v for e in x.expectations.root_expectations() for v in e.required})
-            group = (0, required[0]) if len(required) == 1 else (1, verdicts.VERDICTS[0])
-            return (group, x.subdir, x.name)
+            return group_key, x.subdir, x.name
 
         programs.sort(key=submissions_key)
 
