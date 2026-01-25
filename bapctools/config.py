@@ -53,11 +53,11 @@ FILE_NAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-zA-Z0-9_][a-zA-Z0-9_.-]
 
 CONSTANT_NAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
 CONSTANT_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
-    f"\\{{\\{{({CONSTANT_NAME_REGEX}|{CONSTANT_NAME_REGEX}\\.{CONSTANT_NAME_REGEX})\\}}\\}}"
+    f"\\{{\\{{({CONSTANT_NAME_REGEX.pattern}|{CONSTANT_NAME_REGEX.pattern}\\.{CONSTANT_NAME_REGEX.pattern})\\}}\\}}"
 )
 
 BAPCTOOLS_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
-    f"\\{{%({CONSTANT_NAME_REGEX})%\\}}"
+    f"\\{{%({CONSTANT_NAME_REGEX.pattern})%\\}}"
 )
 
 
