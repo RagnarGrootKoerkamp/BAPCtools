@@ -1372,16 +1372,16 @@ class TestcaseRule(Rule):
             statement_in = find_override(".in.statement", ".interaction")
             download_in = find_override(".in.download")
             if statement_in and not download_in:
-                bar.warn(f"found {statement_in[0]} but no override for download")
+                bar.warn(f"found {statement_in[0]} but no override for .in.download")
             if not statement_in and download_in:
-                bar.warn(f"found {download_in[0]} but no override for statement")
+                bar.warn(f"found {download_in[0]} but no override for .in.statement")
 
             statement_ans = find_override(".out", ".ans.statement", ".interaction")
             download_ans = find_override(".out", ".ans.download")
             if statement_ans and not download_ans:
-                bar.warn(f"found {statement_ans[0]} but no override for download")
+                bar.warn(f"found {statement_ans[0]} but no override for .ans.download")
             if not statement_ans and download_ans:
-                bar.warn(f"found {download_ans[0]} but no override for statement")
+                bar.warn(f"found {download_ans[0]} but no override for .ans.statement")
 
         def copy_generated() -> None:
             identical_exts = set()
