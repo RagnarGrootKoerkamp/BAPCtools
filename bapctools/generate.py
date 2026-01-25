@@ -532,7 +532,7 @@ class TestcaseRule(Rule):
 
             # files to consider for hashing
             hashes = {}
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
+            if not config.FILE_NAME_REGEX.fullmatch(name + ".in"):
                 raise ParseException("Test case does not have a valid name.")
 
             if name == "test_group":
@@ -1569,7 +1569,7 @@ class Directory(Rule):
 
         # The root Directory object has name ''.
         if not isinstance(parent, RootDirectory):
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
+            if not config.FILE_NAME_REGEX.fullmatch(name):
                 raise ParseException("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
@@ -1807,7 +1807,7 @@ class GeneratorConfig:
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
-                or not config.COMPILED_FILE_NAME_REGEX.fullmatch(gen + ".x")
+                or not config.FILE_NAME_REGEX.fullmatch(gen + ".x")
             ):
                 raise ParseException("Invalid generator name", f"generators/{gen}")
 
