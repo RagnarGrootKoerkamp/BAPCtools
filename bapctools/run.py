@@ -380,11 +380,12 @@ class Submission(program.Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return candidates
 
-    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[str, str, str]:
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)
         entrypoint = self.expectations.entrypoint
-        return (entrypoint, entrypoint, entrypoint)
+        file = self.tmpdir / entrypoint
+        return (file, file, entrypoint)
 
     # Run submission on in_path, writing stdout to out_path.
     # args is used by SubmissionInvocation to pass on additional arguments.

@@ -347,7 +347,7 @@ class Program:
             )
         return candidates
 
-    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[str, str, str]:
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         binary = self.tmpdir / "run"
         mainfile = None
         if not self.has_deps:
@@ -361,7 +361,7 @@ class Program:
         else:
             mainfile = self.tmpdir / self.source_files[0].name
         mainclass = mainfile.with_suffix("").name
-        return (str(binary), str(mainfile), str(mainclass))
+        return (binary, mainfile, str(mainclass))
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar) -> bool:
