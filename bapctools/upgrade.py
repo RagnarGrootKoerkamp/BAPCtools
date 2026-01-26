@@ -591,6 +591,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if domjudge_path.is_file():
         time_limit = None
         for line in domjudge_path.read_text().splitlines():
+            if line.startswith(";") or "=" not in line:
+                continue
             key, var = map(str.strip, line.strip().split("="))
             if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                 var = var[1:-1]
