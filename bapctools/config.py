@@ -25,6 +25,16 @@ RTV_WA: Final[int] = 43
 # limit in MiB for the ICPC Archive
 ICPC_FILE_LIMIT: Final[int] = 100
 
+# system default limits
+DEFAULT_MEMORY = 2048  # in MiB
+DEFAULT_OUTPUT = 8  # in MiB
+DEFAULT_CODE = 128  # in KiB
+DEFAULT_COMPILATION_TIME = 60  # in seconds
+DEFAULT_COMPILATION_MEMORY = DEFAULT_MEMORY
+DEFAULT_VALIDATION_TIME = 60  # in seconds
+DEFAULT_VALIDATION_MEMORY = DEFAULT_MEMORY
+DEFAULT_VALIDATION_OUTPUT = DEFAULT_OUTPUT
+
 SUBMISSION_DIRS: Final[Sequence[str]] = (
     "accepted",
     "wrong_answer",

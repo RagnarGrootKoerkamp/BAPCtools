@@ -198,14 +198,24 @@ class ProblemLimits:
                 f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
             )
 
-        self.memory: int = parser.extract("memory", 2048, "> 0")  # in MiB
-        self.output: int = parser.extract("output", 8, "> 0")  # in MiB
-        self.code: int = parser.extract("code", 128, "> 0")  # in KiB
-        self.compilation_time: int = parser.extract("compilation_time", 60, "> 0")  # in seconds
-        self.compilation_memory: int = parser.extract("compilation_memory", 2048, "> 0")  # in MiB
-        self.validation_time: int = parser.extract("validation_time", 60, "> 0")  # in seconds
-        self.validation_memory: int = parser.extract("validation_memory", 2048, "> 0")  # in MiB
-        self.validation_output: int = parser.extract("validation_output", 8, "> 0")  # in MiB
+        self.memory: int = parser.extract("memory", config.DEFAULT_MEMORY, "> 0")  # in MiB
+        self.output: int = parser.extract("output", config.DEFAULT_OUTPUT, "> 0")  # in MiB
+        self.code: int = parser.extract("code", config.DEFAULT_CODE, "> 0")  # in KiB
+        self.compilation_time: int = parser.extract(
+            "compilation_time", config.DEFAULT_COMPILATION_TIME, "> 0"
+        )  # in seconds
+        self.compilation_memory: int = parser.extract(
+            "compilation_memory", config.DEFAULT_COMPILATION_MEMORY, "> 0"
+        )  # in MiB
+        self.validation_time: int = parser.extract(
+            "validation_time", config.DEFAULT_VALIDATION_TIME, "> 0"
+        )  # in seconds
+        self.validation_memory: int = parser.extract(
+            "validation_memory", config.DEFAULT_VALIDATION_MEMORY, "> 0"
+        )  # in MiB
+        self.validation_output: int = parser.extract(
+            "validation_output", config.DEFAULT_VALIDATION_OUTPUT, "> 0"
+        )  # in MiB
         if problem_settings.multi_pass:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
         elif "validation_passes" in parser.yaml:

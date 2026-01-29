@@ -357,7 +357,7 @@ class Program:
                 "mainclass": mainclass,
                 "Mainclass": mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
-                "memlim": self.limits.get("memory", 2048),
+                "memlim": self.limits.get("memory", config.DEFAULT_MEMORY),
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
                 "build": (
                     self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
