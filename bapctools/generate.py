@@ -29,7 +29,6 @@ from bapctools.util import (
     glob,
     hash_file_content,
     hash_string,
-    is_relative_to,
     log,
     path_size,
     PrintBar,
@@ -533,7 +532,7 @@ class TestcaseRule(Rule):
 
             # files to consider for hashing
             hashes = {}
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
+            if not config.FILE_NAME_REGEX.fullmatch(name + ".in"):
                 raise ParseException("Test case does not have a valid name.")
 
             if name == "test_group":
@@ -1570,7 +1569,7 @@ class Directory(Rule):
 
         # The root Directory object has name ''.
         if not isinstance(parent, RootDirectory):
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
+            if not config.FILE_NAME_REGEX.fullmatch(name):
                 raise ParseException("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
@@ -1808,7 +1807,7 @@ class GeneratorConfig:
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
-                or not config.COMPILED_FILE_NAME_REGEX.fullmatch(gen + ".x")
+                or not config.FILE_NAME_REGEX.fullmatch(gen + ".x")
             ):
                 raise ParseException("Invalid generator name", f"generators/{gen}")
 
@@ -1882,7 +1881,7 @@ class GeneratorConfig:
         absolute_testcase_path = self.problem.path / "data" / relative_testcase_path.with_suffix("")
         for p in self.restriction:
             for basedir in get_basedirs(self.problem, "data"):
-                if is_relative_to(basedir / p, absolute_testcase_path):
+                if (basedir / p).is_relative_to(absolute_testcase_path):
                     return True
         return False
 
@@ -2480,7 +2479,13 @@ data/*
             return False
 
         testcases = [t for t in ts_pair[0] if t.in_path in testcase_filter]
-        submissions = [s for s in ts_pair[1] if s.expected_verdicts != [Verdict.ACCEPTED]]
+
+        def not_accepted(s: run.Submission) -> bool:
+            # If a submission is permitted to get a non AC verdict on any test case
+            # it is not a accepted submission
+            return any({Verdict.ACCEPTED} != s.expectations.all_permitted(t) for t in testcases)
+
+        submissions = [s for s in ts_pair[1] if not_accepted(s)]
 
         if not testcases:
             error("No testcases found.")

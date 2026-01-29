@@ -1,0 +1,5 @@
+problem_format_version: 2025-09
+type: pass-fail
+name: 'testexpectations'
+# uuid added by BAPCtools
+uuid: '8ee7605a-da18-8ca0-1c75-fc0ad9c6be71'

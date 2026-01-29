@@ -1,32 +1,40 @@
+import difflib
 import os
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 
 from colorama import Fore, Style
 
-from bapctools import config, interactive, parallel, problem, program, validate, visualize
+from bapctools import (
+    config,
+    expectations,
+    interactive,
+    parallel,
+    problem,
+    program,
+    validate,
+    visualize,
+)
 from bapctools.testcase import Testcase
 from bapctools.util import (
     BAR_TYPE,
+    crop_line,
     crop_output,
     ensure_symlink,
     eprint,
     error,
     ExecResult,
     ExecStatus,
-    is_bsd,
-    is_windows,
     ProgressBar,
     shorten_path,
     warn,
 )
 from bapctools.verdicts import (
-    from_string,
     from_string_domjudge,
     RunUntil,
     Verdict,
@@ -284,26 +292,23 @@ class Submission(program.Program):
         self.verdict: Optional[Verdict] = None
         self.duration = None
 
-        # The first element will match the directory the file is in, if possible.
-        self.expected_verdicts = self._get_expected_verdicts()
+        if self.path.absolute().is_relative_to((problem.path / "submissions").absolute()):
+            self.expectations: expectations.SubmissionExpectation = (
+                problem.expectations().all_matches(self)
+            )
+        else:
+            # External submission are only allowed to get AC
+            self.expectations = expectations.SubmissionExpectation(self.name, {"permitted": ["AC"]})
 
+        # parse deprecated @EXPECTED_RESULTS@
+        self.expected_results = self._parse_expected_results()
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
-        # interactor exits first. Thus, we don't distinguish the different non-AC
-        # verdicts.
-        if self.problem.interactive and (is_windows() or is_bsd()):
-            wrong_verdicts = [
-                Verdict.WRONG_ANSWER,
-                Verdict.TIME_LIMIT_EXCEEDED,
-                Verdict.RUNTIME_ERROR,
-            ]
-            for wrong_verdict in wrong_verdicts:
-                if wrong_verdict in self.expected_verdicts:
-                    self.expected_verdicts += wrong_verdicts
-                    break
+        # interactor exits first. This likely makes expectations fail
 
-    def _get_expected_verdicts(self) -> list[Verdict]:
-        expected_verdicts = []
+    # TODO: remove this once domjudge supports the submissions.yaml
+    def _parse_expected_results(self) -> Optional[set[Verdict]]:
+        permitted = []
 
         # Look for '@EXPECTED_RESULTS@: ' in all source files. This should be followed by a comma separated list of the following:
         # - ACCEPTED / CORRECT
@@ -329,7 +334,7 @@ class Submission(program.Program):
                 arguments = map(str.strip, text[beginpos:endpos].split(","))
                 for arg in arguments:
                     try:
-                        expected_verdicts.append(from_string_domjudge(arg))
+                        permitted.append(from_string_domjudge(arg))
                     except ValueError:
                         error(
                             f"@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid"
@@ -341,22 +346,46 @@ class Submission(program.Program):
                 # Skip files where the key does not occur.
                 pass
 
+        if len(permitted) == 0:
+            return None
         if len(self.path.parts) >= 3 and self.path.parts[-3] == "submissions":
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0]
-            if subdir in config.SUBMISSION_DIRS:
-                if len(expected_verdicts) != 0:
-                    warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
-                expected_verdicts = [from_string(subdir.upper())]
-            else:
-                if len(expected_verdicts) == 0:
-                    error(
-                        f"Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED."
-                    )
+            if subdir in ["accepted", "wrong_answer", "time_limit_exceeded", "run_time_error"]:
+                warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
+                return None
 
-        expected_verdicts.sort()
-        return expected_verdicts or [Verdict.ACCEPTED]
+        return set(permitted)
+
+    def _get_language_candidates(
+        self,
+        bar: ProgressBar,
+    ) -> list[tuple[tuple[int, int, int], program.Language, list[Path]]]:
+        if self.expectations.language is None:
+            return super()._get_language_candidates(bar)
+        candidates = []
+        for lang in program.languages():
+            if lang.name == self.expectations.language:
+                candidates.append(((lang.priority, 0, 0), lang, self.input_files))
+        if not candidates:
+            known = {lang.name for lang in program.languages()}
+            closest = difflib.get_close_matches(self.expectations.language, known)
+            if not closest:
+                msg = ""
+            elif len(closest) == 1:
+                msg = f", did you mean: {closest[0]}"
+            else:
+                msg = f", did you mean one of these: {', '.join(closest)}"
+            bar.warn(f"Unknown language: {self.expectations.language}{msg}")
+        return candidates
+
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
+        if self.expectations.entrypoint is None:
+            return super()._get_entry_point(files, bar)
+        entrypoint = self.expectations.entrypoint
+        file = self.tmpdir / entrypoint
+        return (file, file, entrypoint)
 
     # Run submission on in_path, writing stdout to out_path.
     # args is used by SubmissionInvocation to pass on additional arguments.
@@ -400,13 +429,16 @@ class Submission(program.Program):
         max_submission_name_len: int,
         verdict_table: VerdictTable,
         testcases: Sequence[Testcase],
+        skip_test_case: Callable[["Submission", Testcase], bool] = lambda s, t: False,
         *,
         needs_leading_newline: bool,
     ) -> tuple[bool, bool]:
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
+        max_pass_len = 0
         if self.problem.multi_pass:
-            max_testcase_len += 2
+            max_pass_len = len(str(self.problem.limits.validation_passes))
+            max_testcase_len += max_pass_len + len(f":{Fore.CYAN}{Style.RESET_ALL}")
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
@@ -420,10 +452,15 @@ class Submission(program.Program):
         if config.args.all == 2 or config.args.reorder:
             run_until = RunUntil.ALL
 
+        run_testcase: list[Testcase] = []
+        skip_testcase: list[Testcase] = []
+        for testcase in testcases:
+            (skip_testcase if skip_test_case(self, testcase) else run_testcase).append(testcase)
         verdicts = Verdicts(
-            testcases,
+            run_testcase,
             self.problem.limits.timeout,
             run_until,
+            skip_testcase,
         )
 
         verdict_table.next_submission(verdicts)
@@ -488,16 +525,22 @@ class Submission(program.Program):
                     data += "\n"
                 data += f"{f.name}:" + localbar._format_data(t) + "\n"
 
-            got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
+            permitted = self.expectations.all_permitted(run.testcase)
+            got_permitted = result.verdict in permitted
+            if not got_permitted:
+                permittedmsg = f"permitted: [{','.join([v.short() for v in permitted])}]"
+                data = "  ".join([permittedmsg, data])
 
-            if result.verdict == Verdict.ACCEPTED:
+            if result.verdict == Verdict.ACCEPTED and got_permitted:
                 color = f"{Style.DIM}"
             else:
-                color = Fore.GREEN if got_expected else Fore.RED
+                color = Fore.GREEN if got_permitted else Fore.RED
             timeout = result.duration >= self.problem.limits.timeout
             duration_style = Style.BRIGHT if timeout else ""
             passmsg = (
-                f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multi_pass else ""
+                f":{Fore.CYAN}{result.pass_id:<{max_pass_len}}{Style.RESET_ALL}"
+                if self.problem.multi_pass
+                else ""
             )
             testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
             style_len = len(f"{Style.RESET_ALL}")
@@ -505,23 +548,55 @@ class Submission(program.Program):
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
-            localbar.done(got_expected, message, data, print_item=False)
+            localbar.done(got_permitted, message, data, print_item=False)
 
         parallel.run_tasks(process_run, runs, pin=True)
+        bar.item_width -= max_testcase_len + 1
+
+        # We already printed a message if permitted is not satisfied
+        passed_permitted = True
+        passed_required = True
+        for expectation in self.expectations.all_matches():
+            passed_cur_required = False
+            message = expectation.message
+            got = set()
+            for run in runs:
+                testcase = run.testcase
+                if not expectation.matches(testcase):
+                    continue
+                verdict = verdicts[testcase.name]
+                if isinstance(verdict, Verdict):
+                    got.add(verdict)
+                    passed_permitted &= verdict in expectation.permitted
+                    passed_cur_required |= verdict in expectation.required
+                    # the spec explicitly says judgemessage, not cerr/cout
+                    judgemessage = run.feedbackdir / "judgemessage.txt"
+                    if (
+                        message is not None
+                        and judgemessage.is_file()
+                        and message in judgemessage.read_text(errors="replace")
+                    ):
+                        message = None
+                else:
+                    # if we do not have verdict we skipped that case
+                    # that case could satisfy our constraints => do not warn
+                    passed_cur_required = True
+                    message = None
+            if not passed_cur_required:
+                requiredmsg = ",".join([v.short() for v in expectation.required])
+                gotmsg = ",".join([v.short() for v in got])
+                msg = [f"required: [{requiredmsg}]"]
+                if expectation.test_case_glob is not None:
+                    msg += ["for", expectation.test_case_glob]
+                bar.warn(f"{' '.join(msg)}, got: [{gotmsg}]")
+                passed_required = False
+            if message is not None:
+                bar.warn(f"missing '{crop_line(message, 15)}' in judgemessage.txt")
 
         verdict = verdicts["."]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
         self.verdict = verdict
-
-        # Use a bold summary line if things were printed before.
-        if bar.logged:
-            color = (
-                Style.BRIGHT + Fore.GREEN
-                if self.verdict in self.expected_verdicts
-                else Style.BRIGHT + Fore.RED
-            )
-        else:
-            color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
+        color = Fore.GREEN if passed_permitted and passed_required else Fore.RED
 
         (salient_testcase, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
@@ -529,21 +604,25 @@ class Submission(program.Program):
             Style.BRIGHT if salient_duration >= self.problem.limits.timeout else ""
         )
 
+        # Use a bold summary line if things were printed before
+        if bar.logged:
+            color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
         message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_test_case()
             assert slowest_pair is not None
-            (slowest_testcase, slowest_duration) = slowest_pair
-            slowest_verdict = verdicts[slowest_testcase]
+            (slowest_name, slowest_duration) = slowest_pair
+            slowest_verdict = verdicts[slowest_name]
             assert isinstance(slowest_verdict, Verdict), (
                 "Verdict of slowest testcase must not be empty"
             )
+            slowest_testcase = next(t for t in testcases if t.name == slowest_name)
 
             slowest_color = (
                 Fore.GREEN
-                if slowest_verdict == Verdict.ACCEPTED or slowest_verdict in self.expected_verdicts
+                if slowest_verdict in self.expectations.all_permitted(slowest_testcase)
                 else Fore.RED
             )
 
@@ -551,9 +630,8 @@ class Submission(program.Program):
                 Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
             )
 
-            message += f" {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
+            message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
 
-        bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
         if config.args.tree:
             verdict_table.print(force=True, new_lines=0)
@@ -561,7 +639,7 @@ class Submission(program.Program):
             eprint()
             printed_newline = True
 
-        return self.verdict in self.expected_verdicts, printed_newline
+        return passed_permitted and passed_required, printed_newline
 
     def test(self) -> None:
         eprint(ProgressBar.action("Running", str(self.name)))

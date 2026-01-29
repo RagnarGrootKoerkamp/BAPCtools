@@ -245,7 +245,7 @@ class Testcase:
         )
 
         # Display name: everything after data/.
-        self.name: str = str(self.short_path.with_suffix(""))
+        self.name: str = self.short_path.with_suffix("").as_posix()
         # cache for test_case.yaml
         self._test_case_yaml: Optional[TestGroup] = None
 

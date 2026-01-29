@@ -1,0 +1,146 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+        "Person": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string"
+                        },
+                        "kattis": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "orcid": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ]
+                }
+            ]
+        },
+        "Persons": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Person"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/Person"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/Person"
+                        }
+                    ],
+                    "minLength": 1
+                }
+            ]
+        },
+        "expectation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "permitted": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/verdict"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/verdict"
+                        }
+                    ],
+                    "minLength": 1
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/verdict"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/verdict"
+                        }
+                    ],
+                    "minLength": 1
+                },
+                "score": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "array",
+                            "prefixItems": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ],
+                            "maxLength": 2,
+                            "minLength": 2
+                        }
+                    ]
+                },
+                "use_for_time_limit": {
+                    "enum": [
+                        false,
+                        "lower",
+                        "upper"
+                    ]
+                }
+            }
+        },
+        "submission": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+                "authors": {
+                    "$ref": "#/$defs/Persons"
+                },
+                "entrypoint": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "model_solution": {
+                    "type": "boolean"
+                }
+            },
+            "$ref": "#/$defs/expectation"
+        },
+        "verdict": {
+            "enum": [
+                "AC",
+                "WA",
+                "RTE",
+                "TLE"
+            ]
+        }
+    },
+    "type": "object",
+    "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+            "$ref": "#/$defs/expectation"
+        },
+        "$ref": "#/$defs/submission"
+    }
+}

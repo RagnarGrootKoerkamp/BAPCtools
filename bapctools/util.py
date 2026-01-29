@@ -641,13 +641,6 @@ def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     return [p / type, p, p.parent, config.current_working_directory]
 
 
-# Python 3.9
-# True when child is a Path inside parent Path.
-# Both must be absolute.
-def is_relative_to(parent: Path, child: Path) -> bool:
-    return child == parent or parent in child.parents
-
-
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
 ) -> Optional[Path]:
@@ -1259,6 +1252,15 @@ def math_eval(text: str) -> Optional[int | float]:
     return None
 
 
+def crop_line(output: str, limit: int) -> str:
+    output = output.strip()
+    if "\n" in output:
+        output = output.partition("\n")[0] + "[...]"
+    if len(output) > limit:
+        output = f"{output[: limit - 5]}[...]"
+    return output
+
+
 def crop_output(output: str) -> str:
     if config.args.error:
         return output
@@ -1275,7 +1277,7 @@ def crop_output(output: str) -> str:
     # Cap total length.
     if len(output) > 2000:
         output = output[:2000]
-        output += " ...\n"
+        output += "[...]\n"
         cropped = True
 
     if cropped:
