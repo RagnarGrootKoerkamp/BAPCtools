@@ -112,7 +112,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         if attachments_dir.is_dir():
             for f in attachments_dir.iterdir():
                 if f.is_dir():
-                    bar.error(f"{f} directory attachments are not yet supported.")
+                    bar.error(f"{f.name} directory attachments are not supported.")
                 elif f.is_file():
                     if f.name.startswith("."):
                         continue  # Skip dotfiles
@@ -158,7 +158,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         (f"{AnswerValidator.source_dir}/**/*", False),  # TODO required when not interactive?
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
-        ("attachments/**/*", problem.interactive or problem.multi_pass),
+        ("attachments/*", problem.interactive or problem.multi_pass),
         (f"{InputVisualizer.source_dir}/**/*", False),
         (f"{OutputVisualizer.source_dir}/**/*", False),
     ]
@@ -359,6 +359,12 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     add_file(base_name.with_suffix(".in"), in_file)
                 if ans_file.stat().st_size > 0:
                     add_file(base_name.with_suffix(".ans"), ans_file)
+
+        # attachments must be files.
+        for f in list((export_dir / "attachments").iterdir()):
+            if f.is_dir():
+                bar.error(f"{f.name} directory attachments are not supported.")
+                f.unlink()
 
         # handle time limit
         if not config.args.kattis:
