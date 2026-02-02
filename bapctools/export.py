@@ -204,7 +204,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 add_file(f.relative_to(problem.path), f)
 
     # attachments must be files
-    if any(d.is_dir() for d in (problem.path / "attachments").iterdir()):
+    if any(d.is_dir() for d in glob(problem.path, "attachments/*", include_hidden=True)):
         bar.error("Directory attachments are not supported.")
 
     def add_testcase(in_file: Path) -> None:
