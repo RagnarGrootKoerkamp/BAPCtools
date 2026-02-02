@@ -112,7 +112,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         if attachments_dir.is_dir():
             for f in attachments_dir.iterdir():
                 if f.is_dir():
-                    bar.error(f"{f.name} directory attachments are not supported.")
+                    bar.error(f"{f} directory attachments are not supported.")
                 elif f.is_file():
                     if f.name.startswith("."):
                         continue  # Skip dotfiles
@@ -202,6 +202,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         for f in paths:
             if f.is_file() and not f.name.startswith("."):
                 add_file(f.relative_to(problem.path), f)
+
+    # attachments must be files
+    if any(d.is_dir() for d in (problem.path / "attachments").iterdir()):
+        bar.error("Directory attachments are not supported.")
 
     def add_testcase(in_file: Path) -> None:
         base_name = drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
@@ -359,12 +363,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     add_file(base_name.with_suffix(".in"), in_file)
                 if ans_file.stat().st_size > 0:
                     add_file(base_name.with_suffix(".ans"), ans_file)
-
-        # attachments must be files.
-        for f in list((export_dir / "attachments").iterdir()):
-            if f.is_dir():
-                bar.error(f"{f.name} directory attachments are not supported.")
-                f.unlink()
 
         # handle time limit
         if not config.args.kattis:
