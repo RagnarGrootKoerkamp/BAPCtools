@@ -556,7 +556,6 @@ class Program:
                     f"{str(d)} does not match directory name regex {config.FILE_NAME_REGEX.pattern}"
                 )
                 return False
-        return True
         for f in self.source_files:
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
