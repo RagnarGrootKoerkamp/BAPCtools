@@ -585,6 +585,15 @@ class Problem:
             p._warned_for_test_case.add(test_name)
             warn(msg)
 
+    def _valid_test_group(p, path: Path) -> bool:
+        for group in reversed(path.parents[:-1]):
+            if not config.FILE_NAME_REGEX.fullmatch(group.name):
+                p._warn_once(
+                    group.as_posix(), f"Test group name {group.name} is not valid. Skipping."
+                )
+                return False
+        return True
+
     def testcases(
         p,
         *,
@@ -637,6 +646,8 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
+            if not p._valid_test_group(t.short_path):
+                continue
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 p._warn_once(t.name, f"Test case name {t.name} is not valid. Skipping.")
                 continue
