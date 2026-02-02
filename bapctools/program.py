@@ -549,10 +549,20 @@ class Program:
             return False
 
         # Check file names.
+        for d in reversed(self.short_path.parents[:-1]):
+            if not config.FILE_NAME_REGEX.fullmatch(d.name):
+                self.ok = False
+                bar.error(
+                    f"{str(d)} does not match directory name regex {config.FILE_NAME_REGEX.pattern}"
+                )
+                return False
+        return True
         for f in self.source_files:
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
-                bar.error(f"{str(f)} does not match file name regex {config.FILE_NAME_REGEX}")
+                bar.error(
+                    f"{str(f)} does not match file name regex {config.FILE_NAME_REGEX.pattern}"
+                )
                 return False
 
         # Link all source_files

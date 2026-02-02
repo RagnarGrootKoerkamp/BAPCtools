@@ -1807,7 +1807,7 @@ class GeneratorConfig:
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
-                or not config.FILE_NAME_REGEX.fullmatch(gen + ".x")
+                or not config.FILE_NAME_REGEX.fullmatch(gen)
             ):
                 raise ParseException("Invalid generator name", f"generators/{gen}")
 
