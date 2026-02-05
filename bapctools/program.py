@@ -40,9 +40,8 @@ class Language:
     ID_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
     ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
-    # Out-of-spec variables used by 'manual' and 'Viva' languages.
-    INTERNAL_ENTRY_POINTS: Final[Sequence[str]] = ("run",)
-    INTERNAL_VARIABLES: Final[Sequence[str]] = ("viva_jar", "build", *INTERNAL_ENTRY_POINTS)
+    # Out-of-spec variables used by 'manual' language.
+    INTERNAL_ENTRY_POINTS: Final[Sequence[str]] = ("build",)
     # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
     INTERNAL_PREFIX: Final[str] = "BAPCtools:"
 
@@ -84,7 +83,7 @@ class Language:
         known_variables = set(Language.VARIABLES)
         known_entry_points = set(Language.ENTRY_POINTS)
         if lang_id.startswith(Language.INTERNAL_PREFIX):
-            known_variables |= set(Language.INTERNAL_VARIABLES)
+            known_variables |= set(Language.INTERNAL_ENTRY_POINTS)
             known_entry_points |= set(Language.INTERNAL_ENTRY_POINTS)
         for unknown in variables - known_variables:
             error(f"Unknown meta variable {unknown} in languages.yaml for '{lang_id}'.")
@@ -139,7 +138,7 @@ VIVA: Final[Language] = Language(
         "name": "viva",
         "priority": 2,
         "files": "*.viva",
-        "run": "java -jar {viva_jar} {mainfile}",
+        "run": f"java -jar {config.RESOURCES_ROOT / 'third_party' / 'viva' / 'viva.jar'} {{mainfile}}",
     },
 )
 EXTRA_LANGUAGES: Final[Sequence[Language]] = (
@@ -152,7 +151,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
             "priority": 9999,
             "files": "build run",
             "compile": "{build}",
-            "run": "{run}",
+            "run": "{path}/run",
         },
     ),
 )
@@ -407,12 +406,10 @@ class Program:
                 "Mainclass": mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
                 "memlim": self.limits.get("memory", config.DEFAULT_MEMORY),
-                # Out-of-spec variables used by 'manual' and 'Viva' languages.
+                # Out-of-spec variables used by 'manual' language.
                 "build": (
                     self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
                 ),
-                "run": self.tmpdir / "run",
-                "viva_jar": config.RESOURCES_ROOT / "third_party/viva/viva.jar",
             }
 
             return True
