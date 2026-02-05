@@ -126,7 +126,9 @@ CHECKTESTDATA: Final[Language] = Language(
         "name": "checktestdata",
         "priority": 1,
         "files": "*.ctd",
-        "run": "checktestdata {mainfile}",
+        "run": shlex.join(
+            [str(config.RESOURCES_ROOT / "third_party" / "checktestdata"), "{mainfile}"]
+        ),
     },
 )
 VIVA: Final[Language] = Language(
@@ -135,7 +137,14 @@ VIVA: Final[Language] = Language(
         "name": "viva",
         "priority": 2,
         "files": "*.viva",
-        "run": f"java -jar {config.RESOURCES_ROOT / 'third_party' / 'viva' / 'viva.jar'} {{mainfile}}",
+        "run": shlex.join(
+            [
+                "java",
+                "-jar",
+                str(config.RESOURCES_ROOT / "third_party" / "viva" / "viva.jar"),
+                "{mainfile}",
+            ]
+        ),
     },
 )
 EXTRA_LANGUAGES: Final[Sequence[Language]] = (

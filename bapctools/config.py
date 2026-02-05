@@ -108,9 +108,6 @@ RESOURCES_ROOT: Final[Path] = Path(bapctools.__file__).parent / "resources"
 # The directory from which BAPCtools is invoked.
 current_working_directory: Final[Path] = Path.cwd().absolute()
 
-# Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(RESOURCES_ROOT / "third_party")
-
 # Below here is some global state that will be filled in main().
 
 level: Optional[Literal["problem", "problemset"]] = None
