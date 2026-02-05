@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Testing tool for the XXX problem  # TODO update name
+# Testing tool for the {%problemname%} problem
 #
 # Usage:
 #
@@ -41,7 +41,7 @@ import argparse
 import subprocess
 import traceback
 
-parser = argparse.ArgumentParser(description="Testing tool for problem XXX.")  # TODO update name
+parser = argparse.ArgumentParser(description="Testing tool for problem {%problemname%}.")
 parser.add_argument(
     "-f",
     dest="inputfile",
@@ -83,6 +83,7 @@ with (
         print(f"Read: {line}", flush=True)
         return line
 
+    # TODO implement me
     # Parse input
     lines = f.readlines()
     w, h = map(int, lines[0].split())

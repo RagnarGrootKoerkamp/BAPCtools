@@ -11,6 +11,7 @@ from bapctools.util import (
     ask_variable_bool,
     ask_variable_choice,
     ask_variable_string,
+    copy_and_substitute,
     copytree_and_substitute,
     error,
     fatal,
@@ -67,13 +68,13 @@ def new_contest() -> None:
 
 
 def get_skel_dir(target_dir: Path) -> tuple[Path, bool]:
-    skeldir = config.RESOURCES_ROOT / "skel/problem"
+    skeldir = config.RESOURCES_ROOT / "skel" / "problem"
     preserve_symlinks = False
-    if (target_dir / "skel/problem").is_dir():
-        skeldir = target_dir / "skel/problem"
+    if (target_dir / "skel" / "problem").is_dir():
+        skeldir = target_dir / "skel" / "problem"
         preserve_symlinks = True
-    if (target_dir / "../skel/problem").is_dir():
-        skeldir = target_dir / "../skel/problem"
+    if (target_dir / ".." / "skel" / "problem").is_dir():
+        skeldir = target_dir / ".." / "skel" / "problem"
         preserve_symlinks = True
     if config.args.skel:
         skeldir = Path(config.args.skel)
@@ -208,6 +209,17 @@ def new_problem() -> None:
         preserve_symlinks=preserve_symlinks,
         skip=skip,
     )
+
+    if "interactive" in problem_type or "multi-pass" in problem_type:
+        testing_tool = f"testing_tool{'_multi_pass' if 'multi-pass' in problem_type else ''}.py"
+
+        attachment_dir = target_dir / dirname / "attachments"
+        attachment_dir.mkdir(parents=True, exist_ok=True)
+        copy_and_substitute(
+            config.RESOURCES_ROOT / "skel" / testing_tool,
+            attachment_dir / "testing_tool.py",
+            variables,
+        )
 
     # Warn about missing problem statement skeletons for non-en languages
     for lang in statement_languages:

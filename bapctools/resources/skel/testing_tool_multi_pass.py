@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Testing tool for the XXX problem  # TODO update name
+# Testing tool for the {%problemname%} problem
 #
 # Usage:
 #
@@ -42,7 +42,7 @@ import argparse
 import subprocess
 import traceback
 
-parser = argparse.ArgumentParser(description="Testing tool for problem XXX.")  # TODO update name
+parser = argparse.ArgumentParser(description="Testing tool for problem {%problemname%}.")
 parser.add_argument(
     "-f",
     dest="inputfile",
@@ -57,6 +57,7 @@ parser.add_argument("program", nargs="+", help="Invocation of your solution")
 args = parser.parse_args()
 
 
+# TODO implement me
 def single_pass(action: str, words: list[str]) -> list[str]:
     with (
         subprocess.Popen(
