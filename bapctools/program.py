@@ -41,8 +41,6 @@ class Language:
     ID_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
     ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
-    # Out-of-spec variables used by 'manual' language.
-    INTERNAL_ENTRY_POINTS: Final[Sequence[str]] = ("build",)
     # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
     INTERNAL_PREFIX: Final[str] = "BAPCtools:"
 
@@ -81,15 +79,10 @@ class Language:
         variables = get_variables(self.run)
         if self.compile is not None:
             variables |= get_variables(self.compile)
-        known_variables = set(Language.VARIABLES)
-        known_entry_points = set(Language.ENTRY_POINTS)
-        if lang_id.startswith(Language.INTERNAL_PREFIX):
-            known_variables |= set(Language.INTERNAL_ENTRY_POINTS)
-            known_entry_points |= set(Language.INTERNAL_ENTRY_POINTS)
-        for unknown in variables - known_variables:
+        for unknown in variables - set(Language.VARIABLES):
             error(f"Unknown meta variable {unknown} in languages.yaml for '{lang_id}'.")
             self.ok = False
-        entry_points = variables & known_entry_points
+        entry_points = variables & set(Language.ENTRY_POINTS)
         if len(entry_points) != 1:
             error(f"Expected exactly one entry point in languages.yaml for '{lang_id}'.")
             self.ok = False
@@ -124,6 +117,9 @@ class Language:
             return False
 
 
+BINARY_NAME: Final[str] = "run"
+BUILD_NAME: Final[str] = "build"
+
 CHECKTESTDATA: Final[Language] = Language(
     Language.INTERNAL_PREFIX + "checktestdata",
     {
@@ -150,9 +146,18 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
         {
             "name": "manual",
             "priority": 9999,
-            "files": "build run",
-            "compile": "{build}",
-            "run": f"{{path}}{os.sep}run",
+            "files": BUILD_NAME,
+            "compile": f"{{path}}{os.sep}{BUILD_NAME}",
+            "run": "{binary}",
+        },
+    ),
+    Language(
+        Language.INTERNAL_PREFIX + "manual",
+        {
+            "name": "manual",
+            "priority": 9998,
+            "files": BINARY_NAME,
+            "run": "{binary}",
         },
     ),
 )
@@ -328,10 +333,8 @@ class Program:
     # Do not warn for the same fallback language multiple times.
     warn_cache: set[str] = set()
 
-    # checks all languages and gives them a score
-    def _get_language_candidates(
-        self, bar: ProgressBar
-    ) -> list[tuple[tuple[int, int, int], Language, list[Path]]]:
+    # checks all languages and sorts them
+    def _get_language_candidates(self, bar: ProgressBar) -> list[tuple[Language, list[Path]]]:
         candidates = []
         for lang in languages():
             matching_files = []
@@ -345,10 +348,10 @@ class Program:
             candidates.append(
                 ((lang.priority // 1000, len(matching_files), lang.priority), lang, matching_files)
             )
-        return candidates
+        return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
-        binary = self.tmpdir / "run"
+        binary = self.tmpdir / BINARY_NAME
         mainfile = None
         if not self.has_deps:
             assert files
@@ -366,10 +369,9 @@ class Program:
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar) -> bool:
         candidates = self._get_language_candidates(bar)
-        candidates.sort(reverse=True)
 
         fallback = False
-        for _, lang, files in candidates:
+        for lang, files in candidates:
             name = lang.name
             # Make sure we can compile programs for this language.
             if lang.compile_exe is not None and shutil.which(lang.compile_exe) is None:
@@ -407,10 +409,6 @@ class Program:
                 "Mainclass": mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
                 "memlim": self.limits.get("memory", config.DEFAULT_MEMORY),
-                # Out-of-spec variables used by 'manual' language.
-                "build": (
-                    self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
-                ),
             }
 
             return True
