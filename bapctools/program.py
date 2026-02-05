@@ -1,3 +1,4 @@
+import os
 import re
 import shlex
 import shutil
@@ -151,7 +152,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
             "priority": 9999,
             "files": "build run",
             "compile": "{build}",
-            "run": "{path}/run",
+            "run": f"{{path}}{os.sep}run",
         },
     ),
 )
