@@ -282,7 +282,7 @@ class Testcase:
 
         # consider specific files for the core of this test case
         relevant_files = {
-            "invalid_input": ["in"],
+            "invalid_input": [".in"],
             "invalid_answer": [".in", ".ans"],
             "invalid_output": [".in", ".ans", ".out"],
             "valid_output": [".in", ".ans", ".out"],
