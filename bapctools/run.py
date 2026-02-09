@@ -109,7 +109,9 @@ class Run:
                 tle_result = None
                 while True:
                     pass_id += 1
-                    result = self.submission.run(self.in_path, self.out_path)
+                    result = self.submission.run(
+                        self.in_path, self.out_path, args=submission_args or []
+                    )
                     max_duration = max(max_duration, result.duration)
 
                     # write an interaction file for samples
