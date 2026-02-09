@@ -1435,32 +1435,12 @@ class TestcaseRule(Rule):
                     # both source and target do not exist
                     pass
 
-        def add_test_case_to_cache() -> None:
+        def add_test_case_to_cache(testcase: Testcase) -> None:
             # Used to identify generated test cases
             generator_config.hashed_in.add(hash_file_content(infile))
 
-            # Store the hashes of the generated files for this test case to detect duplicate test cases.
-            hashes = {}
-
-            # consider specific files for the uniqueness of this testcase
-            relevant_files = {
-                "testing_tool_test": [".in"],
-                "invalid_input": [".in"],
-                "invalid_answer": [".in", ".ans"],
-                "invalid_output": [".in", ".ans", ".out"],
-                "valid_output": [".in", ".ans", ".out"],
-            }
-            relevant_files_default = [".in"] if problem.settings.ans_is_output else [".in", ".ans"]
-            extensions = relevant_files.get(t.root, relevant_files_default)
-
-            for ext in extensions:
-                if target_infile.with_suffix(ext).is_file():
-                    hashes[ext] = hash_file_content(target_infile.with_suffix(ext))
-
-            # combine hashes
-            test_hash = combine_hashes_dict(hashes)
-
             # check for duplicates
+            test_hash = testcase.core_hash(bar)
             if test_hash not in generator_config.generated_test_cases:
                 generator_config.generated_test_cases[test_hash] = t
             else:
@@ -1486,6 +1466,7 @@ class TestcaseRule(Rule):
         if not generate_from_rule():
             return
 
+        testcase: Optional[Testcase] = None
         if infile.is_file():
             # Step 3: check .in if needed
             testcase = Testcase(problem, infile, short_path=t.path / t.name)
@@ -1533,7 +1514,8 @@ class TestcaseRule(Rule):
         generator_config.failed -= 1
         generator_config.generated += 1
         if infile.is_file():
-            add_test_case_to_cache()
+            assert testcase is not None
+            add_test_case_to_cache(testcase)
         if config.args.action != "generate":
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
         bar.done(message="SKIPPED: up to date")

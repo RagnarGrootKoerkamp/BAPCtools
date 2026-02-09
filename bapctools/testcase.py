@@ -1,5 +1,6 @@
 """Test case"""
 
+import shlex
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
@@ -16,6 +17,7 @@ from bapctools.util import (
     combine_hashes_dict,
     ExecStatus,
     fatal,
+    hash_file_content,
     parse_yaml,
     print_name,
     ProgressBar,
@@ -272,6 +274,33 @@ class Testcase:
         else:
             self._test_case_yaml = test_group_yaml
         return self._test_case_yaml
+
+    # Returns a hash of the core part of the test case (the part that is usually supposed to be unique)
+    def core_hash(self, bar: BAR_TYPE) -> str:
+        # Store the hashes of the generated files for this test case
+        hashes = {}
+
+        # consider specific files for the core of this test case
+        relevant_files = {
+            "invalid_input": ["in"],
+            "invalid_answer": [".in", ".ans"],
+            "invalid_output": [".in", ".ans", ".out"],
+            "valid_output": [".in", ".ans", ".out"],
+        }
+        relevant_files_default = [".in"] if self.problem.settings.ans_is_output else [".in", ".ans"]
+        extensions = relevant_files.get(self.root, relevant_files_default)
+
+        for ext in extensions:
+            file = self.with_suffix(ext)
+            if file.is_file():
+                hashes[ext] = hash_file_content(file)
+
+        # always consider args and output_validator_args
+        testcase_yaml = self.get_test_case_yaml(bar)
+        hashes["sumission_args"] = shlex.join(testcase_yaml.args)
+        hashes["output_validator_args"] = shlex.join(testcase_yaml.output_validator_args)
+
+        return combine_hashes_dict(hashes)
 
     def validator_hashes(
         self, cls: type[validate.AnyValidator], bar: BAR_TYPE

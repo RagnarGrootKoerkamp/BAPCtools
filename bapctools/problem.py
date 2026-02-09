@@ -27,14 +27,12 @@ from bapctools import (
 from bapctools.expectations import Person
 from bapctools.util import (
     BAR_TYPE,
-    combine_hashes_dict,
     drop_suffix,
     eprint,
     error,
     fatal,
     generate_problem_uuid,
     glob,
-    hash_file_content,
     is_uuid,
     log,
     math_eval,
@@ -1246,22 +1244,10 @@ class Problem:
         self._testcase_hashes: dict[str, testcase.Testcase] = {}
 
     # Returns None for new testcases or the Testcase object it equals.
-    def matches_existing_testcase(self, t: testcase.Testcase) -> Optional[testcase.Testcase]:
-        hashes = {}
-        relevant_files = {
-            "invalid_input": ["in"],
-            "invalid_answer": [".in", ".ans"],
-            "invalid_output": [".in", ".ans", ".out"],
-            "valid_output": [".in", ".ans", ".out"],
-        }
-        relevant_files_default = [".in"] if self.settings.ans_is_output else [".in", ".ans"]
-        extensions = relevant_files.get(t.root, relevant_files_default)
-
-        for ext in extensions:
-            if t.with_suffix(ext).is_file():
-                hashes[ext] = hash_file_content(t.with_suffix(ext))
-
-        h = combine_hashes_dict(hashes)
+    def matches_existing_testcase(
+        self, t: testcase.Testcase, bar: BAR_TYPE
+    ) -> Optional[testcase.Testcase]:
+        h = t.core_hash(bar)
         if h in self._testcase_hashes:
             return self._testcase_hashes[h]
         self._testcase_hashes[h] = t
@@ -1481,7 +1467,7 @@ class Problem:
             localbar = bar.start(testcase.name)
 
             if mode == validate.Mode.INPUT and not testcase.in_path.is_symlink() and not extra:
-                t2 = problem.matches_existing_testcase(testcase)
+                t2 = problem.matches_existing_testcase(testcase, localbar)
                 if t2 is not None:
                     localbar.warn(
                         f"Duplicate testcase: identical to {t2.name}. If this is intentional use symlinks/count/includes."
