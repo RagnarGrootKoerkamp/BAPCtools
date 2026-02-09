@@ -590,7 +590,7 @@ class TestcaseRule(Rule):
                         pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                     )
 
-                    # then replace {count} and {seed}
+                    # then replace {count}
                     if "{count}" in command_string:
                         if has_count(yaml):
                             command_string = command_string.replace(
