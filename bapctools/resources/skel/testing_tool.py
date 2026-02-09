@@ -128,7 +128,8 @@ with (
         print()
         print(f"Found a valid solution: ({x1}, {y1}) and ({x2}, {y2})")
         print(f"Queries used: {queries}", flush=True)
-        assert (extra := p_out.readline()) == "", (
+        extra = p_out.readline()
+        assert extra == "", (
             f"Your submission printed extra data after finding a solution: '{extra[:100].strip()}{'...' if len(extra) > 100 else ''}'"
         )
         print(f"Exit code: {p.wait()}", flush=True)
