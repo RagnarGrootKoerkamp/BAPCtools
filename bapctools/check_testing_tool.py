@@ -1,14 +1,18 @@
+import ast
 import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
+from colorama import Fore
+
 from bapctools import config, parallel
 from bapctools.program import Program
 from bapctools.run import Submission
 from bapctools.util import (
     command_supports_memory_limit,
+    crop_output,
     default_exec_code_map,
     ensure_symlink,
     error,
@@ -186,6 +190,34 @@ class TestingTool(Program):
         )
         return exec_res
 
+    # this only works for single file python 3 files
+    def check_python_version(self) -> None:
+        if "python" not in self.language.name.lower():
+            return
+        if "3" not in self.language.name.lower():
+            return
+        if len(self.source_files) != 1:
+            return
+        source = self.source_files[0].read_text()
+        versions = {f"3.{v}": v for v in range(7, sys.version_info.minor + 1)}
+        bar = ProgressBar("Checking Python version", items=list(versions))
+        for version_str, version in versions.items():
+            localbar = bar.start(version_str)
+            try:
+                ast.parse(
+                    source,
+                    filename=self.source_files[0],
+                    type_comments=True,
+                    feature_version=version,
+                )
+                localbar.log("OK")
+            except (SyntaxError, UnicodeDecodeError, ValueError, OSError) as e:
+                config.n_warn += 1
+                color = Fore.YELLOW if version < 10 else Fore.RED
+                localbar.log("ERROR", data=crop_output(str(e)), color=color)
+            localbar.done()
+        bar.finalize(print_done=False)
+
 
 def run(
     problem: "Problem", testinputs: Sequence[TestInput], submissions: Sequence[Submission]
@@ -215,6 +247,8 @@ def run(
         return False
     localbar.done()
     bar.finalize(print_done=False)
+
+    testing_tool.check_python_version()
 
     ok = True
 
