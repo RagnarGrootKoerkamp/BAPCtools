@@ -146,22 +146,21 @@ class Invocation:
         *,
         allow_absolute: bool,
         allow_relative: bool = True,
+        allow_args: bool = True,
     ) -> None:
+        self.problem = problem
+        self.command_string = string
+
         commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
-        self.problem = problem
-
-        # The original command string, used for caching invocation results.
-        self.command_string = string
+        if not allow_args and self.args:
+            raise ParseException(f"{command} must not be invoked with arguments")
 
         # The name of the program to be executed, relative to the problem root.
         self.program_path = resolve_path(
             command, allow_absolute=allow_absolute, allow_relative=allow_relative
         )
-
-        # NOTE: This is also used by `fuzz`.
-        self.uses_seed = self.SEED_REGEX.search(self.command_string)
 
         # Make sure that {seed} occurs at most once.
         seed_cnt = 0
@@ -169,6 +168,9 @@ class Invocation:
             seed_cnt += len(self.SEED_REGEX.findall(arg))
         if seed_cnt > 1:
             raise ParseException("{seed(:[0-9]+)} may appear at most once.")
+
+        # NOTE: This is also used by `fuzz`.
+        self.uses_seed = seed_cnt > 0
 
         # Automatically set self.program when that program has been built.
         self.program: Optional[program.Generator | run.Submission] = None
@@ -244,7 +246,9 @@ class GeneratorInvocation(Invocation):
 
 class SolutionInvocation(Invocation):
     def __init__(self, problem: Problem, string: str) -> None:
-        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
+        super().__init__(
+            problem, string, allow_absolute=True, allow_relative=False, allow_args=False
+        )
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
@@ -255,9 +259,7 @@ class SolutionInvocation(Invocation):
         ans_path = cwd / "testcase.ans"
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(
-            in_path, ans_path, args=self.args, cwd=cwd, generator_timeout=True
-        )
+        result = self.program.run(in_path, ans_path, cwd=cwd, generator_timeout=True)
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
@@ -280,7 +282,7 @@ class SolutionInvocation(Invocation):
         r = run.Run(self.problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = r.run(bar, interaction=interaction_path, submission_args=self.args)
+        result = r.run(bar, interaction=interaction_path)
         if result.verdict != Verdict.ACCEPTED:
             bar.error(f"could not generate .interaction, submission got {result.verdict}")
             return False
@@ -607,10 +609,10 @@ class TestcaseRule(Rule):
                     if self.count_value != 1:  # distinguish different count values
                         # IMPORTANT: We need to use `self.count_value - 1` for backwards compatibility.
                         seed_value += f":{self.count_value - 1}"
-                    seed_value += self.generator.command_string.strip()
+                    seed_value += command_string.strip()
                     self.seed = int(hash_string(seed_value), 16) % 2**31
                     self.in_is_generated = True
-                    self.rule["gen"] = self.generator.command_string
+                    self.rule["gen"] = command_string
                     if self.generator.uses_seed:
                         self.rule["seed"] = self.seed
                         self.intended_copy = False
@@ -852,19 +854,8 @@ class TestcaseRule(Rule):
         ):
             if not config.args.no_validators:
                 if t.generator:
-                    bar.warn(
-                        "Failed generator command: "
-                        + (
-                            " ".join(
-                                [
-                                    str(t.generator.program_path),
-                                    *t.generator._sub_args(seed=t.seed),
-                                ]
-                            )
-                            if t.generator.uses_seed
-                            else t.generator.command_string
-                        ),
-                    )
+                    command = t.generator.cache_command(t.seed if t.generator.uses_seed else None)
+                    bar.warn(f"Failed generator command: {command}")
                 bar.debug("Use generate --no-validators to ignore validation results.")
                 bar.done(False)
                 return False

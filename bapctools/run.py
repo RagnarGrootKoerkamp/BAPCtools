@@ -78,8 +78,8 @@ class Run:
         bar: ProgressBar,
         *,
         interaction: Optional[bool | Path] = None,
-        submission_args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
+        submission_args = self.testcase.get_test_case_yaml(bar).args
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args, bar=bar
