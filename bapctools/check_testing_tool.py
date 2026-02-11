@@ -1,18 +1,14 @@
-import ast
 import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
-
-from colorama import Fore
+from typing import Final, Optional, TYPE_CHECKING
 
 from bapctools import config, parallel
 from bapctools.program import Program
 from bapctools.run import Submission
 from bapctools.util import (
     command_supports_memory_limit,
-    crop_output,
     default_exec_code_map,
     ensure_symlink,
     error,
@@ -23,6 +19,8 @@ from bapctools.util import (
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.problem import Problem
+
+import vermin
 
 """DISCLAIMER:
 
@@ -37,6 +35,9 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
    - the testing tool must exits with a non zero exit code if something goes wrong
    - the testing tool must not change the working directory
 """
+
+
+EXPECTED_PYTHON_MINOR_VERSION: Final[int] = 10
 
 
 class TestInput:
@@ -191,7 +192,7 @@ class TestingTool(Program):
         return exec_res
 
     # this only works for single file python 3 files
-    def check_python_version(self) -> None:
+    def check_python_version(self, bar: ProgressBar) -> None:
         if "python" not in self.language.name.lower():
             return
         if "3" not in self.language.name.lower():
@@ -199,24 +200,30 @@ class TestingTool(Program):
         if len(self.source_files) != 1:
             return
         source = self.source_files[0].read_text()
-        versions = {f"3.{v}": v for v in range(7, sys.version_info.minor + 1)}
-        bar = ProgressBar("Checking Python version", items=list(versions))
-        for version_str, version in versions.items():
-            localbar = bar.start(version_str)
-            try:
-                ast.parse(
-                    source,
-                    filename=self.source_files[0],
-                    type_comments=True,
-                    feature_version=version,
-                )
-                localbar.log("OK")
-            except (SyntaxError, UnicodeDecodeError, ValueError, OSError) as e:
-                config.n_warn += 1
-                color = Fore.YELLOW if version < 10 else Fore.RED
-                localbar.log("ERROR", data=crop_output(str(e)), color=color)
-            localbar.done()
-        bar.finalize(print_done=False)
+
+        vermin_conf = vermin.Config()
+        vermin_conf.set_verbose(4)
+        vermin_conf.set_only_show_violations(True)
+        vermin_conf.add_target(
+            (3, EXPECTED_PYTHON_MINOR_VERSION if config.args.verbose <= 1 else 0)
+        )
+        visitor = vermin.visit(source, vermin_conf, self.name)
+        if not isinstance(visitor, vermin.source_visitor.SourceVisitor):
+            bar.warn(f"Could not determine required python version for {self.name}")
+            return
+        version = visitor.minimum_versions()[1]
+        if version in [None, 0, (0, 0)]:
+            bar.warn(f"Could not determine required python version for {self.name}")
+            return
+        version_str = vermin.dotted_name(version)
+        minor = int(version_str.split(".")[1])
+        requirements = visitor.output_text().strip() if config.args.verbose else None
+        if requirements and requirements.count("\n") <= 1:
+            requirements = f"({requirements})"
+        if minor > EXPECTED_PYTHON_MINOR_VERSION:
+            bar.warn(f"requires python {version_str}", requirements)
+        else:
+            bar.log(f"requires python {version_str}", requirements)
 
 
 def run(
@@ -245,10 +252,9 @@ def run(
     if not testing_tool.build(bar):
         localbar.done(False)
         return False
+    testing_tool.check_python_version(localbar)
     localbar.done()
     bar.finalize(print_done=False)
-
-    testing_tool.check_python_version()
 
     ok = True
 
