@@ -88,7 +88,7 @@ def _list_invalid_generators() -> list[
     def drop_newline(x: str) -> Optional[str]:
         if not end_newline(x):
             return None
-        return x[-1]
+        return x[:-1]
 
     @register(supported_cls=IN_ANS_VALIDATORS)
     def swap_case(x: str) -> Optional[str]:
@@ -159,7 +159,7 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
     def drop_newline(x: str) -> Optional[str]:
         if not end_newline(x):
             return None
-        return x[-1]
+        return x[:-1]
 
     @register(space_change=True)
     def windows_newline(x: str) -> Optional[str]:
