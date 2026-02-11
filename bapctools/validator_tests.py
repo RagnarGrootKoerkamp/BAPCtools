@@ -68,21 +68,27 @@ def _list_invalid_generators() -> list[
 
     @register()
     def append_token_str(x: str) -> Optional[str]:
-        if end_newline(x):
+        if not end_newline(x):
             return None
         return f"{x[:-1]} hello\n"
 
     @register()
     def append_token_int(x: str) -> Optional[str]:
-        if end_newline(x):
+        if not end_newline(x):
             return None
         return f"{x[:-1]} 42\n"
 
     @register(supported_cls=IN_ANS_VALIDATORS)
     def append_space(x: str) -> Optional[str]:
-        if end_newline(x):
+        if not end_newline(x):
             return None
         return f"{x[:-1]} \n"
+
+    @register(supported_cls=IN_ANS_VALIDATORS)
+    def drop_newline(x: str) -> Optional[str]:
+        if not end_newline(x):
+            return None
+        return x[-1]
 
     @register(supported_cls=IN_ANS_VALIDATORS)
     def swap_case(x: str) -> Optional[str]:
@@ -145,9 +151,15 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
 
     @register(space_change=True)
     def append_space(x: str) -> Optional[str]:
-        if end_newline(x):
+        if not end_newline(x):
             return None
         return f"{x[:-1]} \n"
+
+    @register(space_change=True)
+    def drop_newline(x: str) -> Optional[str]:
+        if not end_newline(x):
+            return None
+        return x[-1]
 
     @register(space_change=True)
     def windows_newline(x: str) -> Optional[str]:
