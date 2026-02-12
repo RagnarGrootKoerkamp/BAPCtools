@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
+import vermin
+
 from bapctools import config, parallel
 from bapctools.program import Program
 from bapctools.run import Submission
@@ -20,8 +22,6 @@ from bapctools.util import (
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.problem import Problem
 
-import vermin
-
 """DISCLAIMER:
 
   This tool was only made to check testing tools faster.
@@ -37,7 +37,7 @@ import vermin
 """
 
 
-EXPECTED_PYTHON_MINOR_VERSION: Final[int] = 10
+EXPECTED_PYTHON_MINOR_VERSION: Final[int] = 9
 
 
 class TestInput:
