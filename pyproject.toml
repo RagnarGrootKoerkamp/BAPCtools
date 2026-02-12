@@ -62,3 +62,8 @@ exclude = ["^bapctools/resources/"]
 check_untyped_defs = true
 enable_error_code="truthy-bool,truthy-iterable"
 strict = true
+mypy_path = ["stubs/"]
+
+[[tool.mypy.overrides]]
+module = ["vermin.*"]
+follow_untyped_imports = true

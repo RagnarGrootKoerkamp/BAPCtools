@@ -208,15 +208,16 @@ class TestingTool(Program):
             (3, EXPECTED_PYTHON_MINOR_VERSION if config.args.verbose <= 1 else 0)
         )
         visitor = vermin.visit(source, vermin_conf, self.name)
-        if not isinstance(visitor, vermin.source_visitor.SourceVisitor):
+        if not isinstance(visitor, vermin.SourceVisitor):
             bar.warn(f"Could not determine required python version for {self.name}")
             return
         version = visitor.minimum_versions()[1]
         if version in [None, 0, (0, 0)]:
             bar.warn(f"Could not determine required python version for {self.name}")
             return
+        assert isinstance(version, tuple)
         version_str = vermin.dotted_name(version)
-        minor = int(version_str.split(".")[1])
+        minor = version[1]
         requirements = visitor.output_text().strip() if config.args.verbose else None
         if requirements and requirements.count("\n") <= 1:
             requirements = f"({requirements})"
