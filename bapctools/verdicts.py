@@ -435,7 +435,7 @@ class VerdictTable:
                 for verdict_value in verdicts:
                     length, tmp = verdict_value.tuple()
                     if printed + 1 + length > self.width:
-                        lines.append(f"{str():{self.name_width + 1}}")
+                        lines.append(f"{'':{self.name_width + 1}}")
                         printed = self.name_width + 1
                     lines[-1] += f" {tmp}"
                     printed += length + 1
@@ -628,7 +628,7 @@ class VerdictTable:
                 for verdict_value in verdicts:
                     length, tmp = verdict_value.tuple()
                     if self.width >= 0 and printed + 1 + length > self.width:
-                        printed_text.append(f"\n\033[K{str():{self.name_width + 1}}")
+                        printed_text.append(f"\n\033[K{'':{self.name_width + 1}}")
                         printed_lengths.append(printed)
                         printed = self.name_width + 1
 

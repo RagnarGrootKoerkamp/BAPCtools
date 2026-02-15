@@ -178,7 +178,7 @@ def run_interactive_testcase(
                 verdict = Verdict.VALIDATOR_CRASH
 
             if not validator_err:
-                validator_err = bytes()
+                validator_err = b""
 
             if verdict == Verdict.TIME_LIMIT_EXCEEDED:
                 if not run._continue_with_tle(verdict, max_duration >= timeout):

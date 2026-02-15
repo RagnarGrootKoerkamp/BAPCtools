@@ -37,8 +37,15 @@ build-backend = "hatchling.build"
 line-length = 100
 
 [tool.ruff.lint]
-# Enable import sorting rules
-extend-select = ["I"]
+extend-select = [
+    "I", # Enable import sorting rules
+    "UP", # Enable ubgrade rules
+]
+ignore = [
+    "UP007", # allow Optional
+    "UP036", # allow python version checks
+    "UP038", # rule is deprected
+]
 
 [tool.ruff.lint.isort]
 # Case-insensitive ordering in `from ? import X, y, Z`

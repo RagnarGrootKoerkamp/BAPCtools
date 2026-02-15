@@ -289,7 +289,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
 # This check is necessary when loading the personal config file in `read_personal_config`.
 class SuppressingParser(argparse.ArgumentParser):
     def __init__(self, **kwargs: Any) -> None:
-        super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
+        super().__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 
 def build_parser() -> SuppressingParser:

@@ -14,14 +14,13 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from enum import Enum
 from io import StringIO
 from pathlib import Path
 from typing import (
     Any,
     cast,
-    Iterable,
     Literal,
     NoReturn,
     Optional,
@@ -230,7 +229,7 @@ class ProgressBar:
         # - IO lock
         # - the counter
         # - items in progress
-        self.parent: Optional["ProgressBar"] = None
+        self.parent: Optional[ProgressBar] = None
         self.in_progress: set[ITEM_TYPE] = set()
         self.item: Optional[ITEM_TYPE] = None
 

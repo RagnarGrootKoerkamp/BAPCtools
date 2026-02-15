@@ -294,7 +294,7 @@ def check_constraints(problem: Problem) -> bool:
         eprint("|", end="")
         if st is not None:
             languages = ",".join(statement_defs[st])
-            eprint("{:^40} {}".format(st, languages), sep="", end="")
+            eprint(f"{st:^40} {languages}", sep="", end="")
         else:
             eprint("{:^40}".format(""), sep="", end="")
         eprint()
