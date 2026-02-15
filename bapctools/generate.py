@@ -2041,7 +2041,7 @@ class GeneratorConfig:
                     if isinstance(parent, RootDirectory):
                         keys = sorted(
                             keys,
-                            key=lambda k: ((order.index(k), k) if k in order else (999, k)),
+                            key=lambda k: (order.index(k), k) if k in order else (999, k),
                         )
                         deprecated = [
                             "invalid_outputs",
