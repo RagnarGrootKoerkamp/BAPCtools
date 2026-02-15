@@ -39,12 +39,11 @@ line-length = 100
 [tool.ruff.lint]
 extend-select = [
     "I", # Enable import sorting rules
-    "UP", # Enable ubgrade rules
+    "UP", # Enable upgrade rules
 ]
 ignore = [
-    "UP007", # allow Optional
-    "UP036", # allow python version checks
-    "UP038", # rule is deprected
+    "UP036", # Allow Python version checks
+    "UP045", # Allow Optional
 ]
 
 [tool.ruff.lint.isort]
