@@ -222,9 +222,12 @@ class TestingTool(Program):
         if requirements and requirements.count("\n") <= 1:
             requirements = f"({requirements})"
         if minor > EXPECTED_PYTHON_MINOR_VERSION:
-            bar.warn(f"requires python {version_str}", requirements)
+            bar.warn(f"seems compliant with python {version_str}", requirements)
         else:
-            bar.log(f"requires python {version_str}", requirements)
+            bar.log(
+                f"requires python {version_str}. We advice requiring at most python 3.{EXPECTED_PYTHON_MINOR_VERSION}",
+                requirements,
+            )
 
 
 def run(
