@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-python@v3
         with:
           python-version: '3.10'
-      - run: python3 -m pip install --editable .[types]
+      - run: python3 -m pip install --editable . --group types
       - uses: pre-commit/action@v3.0.1
 
   test:
