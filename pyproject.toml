@@ -9,6 +9,7 @@ dependencies = [
     "questionary~=2.1.1",
     "requests~=2.32.5",
     "ruamel.yaml~=0.19.1",
+    "vermin==1.8.0", # We define our own typing stubs, better use the exact version just to be sure it doesn't break.
 ]
 requires-python = ">=3.10"
 
@@ -61,3 +62,4 @@ exclude = ["^bapctools/resources/"]
 check_untyped_defs = true
 enable_error_code="truthy-bool,truthy-iterable"
 strict = true
+mypy_path = ["third_party/stubs/"]
