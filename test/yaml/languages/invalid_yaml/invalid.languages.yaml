@@ -1,0 +1,40 @@
+invalid~name:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'
+---
+c:
+    name: 'C'
+    priority: 951.5 # must not be float
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'
+---
+c:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary} {mainfile}'
+---
+c:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{unary}'
+---
+c:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'
+d:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'

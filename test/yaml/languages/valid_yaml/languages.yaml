@@ -1,0 +1,18 @@
+c:
+    name: 'C'
+    priority: 951
+    files: '*.c'
+    compile: 'gcc -g -O2 -std=gnu11 -o {binary} {files} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'
+cpp:
+    name: 'C++'
+    priority: 950
+    files: '*.cc *.C *.cpp *.cxx *.c++'
+    compile: 'g++ -g -O2 -std=gnu++20 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary}'
+spam:
+    name: 'spam {bacon} {eggs} {spam}'
+    priority: 1
+    files: '*.sp *.p *.spam {foobarbaz} {it is only a model!} {binary}'
+    compile: 'g++ -g -O2 -std=gnu++20 -o {binary} {binary} {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
+    run: '{binary} {binary} {binary}'
