@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 # Configuration
 # ----------------------------
 
-all_valid_yaml=(../../doc ../problems problem/valid_yaml generators/valid_yaml test_group/valid_yaml languages/valid_yaml)
+all_valid_yaml=(../../doc ../problems ../../bapctools/resources/config problem/valid_yaml generators/valid_yaml test_group/valid_yaml languages/valid_yaml)
 all_invalid_yaml=(generators/invalid_yaml problem/invalid_yaml test_group/invalid_yaml submissions/invalid_yaml languages/invalid_yaml)
 schemadir="../../bapctools/resources/support/schemas"
 
