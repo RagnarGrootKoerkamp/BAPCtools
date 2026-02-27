@@ -22,7 +22,6 @@ jobs:
         path: dist/
 
   publish-to-pypi:
-    if: false # TODO: remove
     runs-on: ubuntu-latest
     needs:
     - build
