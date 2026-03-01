@@ -1,0 +1,81 @@
+name: PyPI release
+run-name: PyPI release for ${{ github.sha }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-tags: true
+    - name: Bump version number
+      run: |
+        git config --global --add safe.directory /github/workspace
+        git config user.name "${GITHUB_ACTOR}"
+        git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+        # Make sure that `git describe` knows the history, but no data about trees/blobs is needed.
+        git fetch --prune --unshallow --filter=tree:0
+
+        prev_tag="$(git describe --abbrev=0 --tags)"
+        if ! [[ $prev_tag =~ ^([0-9]{4})\.([0-9]{1,2})\.([0-9]+)$ ]]; then
+          echo "Invalid tag format. Expected YYYY.M.P"
+          exit 2
+        fi
+
+        prev_year="${BASH_REMATCH[1]}"
+        prev_month="${BASH_REMATCH[2]}"
+        prev_patch="${BASH_REMATCH[3]}"
+
+        curr_year="$(date +%Y)"
+        curr_month="$(date +%-m)"  # Without leading zero
+
+        if [ "$curr_year" = "$prev_year" ] && [ "$curr_month" = "$prev_month" ]; then
+          new_patch=$((prev_patch + 1))
+          new_tag="${curr_year}.${curr_month}.${new_patch}"
+        else
+          new_tag="${curr_year}.${curr_month}.0"
+        fi
+
+        git tag "${new_tag}" -m ""
+        git push origin "${new_tag}"
+
+  build:
+    runs-on: ubuntu-latest
+    needs:
+    - create-tag
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-tags: true
+        persist-credentials: false
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.10"
+    - run: python3 -m pip install --user build
+    - run: python3 -m build
+    - uses: actions/upload-artifact@v5
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    runs-on: ubuntu-latest
+    needs:
+    - build
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bapctools
+    permissions:
+      id-token: write
+    steps:
+    - uses: actions/download-artifact@v6
+      with:
+        name: python-package-distributions
+        path: dist/
+    - run: tar tvf dist/*.tar.gz
+    - run: unzip -l dist/*.whl
+    - uses: pypa/gh-action-pypi-publish@release/v1

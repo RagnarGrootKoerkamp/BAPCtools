@@ -1,6 +1,5 @@
 [project]
 name = "bapctools"
-version = "0.0.0"
 dependencies = [
     "argcomplete~=3.6.3; platform_system != 'Windows'",
     "colorama~=0.4.6",
@@ -12,6 +11,7 @@ dependencies = [
     "vermin==1.8.0", # We define our own typing stubs, better use the exact version just to be sure it doesn't break.
 ]
 requires-python = ">=3.10"
+dynamic = ["version"]
 
 [project.scripts]
 bt = "bapctools.cli:main"
@@ -31,8 +31,11 @@ types = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "versioningit"
 
 [tool.ruff]
 line-length = 100
