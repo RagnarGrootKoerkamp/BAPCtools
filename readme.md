@@ -22,13 +22,77 @@ time since I'm not aware of usage outside of BAPC yet.
 > you can use the [`legacy` branch](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/legacy) of this repository,
 > which is no longer maintained.
 
-You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
-mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
-You can also use the [Docker image](#Docker) or install [via Pip (experimental)](#Experimental-Pip-installation).
-If you're interested in developing BAPCtools itself, see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
+There are multiple ways to install BAPCtools:
+- From [PyPI](https://pypi.org/p/bapctools/): `pip install bapctools`.
+  This should be a complete installation (including all dependencies and a `bt` executable) and should work on any Linux-ish system.
+- The [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
+  mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
+- Run from a [Docker image](#Docker).
+- (Deprecated) Run from [cloning the source and installing dependencies manually](#Manual-installation).
+- If you're interested in developing BAPCtools itself, see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
 
-Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
+
+### Windows
+For Windows, the preferred way to use BAPCtools is inside the Windows Subsystem for Linux (WSL).
+
+Note that BAPCtools makes use of symlinks for building programs.
+By default, users are not allowed to create symlinks on Windows.
+This can be fixed by enabling Developer Mode on Windows (only since Windows 10 version 1703, or newer).<br>
+In case you're still having problems with symlinks in combination with Git after enabling this setting,
+please try the suggestions at https://stackoverflow.com/a/59761201.
+Specifically, `git config -g core.symlinks true` should do the trick,
+after which you can restore broken symlinks using `git checkout -- path/to/symlink`.
+
+### Native Windows
+If you cannot or do not want to use WSL, you'll need the following in your `%PATH%`:
+
+- `python` for Python 3
+- `g++` to compile C++
+- `javac` and `java` to compile and run Java.
+
+Resource limits (memory limit/hard cpu time limit) are not supported.
+
+### Docker
+
+A docker image containing this git repo and dependencies, together with commonly
+used languages, is provided at
+[ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+This version may be somewhat outdated, but we intend to update it whenever dependencies change.
+Ping me if you'd like it to be updated.
+Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
+and use `pacman -Sy <package>` to install potential missing dependencies.<br>
+_TODO: update the Docker image to use installation via Pip._
+
+This image can be used for e.g.:
+
+- running CI on your repo. Also see `bt gitlabci` which generates a
+  `.gitlab-ci.yaml` file. Make sure to clear the entrypoint, e.g. `entrypoint: [""]`.
+- running `bt` on your local problems. Use this command to mount your local
+  directory into the docker image and run a command on it:
+  ```
+  docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
+  ```
+
+For maintainers, these are the steps to build and push an updated image:
+
+```
+$ sudo systemctl start docker
+$ docker pull archlinux:latest
+$ docker login
+$ docker build . -t ragnargrootkoerkamp/bapctools
+$ docker push ragnargrootkoerkamp/bapctools
+$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
+```
+
+The last step is needed when your CI server is not automatically pulling the latest version.
+
+### Manual installation
+
+<details>
+<summary>This installation method is deprecated, and the list of dependencies may be out-of-date.</summary>
+
+Clone this repository and install the required dependencies manually.
 
 - Python 3 (>= 3.10).
 - The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python-ruamel-yaml` Arch Linux package (`python3-ruamel.yaml` on Debian derivatives).
@@ -60,71 +124,7 @@ After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere 
 $ ln -s ~/git/BAPCtools/bin/tools.py ~/bin/bt
 ```
 
-### Windows
-For Windows, the preferred way to use BAPCtools is inside the Windows Subsystem for Linux (WSL).
-
-Note that BAPCtools makes use of symlinks for building programs.
-By default, users are not allowed to create symlinks on Windows.
-This can be fixed by enabling Developer Mode on Windows (only since Windows 10 version 1703, or newer).<br>
-In case you're still having problems with symlinks in combination with Git after enabling this setting,
-please try the suggestions at https://stackoverflow.com/a/59761201.
-Specifically, `git config -g core.symlinks true` should do the trick,
-after which you can restore broken symlinks using `git checkout -- path/to/symlink`.
-
-### Native Windows
-If you cannot or do not want to use WSL, you'll need the following in your `%PATH%`:
-
-- `python` for Python 3
-- `g++` to compile C++
-- `javac` and `java` to compile and run Java.
-
-Resource limits (memory limit/hard cpu time limit) are not supported.
-
-### Docker
-
-A docker image containing this git repo and dependencies, together with commonly
-used languages, is provided at
-[ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
-This version may be somewhat outdated, but we intend to update it whenever dependencies change.
-Ping me if you'd like it to be updated.
-Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
-and use `pacman -Sy <package>` to install potential missing dependencies.
-
-This image can be used for e.g.:
-
-- running CI on your repo. Also see `bt gitlabci` which generates a
-  `.gitlab-ci.yaml` file. Make sure to clear the entrypoint, e.g. `entrypoint: [""]`.
-- running `bt` on your local problems. Use this command to mount your local
-  directory into the docker image and run a command on it:
-  ```
-  docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
-  ```
-
-For maintainers, these are the steps to build and push an updated image:
-
-```
-$ sudo systemctl start docker
-$ docker pull archlinux:latest
-$ docker login
-$ docker build . -t ragnargrootkoerkamp/bapctools
-$ docker push ragnargrootkoerkamp/bapctools
-$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
-```
-
-The last step is needed when your CI server is not automatically pulling the latest version.
-
-### Experimental: Pip installation
-
-We are transitioning towards adding BAPCtools to the Python Package Index (PyPI).
-This is still experimental, but if you would like to try it out, you can install it using:
-```shell
-pip install 'git+https://github.com/RagnarGrootKoerkamp/BAPCtools.git'
-```
-This should be a complete installation (including optional dependencies and a `bt` executable) and should work on any Linux-ish system.
-If you encounter any issues, please open an issue.
-
-> [!IMPORTANT]
-> Please do NOT `pip install bapctools` yet, as this will install a heavily outdated version of BAPCtools.
+</details>
 
 ## Usage
 
