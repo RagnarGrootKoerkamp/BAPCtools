@@ -201,11 +201,7 @@ class TestIdentityProblem:
             info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
         ) == [
             f"identity/{path}.{lang}.pdf"
-            for path in [
-                "problem_slide/problem-slide",
-                "solution/solution",
-                "statement/problem",
-            ]
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
             for lang in ["de", "en"]
         ], "Zip contents for PDFs with both languages are not correct"
 
@@ -216,11 +212,7 @@ class TestIdentityProblem:
             info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
         ) == [
             f"identity/{path}.en.pdf"
-            for path in [
-                "problem_slide/problem-slide",
-                "solution/solution",
-                "statement/problem",
-            ]
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
         ], "Zip contents for PDFs with `--lang en` are not correct"
 
         zip_path.unlink()
