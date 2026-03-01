@@ -1,5 +1,19 @@
 [project]
 name = "bapctools"
+dynamic = ["version"]
+authors = [
+    { name="Ragnar Groot Koerkamp", email="ragnar.grootkoerkamp@gmail.com" },
+]
+description = "Tools for developing ICPC-style programming contest problems."
+readme = "readme.md"
+requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GPL-3.0"
+license-files = ["LICENSE"]
 dependencies = [
     "argcomplete~=3.6.3; platform_system != 'Windows'",
     "colorama~=0.4.6",
@@ -10,11 +24,13 @@ dependencies = [
     "ruamel.yaml~=0.19.1",
     "vermin==1.8.0", # We define our own typing stubs, better use the exact version just to be sure it doesn't break.
 ]
-requires-python = ">=3.10"
-dynamic = ["version"]
 
 [project.scripts]
 bt = "bapctools.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ragnargrootkoerkamp/bapctools"
+Issues = "https://github.com/ragnargrootkoerkamp/bapctools/issues"
 
 [dependency-groups]
 dev = [
