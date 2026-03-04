@@ -200,7 +200,7 @@ class Validator(program.Program):
         assert False
 
     def _exec_helper(self, *args: Any, cwd: Path, **kwargs: Any) -> ExecResult:
-        ret = self._exec_command(*args, **kwargs)
+        ret = self._exec_command(*args, cwd=cwd, **kwargs)
         judgemessage = cwd / "judgemessage.txt"
         judgeerror = cwd / "judgeerror.txt"
         if ret.err is None:
