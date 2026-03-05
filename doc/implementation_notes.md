@@ -207,7 +207,7 @@ After validation is done, the validator will write a file to the given path cont
 Each line in the output file will look like:
 
 ```
-<string name> <string name> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
+<string name> <string name> <bool reached minimum> <bool reached maximum> <minimum seen> <maximum seen> <minimum allowed> <maximum allowed>
 ```
 
 For example, the code `v.read_integer("a", 1, 1000)` on line `7` could generate the line:

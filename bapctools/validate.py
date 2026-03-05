@@ -59,14 +59,10 @@ def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict) -> 
                 c = constraints[loc]
                 has_low |= c[1]
                 has_high |= c[2]
-                if c[3] < vmin:
-                    vmin = c[3]
-                if c[4] > vmax:
-                    vmax = c[4]
-                if c[5] < low:
-                    low = c[5]
-                if c[6] > high:
-                    high = c[6]
+                vmin = min(c[3], vmin)
+                vmax = max(c[4], vmin)
+                low = min(c[5], low)
+                high = max(c[6], high)
             constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
 
         constraints_path.unlink()

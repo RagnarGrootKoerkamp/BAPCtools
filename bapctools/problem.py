@@ -1489,7 +1489,7 @@ class Problem:
         if constraints_dict:
             for loc, value in sorted(constraints_dict.items()):
                 loc = Path(loc).name
-                name, has_low, has_high, vmin, vmax, low, high = value
+                name, has_low, has_high, low, high, vmin, vmax = value
                 if not has_low:
                     success = False
                     warn(

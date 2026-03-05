@@ -1381,8 +1381,8 @@ class Validator {
 			std::visit(
 			    [&](const auto& b) {
 				    os << "LocationNotSupported:" << b.name << " " << b.name << " " << b.has_min
-				       << " " << b.has_max << " " << b.min << " " << b.max << " " << b.low << " "
-				       << b.high << std::endl;
+				       << " " << b.has_max << " " << b.low << " " << b.high << " " << b.min << " "
+				       << b.max << std::endl;
 			    },
 			    bound);
 		}
