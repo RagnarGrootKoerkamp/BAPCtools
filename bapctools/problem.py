@@ -1000,6 +1000,8 @@ class Problem:
         def has_constraints_checking(f: Path) -> bool:
             if not f.is_file():
                 return False
+            if f.suffix == ".ctd":
+                return True
             try:
                 return "constraints_file" in f.read_text()
             except UnicodeDecodeError:

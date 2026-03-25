@@ -126,9 +126,7 @@ CHECKTESTDATA: Final[Language] = Language(
         "name": "checktestdata",
         "priority": 1,
         "files": "*.ctd",
-        "run": shlex.join(
-            [str(config.RESOURCES_ROOT / "third_party" / "checktestdata"), "{mainfile}"]
-        ),
+        "run": shlex.join(["pyctd", "{mainfile}"]),
     },
 )
 VIVA: Final[Language] = Language(
