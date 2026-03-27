@@ -108,6 +108,7 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 // Test data configuration
 #test_case_or_group_configuration: {
 	args?: [...string]
+	answer_validator_args?: [...string] | {[string]: [...string]}
 	input_validator_args?: [...string] | {[string]: [...string]}
 	output_validator_args?: [...string]
 	input_visualizer_args?: [...string]

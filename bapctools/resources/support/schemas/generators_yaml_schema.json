@@ -206,6 +206,25 @@
                 "full_feedback": {
                     "type": "boolean"
                 },
+                "answer_validator_args": {
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    ]
+                },
                 "input_validator_args": {
                     "anyOf": [
                         {
