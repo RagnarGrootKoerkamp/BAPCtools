@@ -120,15 +120,6 @@ class Language:
 BINARY_NAME: Final[str] = "run"
 BUILD_NAME: Final[str] = "build"
 
-CHECKTESTDATA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "checktestdata",
-    {
-        "name": "checktestdata",
-        "priority": 1,
-        "files": "*.ctd",
-        "run": shlex.join(["pyctd", "{mainfile}"]),
-    },
-)
 VIVA: Final[Language] = Language(
     Language.INTERNAL_PREFIX + "viva",
     {
@@ -145,9 +136,29 @@ VIVA: Final[Language] = Language(
         ),
     },
 )
+CHECKTESTDATA: Final[Language] = Language(
+    Language.INTERNAL_PREFIX + "checktestdata",
+    {
+        "name": "checktestdata",
+        "priority": 1,
+        "files": "*.ctd",
+        "run": "pyctd {mainfile}",
+    },
+)
 EXTRA_LANGUAGES: Final[Sequence[Language]] = (
-    CHECKTESTDATA,
     VIVA,
+    CHECKTESTDATA,
+    Language(
+        # pyctd compiled checktesdata needs no special handling
+        Language.INTERNAL_PREFIX + "pypychecktestdata",
+        {
+            "name": "pypychecktestdata",
+            "priority": 2,
+            "files": "*.ctd",
+            "compile": "pyctd -c {mainfile}.py {mainfile}",
+            "run": "pypy3 {mainfile}.py",
+        },
+    ),
     Language(
         Language.INTERNAL_PREFIX + "manual",
         {
