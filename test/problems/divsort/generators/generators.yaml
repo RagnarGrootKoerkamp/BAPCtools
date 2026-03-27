@@ -84,9 +84,9 @@ data:
           unsorted:
             in: 10.0 2.0 cba cd
             ans: 5.0 Abccd
-      with_output_validator_args:
+      with_answer_validator_args:
         test_group.yaml:
-          output_validator_args: [--forbid_abcd]
+          answer_validator_args: [--forbid_abcd]
         include:
           - imprecise # must reject because its ans includes abcd
   invalid_output:
