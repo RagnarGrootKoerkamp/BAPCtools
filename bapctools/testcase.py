@@ -89,7 +89,9 @@ class TestGroup:
             validate.AnswerValidator,
             validate.InputValidator,
         ]:
-            assert isinstance(validator_type, (validate.AnswerValidator, validate.InputValidator))
+            assert isinstance(
+                validator_type, (type(validate.AnswerValidator), type(validate.InputValidator))
+            )
             key = validator_type.args_key
             source_dir = validator_type.source_dir
             if key in parser.yaml:
