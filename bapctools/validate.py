@@ -84,6 +84,7 @@ class Validator(program.Program):
     """
 
     FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[program.Language]] = [
+        program.COMPILED_CHECKTESTDATA,
         program.CHECKTESTDATA,
         program.VIVA,
     ]
@@ -156,7 +157,9 @@ class Validator(program.Program):
 
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
-    def _run_format_validator(self, testcase: "testcase.Testcase", cwd: Path) -> ExecResult:
+    def _run_format_validator(
+        self, testcase: "testcase.Testcase", cwd: Path, args: Sequence[str | Path]
+    ) -> ExecResult:
         assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -166,6 +169,15 @@ class Validator(program.Program):
             main_path = testcase.ans_path
         else:
             assert False  # now also catches OutputValidator
+
+        if self.language == program.COMPILED_CHECKTESTDATA:
+            with main_path.open("rb") as main_file:
+                return self._exec_command(
+                    [*self.run_command, *args],
+                    exec_code_map=validator_exec_code_map,
+                    stdin=main_file,
+                    cwd=cwd,
+                )
 
         def format_exec_code_map(returncode: int) -> ExecStatus:
             if returncode == 0:
@@ -179,7 +191,7 @@ class Validator(program.Program):
         if self.language == program.CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
-                    self.run_command,
+                    [*self.run_command, *args],
                     exec_code_map=format_exec_code_map,
                     stdin=main_file,
                     cwd=cwd,
@@ -188,7 +200,7 @@ class Validator(program.Program):
         if self.language == program.VIVA:
             # Called as `viva validator.viva testcase.in`.
             return self._exec_command(
-                [*self.run_command, main_path.absolute()],
+                [*self.run_command, main_path.absolute(), *args],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
             )
@@ -265,7 +277,7 @@ class InputValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            return Validator._run_format_validator(self, testcase, cwd)
+            return Validator._run_format_validator(self, testcase, cwd, arglist)
 
         with testcase.in_path.open("rb") as in_file:
             ret = self._exec_helper(
@@ -295,8 +307,7 @@ class AnswerValidator(Validator):
 
     source_dir: Final[str] = "answer_validators"
 
-    # use output_validator_args as well
-    args_key: Final[str] = "output_validator_args"
+    args_key: Final[str] = "answer_validator_args"
 
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
@@ -320,7 +331,7 @@ class AnswerValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            return Validator._run_format_validator(self, testcase, cwd)
+            return Validator._run_format_validator(self, testcase, cwd, arglist)
 
         with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(

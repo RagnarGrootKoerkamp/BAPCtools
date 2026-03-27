@@ -145,20 +145,20 @@ CHECKTESTDATA: Final[Language] = Language(
         "run": "pyctd {mainfile}",
     },
 )
+COMPILED_CHECKTESTDATA: Final[Language] = Language(
+    Language.INTERNAL_PREFIX + "compiledchecktestdata",
+    {
+        "name": "compiledchecktestdata",
+        "priority": 2,
+        "files": "*.ctd",
+        "compile": "pyctd -c {mainfile}.py {mainfile}",
+        "run": "pypy3 {mainfile}.py",
+    },
+)
 EXTRA_LANGUAGES: Final[Sequence[Language]] = (
     VIVA,
     CHECKTESTDATA,
-    Language(
-        # pyctd compiled checktesdata needs no special handling
-        Language.INTERNAL_PREFIX + "pypychecktestdata",
-        {
-            "name": "pypychecktestdata",
-            "priority": 2,
-            "files": "*.ctd",
-            "compile": "pyctd -c {mainfile}.py {mainfile}",
-            "run": "pypy3 {mainfile}.py",
-        },
-    ),
+    COMPILED_CHECKTESTDATA,
     Language(
         Language.INTERNAL_PREFIX + "manual",
         {
