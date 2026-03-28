@@ -1,0 +1,119 @@
+\newcommand{\sampleinputname}{Sample Input}
+\newcommand{\sampleoutputname}{Sample Output}
+
+% Multipass samples
+\newcommand{\samplepassheader}{Sample Case}
+\newcommand{\samplepassname}{Pass}
+
+\newcommand{\formatsampleheader}[1]{\textsf{\textbf{#1}}}
+
+\newcommand{\SampleNoHeading}[2]{
+        \begin{tabular}{|p{0.5\textwidth}|p{0.5\textwidth}|}
+        \hline
+        %\vspace{-0.3cm}%\lstlisting[basicstyle=\ttfamily]{#1}
+        \texttt{\shortstack[l]{~\\#1}}
+        &
+        %\vspace{-0.3cm}%\lstlisting[basicstyle=\ttfamily]{#2}
+        \texttt{\shortstack[l]{~\\#2}}
+        \\
+        \hline
+        \end{tabular}
+    \par
+}
+
+\newcommand{\MultipassSampleHeading}{
+    \vspace{0.2cm}
+    \par\noindent
+    \begin{tabular}{p{0.306\textwidth}p{0.306\textwidth}p{0.306\textwidth}}
+    \hfill &
+    \centering\formatsampleheader{\samplepassheader{} 1} &
+    \hfill
+    \end{tabular}%
+    \par%
+    \nopagebreak[4]%
+}
+
+\newcommand{\SamplePass}[3]{%
+    \begin{samepage}%
+    \begin{tabular}{p{0.306\textwidth}p{0.306\textwidth}p{0.306\textwidth}}
+    \formatsampleheader{\sampleinputname}\hfill &
+    \centering\formatsampleheader{\samplepassname{} #1} &
+    \hfill \formatsampleheader{\sampleoutputname}
+    \end{tabular}%
+    \\%
+    \SampleNoHeading{#2}{#3}%
+    \end{samepage}%
+}
+
+
+\newcommand{\maxn}{1000}
+\newcommand{\maxlen}{100}
+
+\begin{frame}
+    \frametitle{\problemtitle}
+
+    \begin{columns}
+        \begin{column}[T]{.62\textwidth}
+            \begin{itemize}
+                \item This is a multi-pass problem.
+                    Your program will be run twice for each test case.
+                \item
+                    In the first pass, encrypt $n \leq \maxn$ strings with lengths up~to~$\maxlen$.
+                \item The encrypted text should have the same number of letters as the original text.
+                \item For all $i$, the $i$th letter of the encrypted text should differ from the $i$th letter of the original text.
+                \item
+                    In the second pass, your program will be given the strings as encrypted by
+                    the first pass, which it should then decrypt to retrieve the original input.
+                \item
+                    Your submission may take up to \timelimit{} second for each pass.
+                \item A testing tool is provided to help you develop your solution.
+            \end{itemize}
+
+            %\vspace{1em}
+
+            %\centering
+            %\includegraphics[width=0.25\textwidth]{sample}
+
+            %\small
+            %Illustration of Sample Input 1.
+        \end{column}
+
+        \begin{column}[T]{0.30\textwidth}
+            \begin{columns}
+                \illustration{0.7}{Enigma.jpg}{
+                    The enigma, an encryption machine \\ that solves this problem. \\
+                    CC~BY~2.0 by William Warby \\ on \href{https://commons.wikimedia.org/wiki/File:Enigma_(20967055154).jpg}{Wikimedia Commons}
+                }
+            \end{columns}
+
+            \tiny
+            \MultipassSampleHeading{}
+            \SamplePass{1}{
+                encrypt \phantom{yl} \\
+                3 \phantom{yl} \\
+                plaintext \phantom{yl} \\
+                nwerc \phantom{yl} \\
+                correct \phantom{yl}
+            }{
+                encrypted \phantom{yl} \\
+                delft \phantom{yl} \\
+                balloon \phantom{yl} \\
+                \phantom{yl} \\
+                \phantom{yl}
+            }
+            \SamplePass{2}{
+                decrypt \phantom{yl} \\
+                3 \phantom{yl} \\
+                encrypted \phantom{yl} \\
+                delft \phantom{yl} \\
+                balloon \phantom{yl}
+            }{
+                plaintext \phantom{yl} \\
+                nwerc \phantom{yl} \\
+                correct \phantom{yl} \\
+                \phantom{yl} \\
+                \phantom{yl}
+            }
+        \end{column}
+    \end{columns}
+\end{frame}
