@@ -84,8 +84,8 @@ class Validator(program.Program):
     """
 
     FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[program.Language]] = [
-        program.COMPILED_CHECKTESTDATA,
         program.CHECKTESTDATA,
+        program.COMPILED_CHECKTESTDATA,
         program.VIVA,
     ]
 

@@ -42,10 +42,10 @@ class TestGroup:
         if parent is None:
             self.args: Sequence[str] = []
             self.answer_validator_args: Sequence[str] | Mapping[str, Sequence[str]] = []
-            self.output_visualizer_args: Sequence[str] = []
-            self.output_validator_args: Sequence[str] = []
             self.input_visualizer_args: Sequence[str] = []
             self.input_validator_args: Sequence[str] | Mapping[str, Sequence[str]] = []
+            self.output_visualizer_args: Sequence[str] = []
+            self.output_validator_args: Sequence[str] = []
 
             # not implemented:
             # self.full_feedback: bool
@@ -74,9 +74,9 @@ class TestGroup:
         # parse args
         for key in [
             "args",
+            visualize.InputVisualizer.args_key,
             visualize.OutputVisualizer.args_key,
             validate.OutputValidator.args_key,
-            visualize.InputVisualizer.args_key,
         ]:
             if key in parser.yaml:
                 setattr(
