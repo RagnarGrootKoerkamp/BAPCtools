@@ -2058,7 +2058,6 @@ class GeneratorConfig:
                                     f"Found key data.{key} in generators.yaml, should be: data.{key[:-1]} (singular form)."
                                 )
                     else:
-                        print(list(keys))
                         keys = sorted(keys, key=lambda k: k or "")
 
                     for child_key in keys:
