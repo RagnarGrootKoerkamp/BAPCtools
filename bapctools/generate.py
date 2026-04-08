@@ -2016,6 +2016,7 @@ class GeneratorConfig:
                 num_test_groups = 0
                 for dictionary in data:
                     assert_type("Elements of data", dictionary, dict, d.path)
+                    assert isinstance(dictionary, dict)
                     for key in dictionary.keys():
                         assert_type("Key of data", key, (type(None), str), d.path / str(key))
                     for _, child_yaml in sorted(dictionary.items()):
@@ -2024,9 +2025,6 @@ class GeneratorConfig:
 
                 next_test_group_id = itertools.count(1)
                 for dictionary in data:
-                    for key in dictionary:
-                        assert_type("Test case/group name", key, (type(None), str), d.path)
-
                     # Process named children alphabetically, but not in the root directory.
                     # There, process in the 'natural order'.
                     order = [
@@ -2037,11 +2035,16 @@ class GeneratorConfig:
                         "invalid_input",
                         "valid_output",
                     ]
-                    keys = dictionary.keys()
+                    assert isinstance(dictionary, dict)
+                    for key in dictionary:
+                        assert_type("Test case/group name", key, (type(None), str), d.path)
+                    keys: Iterable[str | None] = dictionary.keys()
                     if isinstance(parent, RootDirectory):
                         keys = sorted(
                             keys,
-                            key=lambda k: (order.index(k), k) if k in order else (999, k),
+                            key=lambda k: (
+                                (order.index(k), k or "") if k in order else (999, k or "")
+                            ),
                         )
                         deprecated = [
                             "invalid_outputs",
@@ -2055,10 +2058,12 @@ class GeneratorConfig:
                                     f"Found key data.{key} in generators.yaml, should be: data.{key[:-1]} (singular form)."
                                 )
                     else:
-                        keys = sorted(keys)
+                        print(list(keys))
+                        keys = sorted(keys, key=lambda k: k or "")
 
                     for child_key in keys:
                         child_yaml = dictionary[child_key]
+                        child_key = child_key or ""
                         if d.numbered:
                             if is_directory(child_yaml):
                                 child_name = next_numbered_name(
@@ -2075,7 +2080,6 @@ class GeneratorConfig:
                                 child_name = itertools.repeat("")
 
                         else:
-                            assert isinstance(child_key, str)
                             child_name = itertools.repeat(child_key)
                             if not next(child_name):
                                 raise ParseException(

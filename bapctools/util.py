@@ -847,7 +847,7 @@ def ryaml_get_or_add(
         yaml[key] = t()
     value = yaml[key]
     assert isinstance(value, t)
-    return cast(CommentedMap | U, value)
+    return value
 
 
 # This tries to preserve the correct comments.
