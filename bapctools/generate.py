@@ -2044,7 +2044,7 @@ class GeneratorConfig:
                         keys = sorted(
                             keys,
                             key=lambda k: (
-                                (order.index(k), k or "") if k in order else (999, k or "")
+                                (order.index(k), k or "") if k in order else (len(order), k or "")
                             ),
                         )
                         deprecated = [
