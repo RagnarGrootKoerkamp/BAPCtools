@@ -1,4 +1,5 @@
 import re
+import shutil
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
@@ -138,16 +139,22 @@ class Validator(program.Program):
                 / name
                 / testcase.short_path.with_suffix(".feedbackdir")
             )
+
+        if cwd.is_file():
+            cwd.unlink()
+        elif cwd.exists():
+            shutil.rmtree(cwd)
+
         cwd.mkdir(parents=True, exist_ok=True)
+
         arglist = []
         if args is not None:
             assert isinstance(args, list)
             arglist += args
         if constraints is not None:
             prefix = "input" if isinstance(self, InputValidator) else "answer"
+            # NOTE: the constraints_path file is out of spec
             constraints_path = cwd / f"{prefix}_constraints_"
-            if constraints_path.is_file():
-                constraints_path.unlink()
             arglist += ["--constraints_file", constraints_path]
         else:
             constraints_path = None
