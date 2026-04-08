@@ -23,11 +23,12 @@ import "strings"
 	_parts: [#path, ...#command_args]
 }
 
-// Test cases and test groups allow configuration of solution, and random salt.
+// Test cases and test groups allow configuration of solution, random salt and retries.
 #config: {
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
 	solution?:    #path & =~"^/"
 	random_salt?: string
+	retries?: int
 }
 
 #test_group_config: {
@@ -114,6 +115,7 @@ import "strings"
 	data: close({
 		sample!:         #test_group
 		secret!:         #test_group
+		fuzz?:           #test_group
 		invalid_input?:  #test_group
 		invalid_answer?: #test_group
 		invalid_output?: #test_group

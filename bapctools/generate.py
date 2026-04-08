@@ -599,7 +599,7 @@ class TestcaseRule(Rule):
                             self.intended_copy = False
                         else:
                             bar.warn(
-                                "Found {count} in generator command but no count in yaml. Ignored."
+                                "Found {count} in generator command but no count in yaml. IGNORED."
                             )
                     self.generator = GeneratorInvocation(problem, command_string)
 
@@ -943,13 +943,13 @@ class TestcaseRule(Rule):
 
         # Some early checks.
         if t.copy_of is not None and not t.copy_of.generate_success:
-            bar.done(False, f"See {t.copy_of.path}. Skipping.")
+            bar.done(False, f"See {t.copy_of.path}. SKIPPED.")
             return
         if t.parse_error is not None:
-            bar.done(False, f"{t.parse_error} Skipping.")
+            bar.done(False, f"{t.parse_error} SKIPPED.")
             return
         if t.generator and t.generator.program is None:
-            bar.done(False, "Generator didn't build. Skipping.")
+            bar.done(False, "Generator didn't build. SKIPPED.")
             return
 
         target_dir = problem.path / "data" / t.path.parent
@@ -1555,7 +1555,7 @@ class Directory(Rule):
                         f"Directory must not contain reserved key {any_key}.", self.path
                     )
                 if any_key in DEPRECATED_ROOT_KEYS:
-                    bar.warn(f"Deprecated root level key: {any_key}, ignored")
+                    bar.warn(f"Deprecated root level key: {any_key}. IGNORED.")
                 elif any_key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     if config.args.action == "generate":
                         bar.log(f"Unknown root level key: {any_key}")
@@ -1969,6 +1969,7 @@ class GeneratorConfig:
         def parse(
             key: str, name_gen: Iterator[str], yaml: YAML_TYPE, parent: AnyDirectory
         ) -> Directory | list[TestcaseRule]:
+            bar = PrintBar("generators.yaml")
             name = next(name_gen)
             assert_type("Testcase/directory", yaml, (type(None), str, dict), parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
@@ -1992,9 +1993,7 @@ class GeneratorConfig:
 
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_value)
                     if t.path in self.known_cases:
-                        PrintBar("generators.yaml", item=t.path).error(
-                            "was already parsed. Skipping."
-                        )
+                        bar.start(item=t.path).error("was already parsed. SKIPPED.")
                         continue
 
                     add_known(t)
@@ -2028,8 +2027,6 @@ class GeneratorConfig:
                     assert isinstance(dictionary, dict)
                     for key in dictionary:
                         assert_type("Test case/group name", key, (type(None), str), d.path)
-                    keys: Iterable[str | None] = dictionary.keys()
-
                     # Process named children alphabetically, but not in the root directory.
                     # There, process in the 'natural order'.
                     if isinstance(parent, RootDirectory):
@@ -2040,26 +2037,28 @@ class GeneratorConfig:
                             "invalid_answer",
                             "invalid_input",
                             "valid_output",
+                            "fuzz",  # extension to the spec directories
                         ]
-                        keys = sorted(
-                            keys,
-                            key=lambda k: (
-                                (order.index(k), k or "") if k in order else (len(order), k or "")
-                            ),
-                        )
+                        # only allow known directories
+                        keys: Iterable[str | None] = [key for key in order if key in dictionary]
                         deprecated = [
                             "invalid_outputs",
                             "invalid_answers",
                             "invalid_inputs",
                             "valid_outputs",
                         ]
-                        for key in deprecated:
-                            if key in keys:
-                                warn(
-                                    f"Found key data.{key} in generators.yaml, should be: data.{key[:-1]} (singular form)."
+                        for key in dictionary.keys():
+                            if key in deprecated:
+                                bar.start(item="root").error(
+                                    f"Found key data.{key}. Did you mean data.{key[:-1]} (singular form)?. SKIPPED."
                                 )
+                            elif key not in order:
+                                bar.start(item="root").error(
+                                    f"Found unknown key data.{key}. SKIPPED."
+                                )
+
                     else:
-                        keys = sorted(keys, key=lambda k: k or "")
+                        keys = sorted(dictionary.keys(), key=lambda k: k or "")
 
                     for child_key in keys:
                         child_yaml = dictionary[child_key]
@@ -2078,7 +2077,6 @@ class GeneratorConfig:
                             else:
                                 # Use error will be given inside parse(child).
                                 child_name = itertools.repeat("")
-
                         else:
                             child_name = itertools.repeat(child_key)
                             if not next(child_name):
@@ -2397,9 +2395,9 @@ data/*
         for in_file in sorted(in_files, key=lambda x: x.name):
             bar.start(str(in_file))
             if not (self.problem.path / in_file).exists():
-                bar.warn("file not found. Skipping.")
+                bar.warn("file not found. SKIPPED.")
             elif in_file in known:
-                bar.log("already found in generators.yaml. Skipping.")
+                bar.log("already found in generators.yaml. SKIPPED.")
             else:
                 entry.append(CommentedMap())
                 path_in_gen = in_file.relative_to("generators")
@@ -2428,19 +2426,19 @@ data/*
             path = t.relative_to("data")
             parts = path.parts
             if not parts:
-                warn("Cannot reorder Root directory. Skipping.")
+                warn("Cannot reorder Root directory. SKIPPED.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
-                warn(f"{t} is used for invalid test data. Skipping.")
+                warn(f"{t} is used for invalid test data. SKIPPED.")
             elif parts[0] == "valid_output":
-                warn(f"{t} is used for valid test data. Skipping.")
+                warn(f"{t} is used for valid test data. SKIPPED.")
             elif parts[0] == "testing_tool_test":
-                warn(f"{t} is used to test the testing tool. Skipping.")
+                warn(f"{t} is used to test the testing tool. SKIPPED.")
             elif path not in self.known_directories:
-                warn(f"{t} is not a generated directory. Skipping.")
+                warn(f"{t} is not a generated directory. SKIPPED.")
             elif not self.known_directories[path].numbered:
-                warn(f"{t} is not numbered. Skipping.")
+                warn(f"{t} is not numbered. SKIPPED.")
             elif not self.known_directories[path].data:
-                warn(f"{t} is empty. Skipping.")
+                warn(f"{t} is empty. SKIPPED.")
             else:
                 directory_rules.add(self.known_directories[path])
 
