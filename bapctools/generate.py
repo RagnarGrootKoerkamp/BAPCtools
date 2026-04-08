@@ -2025,21 +2025,22 @@ class GeneratorConfig:
 
                 next_test_group_id = itertools.count(1)
                 for dictionary in data:
-                    # Process named children alphabetically, but not in the root directory.
-                    # There, process in the 'natural order'.
-                    order = [
-                        "sample",
-                        "secret",
-                        "invalid_output",
-                        "invalid_answer",
-                        "invalid_input",
-                        "valid_output",
-                    ]
                     assert isinstance(dictionary, dict)
                     for key in dictionary:
                         assert_type("Test case/group name", key, (type(None), str), d.path)
                     keys: Iterable[str | None] = dictionary.keys()
+
+                    # Process named children alphabetically, but not in the root directory.
+                    # There, process in the 'natural order'.
                     if isinstance(parent, RootDirectory):
+                        order = [
+                            "sample",
+                            "secret",
+                            "invalid_output",
+                            "invalid_answer",
+                            "invalid_input",
+                            "valid_output",
+                        ]
                         keys = sorted(
                             keys,
                             key=lambda k: (
