@@ -2037,7 +2037,9 @@ class GeneratorConfig:
                             "invalid_answer",
                             "invalid_input",
                             "valid_output",
-                            "fuzz",  # extension to the spec directories
+                            # extension to the spec directories
+                            "testing_tool_test",
+                            "fuzz",
                         ]
                         # only allow known directories
                         keys: Iterable[str | None] = [key for key in order if key in dictionary]
