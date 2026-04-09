@@ -615,7 +615,7 @@ class Problem:
                 res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
                 if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or p.path.is_relative_to(res_path):
+                    if config.level != "problemset" or res_path.is_relative_to(p.path):
                         if res_path.is_dir():
                             in_paths += glob(res_path, "**/*.in")
                         else:
@@ -854,7 +854,7 @@ class Problem:
                             add(s)
                     else:
                         # If running from a contest, the submission must be inside a problem.
-                        if config.level == "problem" or problem.path.is_relative_to(s):
+                        if config.level == "problem" or s.is_relative_to(problem.path):
                             add(s)
         else:
             for s in glob(problem.path / "submissions", "*/*"):

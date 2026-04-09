@@ -98,6 +98,53 @@ def has_count(yaml: YAML_TYPE) -> bool:
     )
 
 
+def parse_count(yaml: YAML_TYPE) -> list[int]:
+    """Raises:
+    ParseException: on invalid count specification. Since we can't determine
+    the correct numbering of subsequent test cases, we have to abort parsing.
+    """
+    if not has_count(yaml):
+        return [1]
+    assert isinstance(yaml, dict)
+    lineno = yaml.lc.line if hasattr(yaml, "lc") else "unknown line"
+    match yaml["count"]:
+        case int(count):
+            if not 1 <= count <= 100:
+                raise ParseException(f"{lineno}: Invalid count {count}; must be between 1 and 100.")
+            count_list = list(range(1, count + 1))
+        case list(items):
+            seen = set()
+            for item in items:
+                if not isinstance(item, int):
+                    raise ParseException(
+                        f"{lineno}: Invalid count list; found {item} but expected int."
+                    )
+                if item in seen:
+                    raise ParseException(f"{lineno}: Invalid count list; duplicate element {item}.")
+                seen.add(item)
+            count_list = items
+        case str(s):
+            if m := INCLUSIVE_RANGE_REGEX.match(s):
+                lo, hi = int(m[1]), int(m[2])
+                if lo > hi:
+                    raise ParseException(
+                        f"{lineno}: Empty count range, start={lo} must be <= end={hi}."
+                    )
+                if hi - lo + 1 > 100:
+                    raise ParseException(
+                        f"{lineno}: Count range too large, length {hi - lo + 1} > 100."
+                    )
+            else:
+                raise ParseException(
+                    f"{lineno}: Invalid count expression {s}; expected format is '-4..=5'."
+                )
+            count_list = list(range(lo, hi + 1))
+        case _:
+            assert False  # has_count already checked for int | list | str
+    assert 1 <= len(count_list) <= 100
+    return count_list
+
+
 # Returns the given path relative to the problem root.
 def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -> Path:
     assert isinstance(path_str, str)
@@ -1854,7 +1901,7 @@ class GeneratorConfig:
         absolute_testcase_path = self.problem.path / "data" / relative_testcase_path.with_suffix("")
         for p in self.restriction:
             for basedir in get_basedirs(self.problem, "data"):
-                if (basedir / p).is_relative_to(absolute_testcase_path):
+                if absolute_testcase_path.is_relative_to(basedir / p):
                     return True
         return False
 
@@ -1887,56 +1934,6 @@ class GeneratorConfig:
 
         num_numbered_test_cases = 0
         next_test_case_id = itertools.count(1)
-
-        def parse_count(yaml: YAML_TYPE) -> list[int]:
-            """Raises:
-            ParseException: on invalid count specification. Since we can't determine
-            the correct numbering of subsequent test cases, we have to abort parsing.
-            """
-            if not has_count(yaml):
-                return [1]
-            assert isinstance(yaml, dict)
-            lineno = yaml.lc.line if hasattr(yaml, "lc") else "unknown line"
-            match yaml["count"]:
-                case int(count):
-                    if not 1 <= count <= 100:
-                        raise ParseException(
-                            f"{lineno}: Invalid count {count}; must be between 1 and 100."
-                        )
-                    count_list = list(range(1, count + 1))
-                case list(items):
-                    seen = set()
-                    for item in items:
-                        if not isinstance(item, int):
-                            raise ParseException(
-                                f"{lineno}: Invalid count list; found {item} but expected int."
-                            )
-                        if item in seen:
-                            raise ParseException(
-                                f"{lineno}: Invalid count list; duplicate element {item}."
-                            )
-                        seen.add(item)
-                    count_list = items
-                case str(s):
-                    if m := INCLUSIVE_RANGE_REGEX.match(s):
-                        lo, hi = int(m[1]), int(m[2])
-                        if lo > hi:
-                            raise ParseException(
-                                f"{lineno}: Empty count range, start={lo} must be <= end={hi}."
-                            )
-                        if hi - lo + 1 > 100:
-                            raise ParseException(
-                                f"{lineno}: Count range too large, length {hi - lo + 1} > 100."
-                            )
-                    else:
-                        raise ParseException(
-                            f"{lineno}: Invalid count expression {s}; expected format is '-4..=5'."
-                        )
-                    count_list = list(range(lo, hi + 1))
-                case _:
-                    assert False  # has_count already checked for int | list | str
-            assert 1 <= len(count_list) <= 100
-            return count_list
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
@@ -2449,7 +2446,8 @@ data/*
         testcase_filter = set()
         for d in directory_rules:
             for c in d.data:
-                testcase_filter.add(data / c.path.with_suffix(".in"))
+                if isinstance(c, TestcaseRule):
+                    testcase_filter.add(data / c.path.parent / (c.name + ".in"))
 
         ts_pair = self.problem.prepare_run()
         if not ts_pair:
@@ -2459,7 +2457,7 @@ data/*
 
         def not_accepted(s: run.Submission) -> bool:
             # If a submission is permitted to get a non AC verdict on any test case
-            # it is not a accepted submission
+            # it is not an accepted submission
             return any({Verdict.ACCEPTED} != s.expectations.all_permitted(t) for t in testcases)
 
         submissions = [s for s in ts_pair[1] if not_accepted(s)]
@@ -2487,19 +2485,19 @@ data/*
             assert isinstance(d.yaml, dict)
             assert "data" in d.yaml
             assert isinstance(d.yaml["data"], list)
+            assert all(isinstance(e, dict) and len(e) == 1 for e in d.yaml["data"])
 
-            # don't move unknown test cases/groups, or test cases with count
-            test_nodes = {
-                id(c.yaml): str(c.path)
-                for c in d.data
-                if c.path in testcase_paths and not has_count(c.yaml)
-            }
+            # don't move unknown test cases/groups
+            test_nodes = {id(c.yaml): c.path.as_posix() for c in d.data if c.path in testcase_paths}
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
                 def __init__(self, yaml: dict[object, object]) -> None:
                     self.yaml = yaml
-                    self.name = test_nodes[id(next(iter(yaml.values())))]
+                    testcase_yaml = next(iter(yaml.values()))
+                    assert isinstance(testcase_yaml, (str, dict, type(None)))
+                    self.name = test_nodes[id(testcase_yaml)]
+                    self.count = len(parse_count(testcase_yaml))
                     self.scores = []
                     self.result = []
                     for i in range(len(submissions)):
@@ -2517,8 +2515,8 @@ data/*
                 def __str__(self) -> str:
                     return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.name:<{max_testcase_len}} {''.join(self.result)}"
 
-                def score(self, weights: list[int]) -> int:
-                    return sum(weights[i] * x for i, x in self.scores)
+                def score(self, weights: list[int]) -> float:
+                    return sum(weights[i] * x for i, x in self.scores) / self.count
 
                 def update(self, weights: list[int]) -> list[int]:
                     # the weights for each submission that did not fail on this testcase get doubled
@@ -2543,7 +2541,7 @@ data/*
             # Each submission is initially assigned a weight of one. The weight contributes to the score of a testcase if
             # the submission fails on this testcase. If a testcase is selected the weights for each submission that it fails
             # get halved (or all other get doubled) to encourage making the remaining submissions fail. We greedily pick the
-            # submission that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
+            # testcase that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
             # see class TestcaseResult.
             # Worstcase runtime testcases^2 * submissions
             bar = ProgressBar("Reorder", items=todo)
@@ -2557,6 +2555,9 @@ data/*
                 index = scores.index(score)
                 result = todo.pop(index)
                 localbar = bar.start(result)
+                if result.yaml in done:
+                    # skip if another rule for the same count was already added
+                    continue
                 done.append(result.yaml)
                 weights = result.update(weights)
                 localbar.log("moved to front")
