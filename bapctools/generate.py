@@ -2037,6 +2037,8 @@ class GeneratorConfig:
                             # extension to the spec directories
                             "testing_tool_test",
                             "fuzz",
+                            # CAT-2026 specific: preliminary
+                            "preliminary",
                         ]
                         # only allow known directories
                         keys: Iterable[str | None] = [key for key in order if key in dictionary]
