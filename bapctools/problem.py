@@ -628,10 +628,10 @@ class Problem:
             assert needans
             in_paths = []
             for prefix in {
-                validate.Mode.INPUT: ["secret", "sample"],
-                validate.Mode.ANSWER: ["secret", "sample"],
+                validate.Mode.INPUT: ["pretest", "secret", "sample"],
+                validate.Mode.ANSWER: ["pretest", "secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
-                validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
+                validate.Mode.VALID_OUTPUT: ["pretest", "secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         elif testing_tool_test:
@@ -640,6 +640,7 @@ class Problem:
             in_paths = list(glob(p.path, "data/sample/**/*.in"))
             if not only_samples:
                 in_paths += list(glob(p.path, "data/secret/**/*.in"))
+                in_paths += list(glob(p.path, "data/pretest/**/*.in"))
 
         testcases = []
         for f in in_paths:
