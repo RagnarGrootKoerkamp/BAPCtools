@@ -221,6 +221,18 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     for sample in samples:
         add_testcase(sample.download[0])
 
+    # Include all pretest test cases and copy all related files.
+    pattern = "data/pretest/**/*.in"
+    paths = glob(problem.path, pattern)
+    if len(paths) == 0:
+        bar.error(f"No pretest test cases found in {pattern}.")
+    for f in paths:
+        if f.is_file():
+            if f.with_suffix(".ans").is_file():
+                add_testcase(f)
+            else:
+                bar.warn(f"No answer file found for {f}, skipping.")
+
     # Include all secret test cases and copy all related files.
     pattern = "data/secret/**/*.in"
     paths = glob(problem.path, pattern)
