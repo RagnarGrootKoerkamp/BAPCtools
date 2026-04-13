@@ -11,6 +11,7 @@ RUN pacman -Syu --noconfirm \
 	which \
 	gcc \
 	python \
+	python-pip \
 	pypy \
 	pypy3 \
 	python-argcomplete \
@@ -27,6 +28,7 @@ RUN pacman -Syu --noconfirm \
 	texlive-binextra \
 	texlive-langeuropean \
 	texlive-langgerman \
+	texlive-langextra \
 	texlive-latexextra \
 	texlive-pictures \
 	texlive-science \
@@ -38,7 +40,10 @@ RUN pacman -Syu --noconfirm \
 	&& pacman -Scc --noconfirm
 
 RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
-	ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
+	python -m pip install --break-system-packages vermin
+
+RUN ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && \
+	ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
 
 RUN mkdir /data
 WORKDIR /data
