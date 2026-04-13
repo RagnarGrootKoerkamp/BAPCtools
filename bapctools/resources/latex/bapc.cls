@@ -293,7 +293,7 @@
 	\begin{tabularx}{0.983\textwidth}{X}%
 		\centering \large\bfseries\textrm{\langsamplecase{} \arabic{SampleCount}}%
 	\end{tabularx}
-  \par%
+	\par%
 	\nopagebreak[4]%
 }
 
@@ -330,7 +330,6 @@
 \newcommand{\InteractiveWrite}[1]{
 	\noindent
 	\normalsize
-	\ttfamily
 	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\hfill\framebox[0.55\textwidth][l]{%
 		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
@@ -348,7 +347,6 @@
 \newcommand{\InteractiveRead}[1]{
 	\noindent
 	\normalsize
-	\ttfamily
 	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\framebox[0.55\textwidth][l]{%
 		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
