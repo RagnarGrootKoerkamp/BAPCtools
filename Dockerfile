@@ -27,6 +27,7 @@ RUN pacman -Syu --noconfirm \
 	texlive-binextra \
 	texlive-langeuropean \
 	texlive-langgerman \
+	texlive-langextra \
 	texlive-latexextra \
 	texlive-pictures \
 	texlive-science \
