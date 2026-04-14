@@ -16,6 +16,7 @@ RUN pacman -Syu --noconfirm \
 	python-argcomplete \
 	python-colorama \
 	python-matplotlib \
+    python-pip \
 	python-pytest \
 	python-requests \
 	python-ruamel-yaml \
@@ -38,8 +39,10 @@ RUN pacman -Syu --noconfirm \
 	cue \
 	&& pacman -Scc --noconfirm
 
+RUN pip install checktestdata vermin --break-system-packages
+
 RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
-	ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
+	ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt
 
 RUN mkdir /data
 WORKDIR /data

@@ -62,4 +62,5 @@ jobs:
       - shell: wsl-bash {0}
         run: |
           pip install vermin --break-system-packages
+          pip install checktestdata --break-system-packages
           pytest
