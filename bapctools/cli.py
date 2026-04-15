@@ -524,22 +524,23 @@ Run this from one of:
         "validate", parents=[global_parser], help="validate all grammar"
     )
     validate_parser.add_argument("testcases", nargs="*", type=Path, help="The testcases to run on.")
-    validation_group = validate_parser.add_mutually_exclusive_group()
-    validation_group.add_argument("--input", "-i", action="store_true", help="Only validate input.")
-    validation_group.add_argument("--answer", action="store_true", help="Only validate answer.")
-    validation_group.add_argument(
+    validate_parser.add_argument("--input", "-i", action="store_true", help="Only validate input.")
+    validate_parser.add_argument(
+        "--answer", "-a", action="store_true", help="Only validate answer."
+    )
+    validate_parser.add_argument(
         "--invalid", action="store_true", help="Only check invalid files for validity."
     )
-    validation_group.add_argument(
+    validate_parser.add_argument(
+        "--valid-output",
+        action="store_true",
+        help="Only check files in 'data/valid_output' for validity.",
+    )
+    validate_parser.add_argument(
         "--generic",
         choices=["invalid_input", "invalid_answer", "invalid_output", "valid_output"],
         nargs="*",
         help="Generate generic (in)valid files based on the first three samples and validate them.",
-    )
-    validation_group.add_argument(
-        "--valid-output",
-        action="store_true",
-        help="Only check files in 'data/valid_output' for validity.",
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
