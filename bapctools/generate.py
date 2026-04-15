@@ -47,7 +47,7 @@ INCLUSIVE_RANGE_REGEX = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
 
 
 class ParseException(Exception):
-    def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None) -> None:
+    def __init__(self, message: str, path: Optional[Path | str] = None) -> None:
         super().__init__(message, path)
         self.message = message
         self.path = path
@@ -992,7 +992,7 @@ class TestcaseRule(Rule):
             bar.done(False, f"See {t.copy_of.path}. SKIPPED.")
             return
         if t.parse_error is not None:
-            bar.done(False, f"{t.parse_error} SKIPPED.")
+            bar.done(False, f"{t.parse_error}. SKIPPED.")
             return
         if t.generator and t.generator.program is None:
             bar.done(False, "Generator didn't build. SKIPPED.")
@@ -1871,7 +1871,7 @@ class GeneratorConfig:
         self.hashed_in = set[str]()
         # Files that should be processed
         self.restriction = restriction
-        # replaced during parse_yaml
+        # replaced during _parse_yaml
         self.generators = dict[Path, list[Path]]()
 
         # stats
@@ -1887,11 +1887,7 @@ class GeneratorConfig:
             self.yaml = None
             self.has_yaml = False
 
-        try:
-            self.parse_yaml(self.yaml)
-        except ParseException as e:
-            # Handle fatal parse errors
-            PrintBar("generators.yaml", item=e.path).fatal(e.message or "")
+        self._parse_yaml(self.yaml)
 
     # testcase_short_path: secret/1.in
     def process_testcase(self, relative_testcase_path: Path) -> bool:
@@ -1904,7 +1900,7 @@ class GeneratorConfig:
                     return True
         return False
 
-    def parse_yaml(self, yaml: object) -> None:
+    def _parse_yaml(self, yaml: object) -> None:
         assert_type("Root yaml", yaml, (type(None), dict))
         if yaml is None:
             yaml = dict()
@@ -2615,7 +2611,11 @@ def generate(problem: Problem) -> bool:
         clean_data(problem, True, True)
         return True
 
-    gen_config = GeneratorConfig(problem, config.args.testcases)
+    try:
+        gen_config = GeneratorConfig(problem, config.args.testcases)
+    except ParseException as e:
+        PrintBar("generators.yaml", item=e.path).error(e.message)
+        return False
 
     if config.args.add is not None:
         return gen_config.add(config.args.add)
@@ -2637,7 +2637,10 @@ def generate(problem: Problem) -> bool:
 
 
 def testcases(problem: Problem) -> set[Path]:
-    gen_config = GeneratorConfig(problem)
+    try:
+        gen_config = GeneratorConfig(problem)
+    except ParseException:
+        return set()
     if gen_config.has_yaml:
         return {
             problem.path / "data" / p.parent / (p.name + ".in")
