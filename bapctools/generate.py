@@ -24,7 +24,6 @@ from bapctools.util import (
     error,
     ExecResult,
     ExecStatus,
-    fatal,
     get_basedirs,
     glob,
     hash_file_content,
@@ -357,7 +356,7 @@ solution: /{config.args.default_solution}"""
         # Use one of the accepted submissions.
         solutions = list(glob(problem.path, "submissions/accepted/*"))
         if len(solutions) == 0:
-            fatal("No solution specified and no accepted submissions found.")
+            bar.fatal("No solution specified and no accepted submissions found.")
 
         # always try to take the same solution to not mess with hashing
         if stored_solution.is_file():
