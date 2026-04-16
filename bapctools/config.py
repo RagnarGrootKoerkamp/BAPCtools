@@ -269,7 +269,6 @@ class ARGS:
         self.write: bool = get_arg("write", False)
 
         for key in kwargs:
-            print(key, type(kwargs[key]))
             warn(f"unknown key in {source}: '{key}'")
 
     def add_if_not_set(self, args: "ARGS") -> None:
