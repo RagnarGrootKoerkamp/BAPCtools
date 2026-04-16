@@ -126,10 +126,10 @@ class Validator(program.Program):
 
     def _run_helper(
         self,
+        mode: "Mode | run.Run",
         testcase: "testcase.Testcase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
-        cwd: Optional[Path] = None,
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
         Return:
@@ -137,7 +137,7 @@ class Validator(program.Program):
             constraints_path: None or a path to the constraints file
             args: (possibly empty) list of arguments, possibly including --contraints_file
         """
-        if cwd is None:
+        if isinstance(mode, Mode):
             if testcase.in_path.is_relative_to(self.problem.tmpdir):
                 cwd = testcase.in_path.with_suffix(".feedbackdir")
             else:
@@ -148,9 +148,10 @@ class Validator(program.Program):
                     / name
                     / testcase.short_path.with_suffix(".feedbackdir")
                 )
-
             remove_path(cwd)
             cwd.mkdir(parents=True, exist_ok=True)
+        else:
+            cwd = mode.feedbackdir
 
         arglist = []
         if args is not None:
@@ -285,7 +286,7 @@ class InputValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             ret = Validator._run_format_validator(self, testcase, cwd, arglist)
@@ -339,7 +340,7 @@ class AnswerValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             ret = Validator._run_format_validator(self, testcase, cwd, arglist)
@@ -423,9 +424,7 @@ class OutputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
-        cwd, constraints_path, arglist = self._run_helper(
-            testcase, constraints, args, None if isinstance(mode, Mode) else mode.feedbackdir
-        )
+        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
 
         with path.open("rb") as file:
             ret = self._exec_helper(
