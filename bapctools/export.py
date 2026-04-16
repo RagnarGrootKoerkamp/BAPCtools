@@ -306,7 +306,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             out_id_path = export_dir / 'problem.pdf'
             shutil.copyfile(problem_id_path, out_id_path)
             problem_en_path = export_dir / 'statement' / 'problem.en.pdf'
-            out_en_path = export_dir / 'attachments' / 'statement_en.pdf'
+            out_en_path = export_dir / 'attachments' / 'statement-en.pdf'
             out_en_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(problem_en_path, out_en_path)
             
