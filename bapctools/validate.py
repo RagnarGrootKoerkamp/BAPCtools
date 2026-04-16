@@ -129,6 +129,7 @@ class Validator(program.Program):
         testcase: "testcase.Testcase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
+        cwd: Optional[Path] = None,
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
         Return:
@@ -136,16 +137,17 @@ class Validator(program.Program):
             constraints_path: None or a path to the constraints file
             args: (possibly empty) list of arguments, possibly including --contraints_file
         """
-        if testcase.in_path.is_relative_to(self.problem.tmpdir):
-            cwd = testcase.in_path.with_suffix(".feedbackdir")
-        else:
-            name = self.tmpdir.relative_to(self.problem.tmpdir)
-            cwd = (
-                self.problem.tmpdir
-                / "tool_runs"
-                / name
-                / testcase.short_path.with_suffix(".feedbackdir")
-            )
+        if cwd is None:
+            if testcase.in_path.is_relative_to(self.problem.tmpdir):
+                cwd = testcase.in_path.with_suffix(".feedbackdir")
+            else:
+                name = self.tmpdir.relative_to(self.problem.tmpdir)
+                cwd = (
+                    self.problem.tmpdir
+                    / "tool_runs"
+                    / name
+                    / testcase.short_path.with_suffix(".feedbackdir")
+                )
 
         remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)
@@ -421,9 +423,9 @@ class OutputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
-        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-        if not isinstance(mode, Mode):
-            cwd = mode.feedbackdir
+        cwd, constraints_path, arglist = self._run_helper(
+            testcase, constraints, args, None if isinstance(mode, Mode) else mode.feedbackdir
+        )
 
         with path.open("rb") as file:
             ret = self._exec_helper(
