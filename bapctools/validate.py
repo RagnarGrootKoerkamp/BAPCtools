@@ -284,15 +284,15 @@ class InputValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            return Validator._run_format_validator(self, testcase, cwd, arglist)
-
-        with testcase.in_path.open("rb") as in_file:
-            ret = self._exec_helper(
-                [*self.run_command, *arglist],
-                exec_code_map=validator_exec_code_map,
-                stdin=in_file,
-                cwd=cwd,
-            )
+            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+        else:
+            with testcase.in_path.open("rb") as in_file:
+                ret = self._exec_helper(
+                    [*self.run_command, *arglist],
+                    exec_code_map=validator_exec_code_map,
+                    stdin=in_file,
+                    cwd=cwd,
+                )
 
         if constraints is not None:
             assert constraints_path is not None
@@ -338,15 +338,15 @@ class AnswerValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            return Validator._run_format_validator(self, testcase, cwd, arglist)
-
-        with testcase.ans_path.open("rb") as ans_file:
-            ret = self._exec_helper(
-                [*self.run_command, testcase.in_path.absolute(), *arglist],
-                exec_code_map=validator_exec_code_map,
-                stdin=ans_file,
-                cwd=cwd,
-            )
+            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+        else:
+            with testcase.ans_path.open("rb") as ans_file:
+                ret = self._exec_helper(
+                    [*self.run_command, testcase.in_path.absolute(), *arglist],
+                    exec_code_map=validator_exec_code_map,
+                    stdin=ans_file,
+                    cwd=cwd,
+                )
 
         if constraints is not None:
             assert constraints_path is not None
