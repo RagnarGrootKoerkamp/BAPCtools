@@ -80,7 +80,8 @@ class TestDefaultOutputValidator:
         r = MockRun()
         r.in_path = in_path
         r.out_path = out_path
-        r.feedbackdir = problem.tmpdir / "data"
+        r.feedbackdir = problem.tmpdir / "data" / ".feedbackdir"
+        r.feedbackdir.mkdir(parents=True, exist_ok=True)
 
         # TODO: the validator should probably be able to figure the flags out from the Problem config
         result = validator.run(t, r, args=flags)

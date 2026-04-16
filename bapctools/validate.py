@@ -149,8 +149,8 @@ class Validator(program.Program):
                     / testcase.short_path.with_suffix(".feedbackdir")
                 )
 
-        remove_path(cwd)
-        cwd.mkdir(parents=True, exist_ok=True)
+            remove_path(cwd)
+            cwd.mkdir(parents=True, exist_ok=True)
 
         arglist = []
         if args is not None:
