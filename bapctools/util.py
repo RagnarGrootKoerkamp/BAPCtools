@@ -133,21 +133,6 @@ def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
     exit1(force)
 
 
-class MessageType(Enum):
-    LOG = 1
-    WARN = 2
-    ERROR = 3
-    FATAL = 4
-
-    def __str__(self) -> str:
-        return {
-            MessageType.LOG: str(Fore.GREEN),
-            MessageType.WARN: str(Fore.YELLOW),
-            MessageType.ERROR: str(Fore.RED),
-            MessageType.FATAL: str(Fore.RED),
-        }[self]
-
-
 class Named(Protocol):
     name: str
 
