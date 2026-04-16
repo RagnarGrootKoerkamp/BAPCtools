@@ -700,8 +700,6 @@ class Generator(Program):
                 continue
             remove_path(f)
 
-        timeout = self.limits["timeout"]
-
         with stdout_path.open("w") as stdout_file:
             result = self._exec_command(
                 [*self.run_command, *args],
@@ -711,6 +709,7 @@ class Generator(Program):
 
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
+            timeout = self.limits["timeout"]
             bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
             return result
 

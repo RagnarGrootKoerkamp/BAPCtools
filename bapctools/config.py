@@ -194,7 +194,7 @@ class ARGS:
         setattr(self, "1", get_arg("1", False))
         self.action: Optional[str] = get_optional_arg("action", str)
         self.add: Optional[list[Path]] = get_list_arg("add", Path)
-        self.all: int = get_arg("all", 0)
+        self.all: int = get_arg("all", 0, ">= 0")
         self.answer: bool = get_arg("answer", False)
         self.api: Optional[str] = get_optional_arg("api", str)
         self.author: Optional[str] = get_optional_arg("author", str)
