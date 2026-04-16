@@ -1034,6 +1034,19 @@ if is_windows():
         )
 
 
+# safer function to remove a path, handles files, dirs and broken symlinks
+def remove_path(path: Path) -> None:
+    try:
+        if path.is_symlink():
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
     try:
@@ -1059,10 +1072,7 @@ def ensure_symlink(link: Path, target: Path, output: bool = False, relative: boo
             # if relative and not is_absolute: return
 
         if link.is_symlink() or link.exists():
-            if link.is_dir() and not link.is_symlink():
-                shutil.rmtree(link)
-            else:
-                link.unlink()
+            remove_path(link)
 
         # for windows the symlink needs to know if it points to a directory or file
         if relative:

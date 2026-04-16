@@ -27,6 +27,7 @@ from bapctools.util import (
     hash_file,
     ProgressBar,
     read_yaml,
+    remove_path,
     strip_newline,
     warn,
     write_yaml,
@@ -509,15 +510,13 @@ class Program:
         # Remove all non-source files.
         for f in self.tmpdir.glob("*"):
             if f not in (self.input_files + [meta_path]):
-                if f.is_dir() and not f.is_symlink():
-                    shutil.rmtree(f)
-                else:
-                    f.unlink()
+                remove_path(f)
 
         # The case where compile_command='{build}' will result in an empty list here.
         if not self.compile_command:
             return True
 
+        remove_path(meta_path)
         try:
             ret = exec_command(
                 self.compile_command,
@@ -699,10 +698,7 @@ class Generator(Program):
         for f in cwd.iterdir():
             if f.name == "meta_.yaml":
                 continue
-            if f.is_dir() and not f.is_symlink():
-                shutil.rmtree(f)
-            else:
-                f.unlink()
+            remove_path(f)
 
         timeout = self.limits["timeout"]
 

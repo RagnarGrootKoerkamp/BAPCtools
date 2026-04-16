@@ -1,4 +1,3 @@
-import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -17,6 +16,7 @@ from bapctools.util import (
     ExecResult,
     ExecStatus,
     ProgressBar,
+    remove_path,
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -112,10 +112,7 @@ sys.exit(result.returncode)
     def run(self, bar: ProgressBar, testing_tool: "TestingTool", testinput: TestInput) -> bool:
         assert self.run_command is not None
         rundir = self.tmpdir / testinput.short_path
-        if rundir.is_file():
-            rundir.unlink()
-        elif rundir.exists():
-            shutil.rmtree(rundir)
+        remove_path(rundir)
         rundir.mkdir(exist_ok=True, parents=True)
 
         returncode_file = rundir / ".returncode"

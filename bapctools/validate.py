@@ -1,12 +1,18 @@
 import re
-import shutil
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
 from bapctools import config, program
-from bapctools.util import ExecResult, ExecStatus, fatal, ProgressBar, validator_exec_code_map
+from bapctools.util import (
+    ExecResult,
+    ExecStatus,
+    fatal,
+    ProgressBar,
+    remove_path,
+    validator_exec_code_map,
+)
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools import run, testcase
@@ -141,11 +147,7 @@ class Validator(program.Program):
                 / testcase.short_path.with_suffix(".feedbackdir")
             )
 
-        if cwd.is_file():
-            cwd.unlink()
-        elif cwd.exists():
-            shutil.rmtree(cwd)
-
+        remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)
 
         arglist = []

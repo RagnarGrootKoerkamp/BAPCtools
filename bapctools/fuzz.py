@@ -1,5 +1,4 @@
 import random
-import shutil
 import signal
 import threading
 import time
@@ -19,6 +18,7 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    remove_path,
     ryaml_get_or_add,
     write_yaml,
 )
@@ -63,7 +63,7 @@ class GeneratorTask:
         # GENERATE THE TEST DATA
         dir = Path("fuzz") / f"tmp_id_{str(self.tmp_id)}"
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
-        shutil.rmtree(cwd, ignore_errors=True)
+        remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)
         name = "testcase"
         infile = cwd / (name + ".in")

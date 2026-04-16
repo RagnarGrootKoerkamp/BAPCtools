@@ -1,5 +1,4 @@
 import re
-import shutil
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -29,6 +28,7 @@ from bapctools.util import (
     normalize_yaml_value,
     PrintBar,
     read_yaml,
+    remove_path,
     ryaml_filter,
     substitute,
     verbose,
@@ -177,8 +177,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
     # prepare files inside dir
     export_dir = problem.tmpdir / "export"
-    if export_dir.exists():
-        shutil.rmtree(export_dir)
+    remove_path(export_dir)
     # For Kattis / 2025-09 spec, prepend the problem shortname to all files.
     if config.args.kattis or not config.args.legacy:
         export_dir /= problem.name
@@ -395,7 +394,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         bar.warn(f"Cannot export {f.relative_to(problem.path)} as {out}")
                     else:
                         add_file(out, f)
-            shutil.rmtree(export_dir / d)
+            remove_path(export_dir / d)
 
         # rename output_validator dir
         if (export_dir / OutputValidator.source_dir).exists():

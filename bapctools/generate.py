@@ -33,6 +33,7 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    remove_path,
     ryaml_get_or_add,
     shorten_path,
     substitute,
@@ -1067,7 +1068,7 @@ class TestcaseRule(Rule):
             tmp_infile = tmp / "testcase.in"
             _check_deterministic(tmp, tmp_infile)
             # clean up
-            shutil.rmtree(tmp)
+            remove_path(tmp)
 
         def generate_linked(type: str) -> bool:
             # cache entries are already set in generate_from_rule
@@ -1101,7 +1102,7 @@ class TestcaseRule(Rule):
 
             if not infile.is_file() or meta_yaml.rule_hashes != rule_hashes:
                 # clear all generated files
-                shutil.rmtree(cwd, ignore_errors=True)
+                remove_path(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = TestcaseRule.MetaYaml(problem, t)
 
@@ -1349,7 +1350,7 @@ class TestcaseRule(Rule):
                 result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
             else:
                 feedbackcopy = in_path.with_suffix(".feedbackcopy")
-                shutil.rmtree(feedbackcopy)
+                remove_path(feedbackcopy)
 
                 def skip_images(src: str, content: list[str]) -> list[str]:
                     return [] if src != str(feedbackdir) else image_files
@@ -2590,7 +2591,7 @@ def clean_trash(problem: Problem, time_limit: int = 10 * 60, size_lim: int = 102
         for d, x in dirs:
             if x == 0 or total_size > size_lim or d.stat().st_mtime < begin:
                 total_size -= x
-                shutil.rmtree(d)
+                remove_path(d)
 
 
 # Clean data/ and tmpdir/data/
@@ -2600,8 +2601,8 @@ def clean_data(problem: Problem, data: bool = True, cache: bool = True) -> None:
         problem.tmpdir / "data" if cache else None,
     ]
     for d in dirs:
-        if d is not None and d.exists():
-            shutil.rmtree(d)
+        if d is not None:
+            remove_path(d)
 
 
 def generate(problem: Problem) -> bool:

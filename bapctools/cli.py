@@ -18,7 +18,6 @@ import argparse
 import hashlib
 import os
 import re
-import shutil
 import signal
 import sys
 import tempfile
@@ -61,6 +60,7 @@ from bapctools.util import (
     log,
     ProgressBar,
     read_yaml,
+    remove_path,
     resolve_path_argument,
     verbose,
     warn,
@@ -1167,10 +1167,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
         if config.args.clean:
             log(f"Deleting {tmpdir}!")
-            if level_tmpdir.is_dir():
-                shutil.rmtree(level_tmpdir)
-            if level_tmpdir.is_file():
-                level_tmpdir.unlink()
+            remove_path(level_tmpdir)
         else:
             eprint(level_tmpdir)
 

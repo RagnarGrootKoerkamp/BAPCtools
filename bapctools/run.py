@@ -31,6 +31,7 @@ from bapctools.util import (
     ExecResult,
     ExecStatus,
     ProgressBar,
+    remove_path,
     shorten_path,
     warn,
 )
@@ -64,11 +65,7 @@ class Run:
         self.out_path: Path = self.tmpdir / "testcase.out"
         self.feedbackdir: Path = self.in_path.with_suffix(".feedbackdir")
 
-        if self.tmpdir.is_file():
-            self.tmpdir.unlink()
-        elif self.tmpdir.exists():
-            shutil.rmtree(self.tmpdir)
-
+        remove_path(self.tmpdir)
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
         ensure_symlink(self.in_path, self.testcase.in_path)
 
@@ -239,10 +236,7 @@ class Run:
         for f in self.tmpdir.iterdir():
             if f == self.feedbackdir:
                 continue
-            if f.is_file():
-                f.unlink()
-            elif f.exists():
-                shutil.rmtree(f)
+            remove_path(f)
         # use nextpass.in as next input
         shutil.move(nextpass, self.in_path)
         return True
