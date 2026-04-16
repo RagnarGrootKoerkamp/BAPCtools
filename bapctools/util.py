@@ -1037,13 +1037,11 @@ if is_windows():
 # safer function to remove a path, handles files, dirs and broken symlinks
 def remove_path(path: Path) -> None:
     try:
-        if path.is_symlink():
+        try:
             path.unlink()
-        elif path.is_dir():
+        except IsADirectoryError:
             shutil.rmtree(path)
-        else:
-            path.unlink()
-    except FileNotFoundError:
+    except (NotADirectoryError, FileNotFoundError):
         pass
 
 
