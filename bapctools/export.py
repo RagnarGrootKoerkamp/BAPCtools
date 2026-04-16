@@ -298,6 +298,19 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         continue
                     out.parent.mkdir(parents=True, exist_ok=True)
                     file.rename(out)
+            
+            # NOTE: hardcoded the following behavior:
+            # - move `statement/problem.id.pdf` to `problem.pdf`
+            # - move `statement/problem.en.pdf` to `attachments/problem.en.pdf`
+            problem_id_path = export_dir / 'statement' / 'problem.id.pdf'
+            out_id_path = export_dir / 'problem.pdf'
+            shutil.copyfile(problem_id_path, out_id_path)
+            problem_en_path = export_dir / 'statement' / 'problem.en.pdf'
+            out_en_path = export_dir / 'attachments' / 'statement_en.pdf'
+            out_en_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(problem_en_path, out_en_path)
+            
+
 
     # downgrade some parts of the problem to be more legacy like
     if config.args.legacy:
