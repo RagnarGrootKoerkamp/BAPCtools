@@ -931,14 +931,11 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
 
 def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
     if has_questionary:
-        try:
-            validate = None if allow_empty else EmptyValidator
-            return cast(
-                str,
-                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        validate = None if allow_empty else EmptyValidator
+        return cast(
+            str,
+            questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+        )
     else:
         text = f" ({default})" if default else ""
         return _ask_variable(name + text, default if default else "", allow_empty)
@@ -946,13 +943,10 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
 
 def ask_variable_bool(name: str, default: bool = True) -> bool:
     if has_questionary:
-        try:
-            return cast(
-                bool,
-                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        return cast(
+            bool,
+            questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+        )
     else:
         text = " (Y/n)" if default else " (y/N)"
         return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
@@ -960,16 +954,13 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
 
 def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
     if has_questionary:
-        try:
-            plain = questionary.Style([("selected", "noreverse")])
-            return cast(
-                str,
-                questionary.select(
-                    name + ":", choices=choices, default=default, style=plain
-                ).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        plain = questionary.Style([("selected", "noreverse")])
+        return cast(
+            str,
+            questionary.select(
+                name + ":", choices=choices, default=default, style=plain
+            ).unsafe_ask(),
+        )
     else:
         default = default or choices[0]
         text = f" ({default})" if default else ""
@@ -1483,53 +1474,44 @@ def exec_command(
         kwargs.pop("memory")
 
     process: Optional[ResourcePopen] = None
-    old_handler = None
-
-    def interrupt_handler(sig: Any, frame: Any) -> None:
-        nonlocal process
-        if process is not None:
-            process.kill()
-        if callable(old_handler):
-            old_handler(sig, frame)
-
-    if threading.current_thread() is threading.main_thread():
-        old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     timeout_expired = False
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn is not False:
-            process = ResourcePopen(
-                command,
-                preexec_fn=limit_setter(command, timeout, memory),
-                **kwargs,
-            )
-        else:
-            process = ResourcePopen(command, **kwargs)
-    except PermissionError as e:
-        # File is likely not executable.
-        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
-    except OSError as e:
-        # File probably doesn't exist.
-        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+        try:
+            if not is_windows() and preexec_fn is not False:
+                process = ResourcePopen(
+                    command,
+                    preexec_fn=limit_setter(command, timeout, memory),
+                    **kwargs,
+                )
+            else:
+                process = ResourcePopen(command, **kwargs)
+        except PermissionError as e:
+            # File is likely not executable.
+            return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+        except OSError as e:
+            # File probably doesn't exist.
+            return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-    try:
-        (stdout, stderr) = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        # Timeout expired.
-        timeout_expired = True
-        process.kill()
-        (stdout, stderr) = process.communicate()
+        try:
+            (stdout, stderr) = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Timeout expired.
+            timeout_expired = True
+            process.kill()
+            (stdout, stderr) = process.communicate()
+    except KeyboardInterrupt:
+        if process is not None:
+            process.kill()
+        raise KeyboardInterrupt()
 
     tend = time.monotonic()
 
-    if threading.current_thread() is threading.main_thread():
-        signal.signal(signal.SIGINT, old_handler)
-
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
-        raise AbortException()
+        raise KeyboardInterrupt()
 
     def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s
