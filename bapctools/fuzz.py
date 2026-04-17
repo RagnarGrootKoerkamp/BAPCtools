@@ -1,5 +1,4 @@
 import random
-import signal
 import threading
 import time
 from pathlib import Path
@@ -280,26 +279,22 @@ class Fuzz:
         printbar.log("Press CTRL+C to stop\n")
         bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
 
-        def soft_exit(sig: Any, frame: Any) -> None:
-            if self.queue.aborted:
-                fatal("Running interrupted", force=True)
-            else:
+        try:
+            try:
+                # add first generator task
+                self.finish_task()
+
+                # wait for the queue to run empty (after config.args.time)
+                self.queue.join()
+                # At this point, no new tasks may be started anymore.
+                self.queue.done()
+            except KeyboardInterrupt:
                 self.queue.abort()
                 with bar:
                     eprint(bar.carriage_return)
                     printbar.error("Running interrupted (waiting on remaining tasks)\n")
-
-        old_handler = signal.signal(signal.SIGINT, soft_exit)
-
-        # add first generator task
-        self.finish_task()
-
-        # wait for the queue to run empty (after config.args.time)
-        self.queue.join()
-        # At this point, no new tasks may be started anymore.
-        self.queue.done()
-
-        signal.signal(signal.SIGINT, old_handler)
+        except KeyboardInterrupt:
+            fatal("Running interrupted", force=True)
 
         for submission, verdicts in self.summary.items():
             msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))

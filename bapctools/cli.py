@@ -18,7 +18,6 @@ import argparse
 import hashlib
 import os
 import re
-import signal
 import sys
 import tempfile
 from collections import Counter
@@ -1449,15 +1448,10 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
 # Takes command line arguments
 def main() -> None:
-    def interrupt_handler(sig: Any, frame: Any) -> None:
-        fatal("Running interrupted")
-
-    signal.signal(signal.SIGINT, interrupt_handler)
-
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args())
-    except AbortException:
+    except (AbortException, KeyboardInterrupt):
         fatal("Running interrupted")
 
 
