@@ -284,3 +284,12 @@ class ARGS:
 
 
 args = ARGS("config.py")
+
+
+class RestoreArgs:
+    def __enter__(self) -> None:
+        self.args = args.copy()
+
+    def __exit__(self, *_: Any) -> None:
+        global args
+        args = self.args
