@@ -111,7 +111,7 @@ class ParallelQueue(AbstractQueue[T]):
         # condition used to notify join that the queue is empty
         self.all_done = threading.Condition(self.mutex)
 
-        self.first_error: Optional[Exception] = None
+        self.first_error: Optional[KeyboardInterrupt | Exception] = None
         self.finish = False
 
         if self.pin:
@@ -154,17 +154,18 @@ class ParallelQueue(AbstractQueue[T]):
             # call f and catch all exceptions occurring in f
             # store the first exception for later
             try:
-                current_error = None
                 self.f(task)
-            except Exception as e:
-                if not self.aborted:
-                    self.abort()
-                    current_error = e
+            except (KeyboardInterrupt, Exception) as e:
+                with self.mutex:
+                    if not self.aborted and self.first_error is None:
+                        self.first_error = e
+                    elif isinstance(e, KeyboardInterrupt):
+                        self.first_error = e
+                    if not self.aborted:
+                        self.abort()
 
+            # mark task as completed and notify .join() if queue runs empty
             with self.mutex:
-                if not self.first_error:
-                    self.first_error = current_error
-                # mark task as completed and notify .join() if queue runs empty
                 self.missing -= 1
                 if self.missing == 0:
                     self.all_done.notify_all()
