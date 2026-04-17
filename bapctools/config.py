@@ -292,4 +292,5 @@ class RestoreArgs:
 
     def __exit__(self, *_: Any) -> None:
         global args
-        args = self.args
+        args.__dict__.clear()
+        args.__dict__.update(self.args.__dict__)
