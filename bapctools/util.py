@@ -1644,7 +1644,7 @@ class ShellCommand:
 
     def __call__(self, *args: str | Path) -> str:
         res = exec_command(
-            ["git", *args],
+            [self.cmd, *args],
             crop=False,
             preexec_fn=False,
             timeout=None,
