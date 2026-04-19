@@ -4,7 +4,9 @@ import copy
 import os
 import re
 import sys
-from collections.abc import Sequence
+import threading
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, TypeVar
 
@@ -191,6 +193,7 @@ class ARGS:
             result = default if value is None else value
             return result
 
+        # public keys
         setattr(self, "1", get_arg("1", False))
         self.action: Optional[str] = get_optional_arg("action", str)
         self.add: Optional[list[Path]] = get_list_arg("add", Path)
@@ -268,6 +271,9 @@ class ARGS:
         self.web: bool = get_arg("web", False)
         self.write: bool = get_arg("write", False)
 
+        # internal keys (cannot be set via a config file)
+        self.suppress_warnings: int = 0
+
         for key in kwargs:
             warn(f"unknown key in {source}: '{key}'")
 
@@ -286,11 +292,23 @@ class ARGS:
 args = ARGS("config.py")
 
 
-class RestoreArgs:
-    def __enter__(self) -> None:
-        self.args = args.copy()
-
-    def __exit__(self, *_: Any) -> None:
-        global args
+@contextmanager
+def restore_args() -> Generator[None]:
+    assert threading.current_thread() is threading.main_thread()
+    old_args = args.copy()
+    try:
+        yield
+    finally:
         args.__dict__.clear()
-        args.__dict__.update(self.args.__dict__)
+        args.__dict__.update(old_args.__dict__)
+
+
+@contextmanager
+def suppress_warnings(level: int = 1) -> Generator[None]:
+    assert threading.current_thread() is threading.main_thread()
+    old_suppress_warnings = args.suppress_warnings
+    args.suppress_warnings = level
+    try:
+        yield
+    finally:
+        args.suppress_warnings = old_suppress_warnings
