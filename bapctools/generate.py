@@ -2639,7 +2639,8 @@ def generate(problem: Problem) -> bool:
 
 def testcases(problem: Problem) -> set[Path]:
     try:
-        gen_config = GeneratorConfig(problem)
+        with config.suppress_warnings(level=2):
+            gen_config = GeneratorConfig(problem)
     except ParseException:
         return set()
     if gen_config.has_yaml:

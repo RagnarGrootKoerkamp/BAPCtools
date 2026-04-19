@@ -116,15 +116,17 @@ def verbose(msg: Any) -> None:
 
 
 def warn(msg: Any) -> None:
-    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
-    config.n_warn += 1
+    if config.args.suppress_warnings < 1:
+        eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
+        config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
-    config.n_error += 1
+    if config.args.suppress_warnings < 2:
+        eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
+        config.n_error += 1
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
@@ -414,8 +416,9 @@ class ProgressBar:
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
-            config.n_warn += 1
-            self.log(message, data, Fore.YELLOW, print_item=print_item)
+            if config.args.suppress_warnings < 1:
+                config.n_warn += 1
+                self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
@@ -428,8 +431,9 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         with self:
-            config.n_error += 1
-            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+            if config.args.suppress_warnings < 2:
+                config.n_error += 1
+                self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
             if not resume:
                 self._release_item()
 
@@ -583,8 +587,9 @@ class PrintBar:
             self.log(message, data, color, resume=resume, print_item=print_item)
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
-        config.n_warn += 1
-        self.log(message, data, Fore.YELLOW, print_item=print_item)
+        if config.args.suppress_warnings < 1:
+            config.n_warn += 1
+            self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     def error(
         self,
@@ -594,8 +599,9 @@ class PrintBar:
         resume: bool = False,
         print_item: bool = True,
     ) -> None:
-        config.n_error += 1
-        self.log(message, data, Fore.RED, print_item=print_item)
+        if config.args.suppress_warnings < 2:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, print_item=print_item)
 
     def fatal(
         self,
