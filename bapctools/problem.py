@@ -1,4 +1,5 @@
 import datetime
+import difflib
 import math
 import re
 import shutil
@@ -49,6 +50,70 @@ from bapctools.util import (
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.program import Program
+
+
+class Keywords:
+    def __init__(self, parser: YamlParser):
+        self.synonyms = dict[str, str]()
+        self.keywords = set[str]()
+
+        synonyms_parser = parser.extract_parser("synonyms")
+        for key, value in synonyms_parser.yaml.items():
+            if not isinstance(key, str):
+                warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                continue
+            self.keywords.add(key)
+            if not isinstance(value, str):
+                warn(f"invalid entry `{value}` in keywords.yaml. SKIPPED.")
+                continue
+            self.keywords.add(value)
+            self.synonyms[key] = value
+
+        def parse(yaml: object, parent: Optional[str] = None) -> None:
+            if yaml is None:
+                pass  # ignore empty leaves
+            elif isinstance(yaml, dict):
+                for key, value in yaml.items():
+                    if not isinstance(key, str):
+                        warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                    else:
+                        parse(key, parent)
+                        parse(value, key)
+            elif isinstance(yaml, list):
+                for entry in yaml:
+                    parse(entry, parent)
+            elif isinstance(yaml, str):
+                if parent is not None:
+                    self.keywords.add(yaml)
+            else:
+                warn(f"invalid entry `{yaml}` in keywords.yaml. SKIPPED.")
+
+        parse(parser.yaml)
+
+    def find(self, key: str) -> Optional[str]:
+        matches = difflib.get_close_matches(key, self.keywords, n=1, cutoff=0.8)
+        closest = matches[0] if matches else None
+        while closest in self.synonyms:
+            closest = self.synonyms[closest]
+        return closest
+
+
+# The cached keywords.yaml.
+_keywords: Optional[Keywords] = None
+_keywords_config_lock = threading.Lock()
+
+
+def keywords() -> Keywords:
+    global _keywords, _keywords_config_lock
+    with _keywords_config_lock:
+        if _keywords is not None:
+            return _keywords
+
+        raw_keywords = read_yaml(config.RESOURCES_ROOT / "config" / "keywords.yaml")
+        if not isinstance(raw_keywords, dict):
+            fatal("could not parse keywords.yaml.")
+        _keywords = Keywords(YamlParser("keywords.yaml", raw_keywords))
+        return _keywords
 
 
 class ProblemCredits:
@@ -288,6 +353,12 @@ class ProblemSettings:
         )
 
         self.keywords: list[str] = parser.extract_optional_list("keywords", str, allow_empty=True)
+        known_keywords = keywords()
+        for keyword in self.keywords:
+            match = known_keywords.find(keyword)
+            if match:
+                warn(f"found keyword {keyword}. Did you mean {match}?")
+
         # Not implemented in BAPCtools. We always test all languages in languages.yaml.
         self.languages: list[str] = parser.extract_optional_list("languages", str)
         # Not implemented in BAPCtools
