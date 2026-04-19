@@ -1,6 +1,7 @@
 # read problem settings from config files
 
 import copy
+import difflib
 import errno
 import hashlib
 import os
@@ -729,6 +730,7 @@ class YamlParser:
         self.errors = 0
         self.source = source
         self.yaml = yaml
+        self.known_keys = set[str]()
         self.parent_path = parent_path
         self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
         self.bar = bar
@@ -741,12 +743,20 @@ class YamlParser:
             if not isinstance(key, str):
                 self.bar.warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
-                self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
+                closest = difflib.get_close_matches(key, self.known_keys, n=1)
+                if closest:
+                    self.bar.warn(
+                        f"found unknown {self.source} key: {key} in {self.parent_str}. Did you mean: {closest[0]}?"
+                    )
+                else:
+                    self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
 
     def pop(self, key: str) -> object:
+        self.known_keys.add(key)
         return self.yaml.pop(key, None)
 
     def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = normalize_yaml_value(self.yaml.pop(key), t)
             if value is None or isinstance(value, t):
@@ -757,6 +767,7 @@ class YamlParser:
         return None
 
     def extract(self, key: str, default: T, constraint: Optional[str] = None) -> T:
+        self.known_keys.add(key)
         value = self.extract_optional(key, type(default))
         result = default if value is None else value
         if constraint:
@@ -770,6 +781,7 @@ class YamlParser:
         return result
 
     def extract_and_error(self, key: str, t: type[T]) -> T:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = normalize_yaml_value(self.yaml.pop(key), t)
             if isinstance(value, t):
@@ -781,6 +793,7 @@ class YamlParser:
         return t()
 
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
+        self.known_keys.add(key)
         if key in self.yaml:
             use = f", use `{new}` instead" if new else ""
             self.bar.warn(f"key `{self._key_path(key)}` is deprecated{use}. SKIPPED.")
@@ -789,6 +802,7 @@ class YamlParser:
     def extract_optional_list(
         self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
     ) -> list[T]:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = self.yaml.pop(key)
             if value is None:
@@ -812,6 +826,7 @@ class YamlParser:
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
+        self.known_keys.add(key)
         return YamlParser(self.source, self.extract(key, {}), self._key_path(key), self.bar)
 
 

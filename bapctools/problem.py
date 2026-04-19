@@ -177,7 +177,7 @@ class ProblemLimits:
         if problem_settings.multi_pass:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
         elif "validation_passes" in parser.yaml:
-            parser.yaml.pop("validation_passes")
+            parser.pop("validation_passes")
             warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
             self.validation_passes = None
 
