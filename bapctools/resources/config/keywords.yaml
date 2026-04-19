@@ -1,0 +1,134 @@
+################################################################################
+# This file contains all keywords recognized by BAPCtools                      #
+# the keywords are organized in a tree like fashion (represented by maps,      #
+# lists and strings)                                                           #
+# Notes:                                                                       #
+# - the root keys are not considered as keywords                               #
+# - the same keyword may appear in multiple places                             #
+# - leaves of the tree are allowed to be NULL                                  #
+################################################################################
+# synonyms are treated special, and are used to... resolve synonyms
+# Notes:
+# - synonyms must be a mapping from string to string
+# - all entries are still parsed as keywords
+# - it is undefined behaviour if the synonyms form cycles
+synonyms:
+  breadth-first search: bfs
+  communication: multi-pass
+  crt: chinese remainder theorem
+  depth-first search: dfs
+  disjoint set union: dsu
+  dynamic programming: dp
+  fast fourier transform: fft
+  greatest common divisor: gcd
+  least common multiple: lcm
+  longest common subsequence: lcs
+  longest increasing subsequence: lis
+  lowest common ancestor: lca
+  number theoretic transform: ntt
+  output-only: submit-answer
+  run-twice: multi-pass
+  two pointers: sliding window
+  union find: dsu
+
+problem types:
+  - interactive
+  - multi-pass
+  - pass-fail
+  - scoring
+  - submit-answer
+
+misc:
+  - casework
+  - implementation
+  - simulation
+
+techniques:
+  - ad-hoc
+  - binary search
+  - bitmask
+  - brute force
+  - constructive
+  - divide and conquer
+  - dp
+  - greedy
+  - hashing
+  - meet-in-the-middle
+  - randomized
+  - sliding window
+  - sorting
+  - sqrt decomposition
+  - sweep line
+  - ternary search
+
+topics:
+  - data structures:
+    - dsu
+    - link/cut tree
+    - persistent
+    - range queries
+  - geometry:
+    - closest pair
+    - convex hull
+    - half-plane intersection
+    - rotating calipers
+  - graphs:
+    - bfs:
+    - dfs:
+      - bcc:
+      - scc:
+        - 2-sat
+    - dynamic connectivity:
+    - euler tour:
+    - flow:
+      - min-cut
+      - min-cost-max-flow
+      - max-flow
+    - graph theory:
+    - matching:
+      - bipartite matching
+      - general matching
+      - weighted matching
+    - topological sorting:
+    - trees:
+      - centroid decomposition
+      - heavy-light decomposition
+      - lca
+      - spanning tree
+    - shortest path:
+      - bellman-ford
+      - dijkstra
+      - floyd-warshall
+  - math:
+    - big integer:
+    - combinatorics:
+      - generating functions
+      - inclusion-exclusion
+      - inversions
+      - permutations
+      - probabilities
+    - game theory:
+      - nimbers
+    - linear algebra:
+      - gaussian elimination
+      - matrices
+      - polynomials
+    - linear recurrence:
+    - number theory:
+      - chinese remainder theorem
+      - factorization
+      - gcd
+      - lcm
+      - modular arithmetic
+      - primes
+      - sieve
+    - numerical analysis:
+    - transforms:
+      - fft
+      - ntt
+  - strings:
+    - lcs
+    - lis
+    - palindromes
+    - sequences
+    - suffix structures
