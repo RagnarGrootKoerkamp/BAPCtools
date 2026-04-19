@@ -163,6 +163,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         (f"{OutputVisualizer.source_dir}/**/*", False),
     ]
 
+    # Omit submissions.yaml when exporting in legacy mode
+    if not config.args.legacy:
+        files.append(("submissions/submissions.yaml", False))
+
     # Do not include PDFs for kattis.
     if not config.args.kattis:
         for language in languages:
@@ -192,7 +196,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
 
-    # Include all files beside testcases
+    # Include all files beside test cases
     for pattern, required in files:
         # Only include hidden files if the pattern starts with a '.'.
         paths = list(glob(problem.path, pattern, include_hidden=True))
@@ -206,7 +210,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     if any(d.is_dir() for d in glob(problem.path, "attachments/*", include_hidden=True)):
         bar.error("Directory attachments are not supported.")
 
-    def add_testcase(in_file: Path) -> None:
+    def add_test_case(in_file: Path) -> None:
         base_name = drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
         for ext in config.KNOWN_DATA_EXTENSIONS:
             f = base_name.with_suffix(ext)
@@ -218,7 +222,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     if len(samples) == 0:
         bar.error("No samples found.")
     for sample in samples:
-        add_testcase(sample.download[0])
+        add_test_case(sample.download[0])
 
     # Include all secret test cases and copy all related files.
     pattern = "data/secret/**/*.in"
@@ -228,7 +232,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     for f in paths:
         if f.is_file():
             if f.with_suffix(".ans").is_file():
-                add_testcase(f)
+                add_test_case(f)
             else:
                 bar.warn(f"No answer file found for {f}, skipping.")
 
@@ -407,6 +411,26 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         for f in (export_dir / "data").rglob("test_group.yaml"):
             f.rename(f.with_name("testdata.yaml"))
             # TODO potentially, some keys also need to be renamed, but we don't use this often enough for this to matter (I hope)
+
+        # add @EXPECTED_RESULTS@ to submissions in non-standard legacy directories
+        for submission in problem.submissions() or []:
+            p = Path(submission.path)
+            if p.parts[2] not in [
+                "accepted",
+                "run_time_error",
+                "time_limit_exceeded",
+                "wrong_answer",
+            ]:
+                f = export_dir.joinpath(*p.parts[1:])
+                t = f.read_text()
+                shebang = ""
+                if t.startswith("#!"):
+                    first_newline = t.find("\n")
+                    shebang, t = t[:first_newline], t[first_newline:]
+                comment = "#" if f.suffix == ".py" else "//"
+                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {', '.join(sorted(v.name for v in submission.expectations.all_permitted()))}\n{t}"
+                f.unlink()
+                f.write_text(t)
 
     # handle yaml updates
     yaml_path.unlink()
