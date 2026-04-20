@@ -227,13 +227,9 @@ class ProblemSettings:
         self.problem_format_version: str = parser.extract("problem_format_version", "legacy-icpc")
 
         if self.problem_format_version.startswith("legacy"):
-            fatal(
-                f"{problem.name}/problem.yaml: legacy is no longer supported, try running 'bt upgrade'"
-            )
+            fatal("legacy is no longer supported, try running 'bt upgrade'")
         elif self.problem_format_version != config.SPEC_VERSION:
-            fatal(
-                f"{problem.name}/problem.yaml: unrecognized problem_format_version: {self.problem_format_version}"
-            )
+            fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parser.extract_deprecated("validation", "type")
         if "type" not in parser.yaml:
@@ -245,11 +241,11 @@ class ProblemSettings:
             if not mode:
                 mode = {"pass-fail"}
         else:
-            fatal(f"{problem.name}/problem.yaml: `type` must be a string or a sequence")
+            fatal("problem.yaml: `type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
             fatal(
-                f"""{problem.name}/problem.yaml: unrecognized value{
+                f"""problem.yaml: unrecognized value{
                     "" if len(unrecognized_type) == 1 else "s"
                 } for `type`: {" ".join(sorted(unrecognized_type))}"""
             )
