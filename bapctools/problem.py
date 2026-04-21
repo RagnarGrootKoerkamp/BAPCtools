@@ -93,8 +93,15 @@ class Keywords:
     def find(self, key: str) -> Optional[str]:
         matches = difflib.get_close_matches(key, self.keywords, n=1, cutoff=0.8)
         closest = matches[0] if matches else None
+        seen = set[str]()
         while closest in self.synonyms:
+            if closest in seen:
+                error(f"could not resolve {closest}. keywords.yaml contains cycle.")
+            seen.add(closest)
             closest = self.synonyms[closest]
+        if closest is not None:
+            for found in seen:
+                self.synonyms[found] = closest
         return closest
 
 
@@ -354,10 +361,14 @@ class ProblemSettings:
 
         self.keywords: list[str] = parser.extract_optional_list("keywords", str, allow_empty=True)
         known_keywords = keywords()
+        seen_keywords = set()
         for keyword in self.keywords:
             match = known_keywords.find(keyword)
-            if match:
+            if keyword in seen_keywords:
+                warn(f"found duplicate keyword {keyword}.")
+            elif match:
                 warn(f"found keyword {keyword}. Did you mean {match}?")
+            seen_keywords.add(keyword)
 
         # Not implemented in BAPCtools. We always test all languages in languages.yaml.
         self.languages: list[str] = parser.extract_optional_list("languages", str)
