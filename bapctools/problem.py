@@ -136,7 +136,9 @@ class ProblemCredits:
         if "credits" not in parser.yaml:
             return
         if isinstance(parser.yaml["credits"], str):
-            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
+            self.authors = [
+                Person("problem.yaml", parser.extract("credits", ""), "credits", parser.bar)
+            ]
             return
 
         credits = parser.extract_parser("credits")
@@ -148,7 +150,7 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.yaml.keys()):
             if not isinstance(lang, str):
-                warn(
+                parser.bar.warn(
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
                 )
             else:
@@ -176,7 +178,7 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                warn(f"problem.yaml: `name` is required in {source.parent_str}")
+                parser.bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
                 name = ""
             source.check_unknown_keys()
             return ProblemSource(name, url)
@@ -198,9 +200,11 @@ class ProblemSources(list[ProblemSource]):
                 elif isinstance(source, dict):
                     self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
                 else:
-                    warn(f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED.")
+                    parser.bar.warn(
+                        f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED."
+                    )
             return
-        warn("problem.yaml key `source` does not have the correct type")
+        parser.bar.warn("problem.yaml key `source` does not have the correct type")
 
 
 class ProblemLimits:
@@ -224,7 +228,7 @@ class ProblemLimits:
         self.raw_time_limit: float = parser.extract("time_limit", self.time_resolution, "> 0")
         time_steps = self.raw_time_limit / self.time_resolution
         if abs(time_steps - round(time_steps)) >= 0.0001:
-            error(
+            parser.bar.error(
                 f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
             )
 
@@ -250,7 +254,9 @@ class ProblemLimits:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
         elif "validation_passes" in parser.yaml:
             parser.pop("validation_passes")
-            warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
+            parser.bar.warn(
+                "limit: validation_passes is only used for multi-pass problems. SKIPPED."
+            )
             self.validation_passes = None
 
         # BAPCtools extensions:
@@ -259,9 +265,9 @@ class ProblemLimits:
 
         # warn for deprecated timelimit files
         if (problem.path / ".timelimit").is_file():
-            warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+            parser.bar.warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
         if (problem.path / "domjudge-problem.ini").is_file():
-            warn(
+            parser.bar.warn(
                 "domjudge-problem.ini is DEPRECATED. Use limits.time_limit if you want to set a timelimit."
             )
 
@@ -286,11 +292,9 @@ class ProblemLimits:
 class ProblemSettings:
     def __init__(
         self,
-        yaml_data: dict[object, object],
+        parser: YamlParser,
         problem: "Problem",
     ):
-        parser = YamlParser("problem.yaml", yaml_data)
-
         if isinstance(parser.yaml.get("name", None), str):
             parser.yaml["name"] = {"en": parser.yaml["name"]}
 
@@ -299,24 +303,24 @@ class ProblemSettings:
         self.problem_format_version: str = parser.extract("problem_format_version", "legacy-icpc")
 
         if self.problem_format_version.startswith("legacy"):
-            fatal("legacy is no longer supported, try running 'bt upgrade'")
+            parser.bar.fatal("legacy is no longer supported, try running 'bt upgrade'")
         elif self.problem_format_version != config.SPEC_VERSION:
-            fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
+            parser.bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parser.extract_deprecated("validation", "type")
         if "type" not in parser.yaml:
             mode = {"pass-fail"}
         elif isinstance(parser.yaml["type"], str):
             mode = set(parser.extract("type", "pass-fail").split())
-        elif isinstance(yaml_data["type"], list):
+        elif isinstance(parser.yaml["type"], list):
             mode = set(parser.extract_optional_list("type", str))
             if not mode:
                 mode = {"pass-fail"}
         else:
-            fatal("problem.yaml: `type` must be a string or a sequence")
+            parser.bar.fatal("problem.yaml: `type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
-            fatal(
+            parser.bar.fatal(
                 f"""problem.yaml: unrecognized value{
                     "" if len(unrecognized_type) == 1 else "s"
                 } for `type`: {" ".join(sorted(unrecognized_type))}"""
@@ -333,9 +337,9 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
+                parser.bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
             elif not isinstance(name, str):
-                warn(
+                parser.bar.warn(
                     f"incompatible value for language `{lang}` for `name` in problem.yaml. SKIPPED."
                 )
             else:
@@ -365,9 +369,9 @@ class ProblemSettings:
         for keyword in self.keywords:
             match = known_keywords.find(keyword)
             if keyword in seen_keywords:
-                warn(f"found duplicate keyword {keyword}.")
+                parser.bar.warn(f"found duplicate keyword {keyword}.")
             elif match:
-                warn(f"found keyword {keyword}. Did you mean {match}?")
+                parser.bar.warn(f"found keyword {keyword}. Did you mean {match}?")
             seen_keywords.add(keyword)
 
         # Not implemented in BAPCtools. We always test all languages in languages.yaml.
@@ -379,29 +383,37 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.CONSTANT_NAME_REGEX.fullmatch(key):
-                warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
+                parser.bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
                 continue
 
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
             if "value" not in value:
-                warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
+                parser.bar.warn(
+                    f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED."
+                )
                 continue
             for sub, variant in value.items():
                 if sub == "value" and isinstance(variant, (int, float)):
                     variant = str(variant)
 
                 if not isinstance(sub, str):
-                    warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                    parser.bar.warn(
+                        f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
+                    )
                 elif not config.CONSTANT_NAME_REGEX.fullmatch(sub):
-                    warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                    parser.bar.warn(
+                        f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
+                    )
                 elif isinstance(variant, (int, float)):
-                    warn(
+                    parser.bar.warn(
                         f"invalid type {type(variant).__name__} for `constants.{key}.{sub}` in problem.yaml, use string. SKIPPED."
                     )
                 elif not isinstance(variant, str):
-                    warn(f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                    parser.bar.warn(
+                        f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED."
+                    )
                 else:
                     variants.add(variant)
                     self.constants[f"{key}.{sub}"] = variant
@@ -429,7 +441,9 @@ class ProblemSettings:
             # TODO: consider float values with an eps?
             #      (compare the largest and smallest found float with rel/abs error)
             if len(variant_numbers) > 1:
-                warn(f"found different variants for {key}: {', '.join(variant_numbers.values())}")
+                parser.bar.warn(
+                    f"found different variants for {key}: {', '.join(variant_numbers.values())}"
+                )
 
         # BAPCtools extensions:
         self.verified: Optional[str] = parser.extract_optional("verified", str)
@@ -438,25 +452,27 @@ class ProblemSettings:
             "ans_is_output", not self.interactive and not self.multi_pass
         )
         if (self.interactive or self.multi_pass) and self.ans_is_output:
-            warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
+            parser.bar.warn(
+                f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED."
+            )
             self.ans_is_output = False
 
         parser.check_unknown_keys()
 
         # checks
         if not is_uuid(self.uuid):
-            warn(f"invalid uuid: {self.uuid}")
+            parser.bar.warn(f"invalid uuid: {self.uuid}")
         if self.license not in config.KNOWN_LICENSES:
-            warn(f"invalid license: {self.license}")
+            parser.bar.warn(f"invalid license: {self.license}")
             self.license = "unknown"
         if self.license == "public domain":
             if self.rights_owner is not None:
-                warn(
+                parser.bar.warn(
                     f"problem cannot have license 'public domain' and have a rights owner: {self.rights_owner}"
                 )
         elif self.license != "unknown":
             if self.rights_owner is None and not self.credits.authors and not self.source:
-                warn(
+                parser.bar.warn(
                     f"problem with license '{self.license}': needs a rights owner, author, or source."
                 )
 
@@ -480,8 +496,7 @@ class SampleData(NamedTuple):
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{1,255}"
-    _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile(_SHORTNAME_REGEX_STRING)
+    _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
@@ -490,8 +505,15 @@ class Problem:
         self.path = path
         self.tmpdir: Path = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
+
+        bar = PrintBar(self.name)
+        if not self.path.is_dir():
+            bar.fatal("problem directory not found")
+        if not Problem._SHORTNAME_REGEX.fullmatch(self.name):
+            bar.warn(f"name does not match {Problem._SHORTNAME_REGEX.pattern}")
+
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
-        self._read_settings()
+        self._read_settings(bar)
 
         # Some caches.
         self._testcases = dict[
@@ -520,20 +542,13 @@ class Problem:
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
 
-        # TODO: transform this into nice warnings
-        assert path.is_dir()
-        if not Problem._SHORTNAME_REGEX.fullmatch(self.name):
-            warn(
-                f"Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}"
-            )
-
-        self.statement_languages = self._determine_statement_languages()
+        self.statement_languages = self._determine_statement_languages(bar)
 
         for d in ["invalid_inputs", "invalid_answers", "invalid_outputs", "valid_outputs"]:
             if (self.path / "data" / d).is_dir():
                 warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self) -> list[str]:
+    def _determine_statement_languages(self, bar: BAR_TYPE) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -544,11 +559,11 @@ class Problem:
             path.suffixes[0][1:] for path in glob(self.path, str(latex.PdfType.PROBLEM.path("*")))
         )
         for lang in texlangs - yamllangs:
-            error(
+            bar.error(
                 f"{self.name}: Found {latex.PdfType.PROBLEM.path(lang).name}, but no corresponding name in problem.yaml."
             )
         for lang in yamllangs - texlangs:
-            error(
+            bar.error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not {latex.PdfType.PROBLEM.path(lang)}."
             )
         # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
@@ -559,12 +574,12 @@ class Problem:
             with texpath.open() as texfile:
                 match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
-                        error(rf"No \problemname found in {texpath.name}")
+                        bar.error(rf"No \problemname found in {texpath.name}")
                         continue
                     case "":
                         continue
                     case r"\problemyamlname":
-                        warn(
+                        bar.warn(
                             rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in {texpath.name}"
                         )
                         continue
@@ -573,23 +588,23 @@ class Problem:
                         # Assume authors know what they're doing
                         continue
                     case s if s != yamlname:
-                        warn(
+                        bar.warn(
                             f"Problem titles in {texpath.name} ({texname})"
                             + f" and problem.yaml ({yamlname}) differ;"
                             + r" consider using \problemname{}."
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self) -> None:
+    def _read_settings(self, bar: BAR_TYPE) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
             yaml_data = read_yaml(yaml_path) or {}
         except ScannerError:
-            fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
+            bar.fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
 
         if not isinstance(yaml_data, dict):
-            fatal(f"{self.name}/problem.yaml is illformed.")
+            bar.fatal(f"{self.name}/problem.yaml is illformed.")
 
         if "uuid" not in yaml_data:
             uuid = generate_problem_uuid()
@@ -597,9 +612,10 @@ class Problem:
             raw = yaml_path.read_text().rstrip()
             raw += f"\n# uuid added by BAPCtools\nuuid: '{uuid}'\n"
             yaml_path.write_text(raw)
-            log(f"Added new UUID to {self.name}/problem.yaml")
+            bar.log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(yaml_data, self)
+        parser = YamlParser("problem.yaml", yaml_data, bar=bar)
+        self.settings = ProblemSettings(parser, self)
 
         # Aliasing fields makes life easier for us 😛
         self.limits: ProblemLimits = self.settings.limits

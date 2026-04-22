@@ -5,7 +5,7 @@ from typing import Final, Optional, TYPE_CHECKING
 
 from bapctools import config
 from bapctools.testcase import Testcase
-from bapctools.util import error, fatal, read_yaml, warn, YamlParser
+from bapctools.util import BAR_TYPE, error, fatal, read_yaml, warn, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -14,9 +14,11 @@ if TYPE_CHECKING:
 
 
 class Person:
-    def __init__(self, source: str, yaml_data: str | dict[object, object], parent_path: str):
+    def __init__(
+        self, source: str, yaml_data: str | dict[object, object], parent_path: str, bar: BAR_TYPE
+    ):
         if isinstance(yaml_data, dict):
-            parser = YamlParser(source, yaml_data, parent_path)
+            parser = YamlParser(source, yaml_data, parent_path, bar)
             self.name: str = parser.extract("name", "")
             self.email: Optional[str] = parser.extract_optional("email", str)
             self.kattis: Optional[str] = parser.extract_optional("kattis", str)
@@ -29,7 +31,7 @@ class Person:
             self.kattis = self.orcid = None
         for token in [",", " and ", "&"]:
             if token in self.name:
-                warn(
+                bar.warn(
                     f"found suspicious token '{token.strip()}' in `{parent_path}.name`: {self.name}"
                 )
 
@@ -41,17 +43,22 @@ class Person:
             if value is None:
                 return []
             if isinstance(value, (str, dict)):
-                return [Person(source.source, value, key_path)]
+                return [Person(source.source, value, key_path, source.bar)]
             if isinstance(value, list):
                 if not all(isinstance(v, (str, dict)) for v in value):
-                    warn(
+                    source.bar.warn(
                         f"some values for key `{key_path}` in {source.source} have invalid type. SKIPPED."
                     )
                     return []
                 if not value:
-                    warn(f"value for `{key_path}` in {source.source} should not be an empty list.")
-                return [Person(source.source, v, f"{key_path}[{i}]") for i, v in enumerate(value)]
-            warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
+                    source.bar.warn(
+                        f"value for `{key_path}` in {source.source} should not be an empty list."
+                    )
+                return [
+                    Person(source.source, v, f"{key_path}[{i}]", source.bar)
+                    for i, v in enumerate(value)
+                ]
+            source.bar.warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
         return []
 
 
