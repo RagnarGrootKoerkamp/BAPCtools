@@ -437,6 +437,19 @@ class ProgressBar:
             if not resume:
                 self._release_item()
 
+    def fatal(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> NoReturn:
+        with self:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+            exit1()
+
     # Skip an item.
     def skip(self) -> None:
         with self:
@@ -610,7 +623,7 @@ class PrintBar:
         *,
         resume: bool = False,
         print_item: bool = True,
-    ) -> None:
+    ) -> NoReturn:
         config.n_error += 1
         self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
         exit1()
