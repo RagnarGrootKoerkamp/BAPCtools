@@ -25,6 +25,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <optional>
@@ -759,16 +760,22 @@ class Validator {
 					} while(!seen_here.insert(v).second);
 
 					struct CountIterator {
-						using value_type = T;
 						using difference_type = std::ptrdiff_t;
+						using value_type = T;
+						using pointer = value_type*;
+						// C++17: must be reference to value_type for LegacyForwardIterator, but we are only a LegacyInputIterator
+						// C++20: fine, even for the std::forward_iterator concept
+						using reference = value_type;
+						using iterator_category = std::input_iterator_tag;
 
-						T v;
-						value_type operator*() const { return v; }
+						T v{};
+						reference operator*() const { return v; }
 						CountIterator& operator++() { ++v; return *this; }
-						CountIterator operator++(int) { return { v++ }; }
-						bool operator==(CountIterator r) const { return v == r.v; }
+						CountIterator operator++(int) { auto copy = *this; ++(*this); return copy; }
+
+						bool operator==(const CountIterator& r) const { return v == r.v; }
+						bool operator!=(const CountIterator& r) const { return v != r.v; }
 					};
-					static_assert(std::forward_iterator<CountIterator>);
 
 					if(seen_here.size() > (high - low) / 2) {
 						use_remaining = true;
