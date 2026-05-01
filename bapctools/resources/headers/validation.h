@@ -759,12 +759,16 @@ class Validator {
 					} while(!seen_here.insert(v).second);
 
 					struct CountIterator {
+						using value_type = T;
+						using difference_type = std::ptrdiff_t;
+
 						T v;
-						T& operator*() { return v; }
-						T& operator++() { return ++v; }
-						T operator++(int) { return v++; }
-						bool operator!=(CountIterator r) { return v != r.v; }
+						value_type operator*() const { return v; }
+						CountIterator& operator++() { ++v; return *this; }
+						CountIterator operator++(int) { return { v++ }; }
+						bool operator==(CountIterator r) const { return v == r.v; }
 					};
+					static_assert(std::forward_iterator<CountIterator>);
 
 					if(seen_here.size() > (high - low) / 2) {
 						use_remaining = true;
