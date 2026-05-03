@@ -8,7 +8,7 @@ import time
 from collections.abc import Sequence
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, IO, Literal, Optional, TYPE_CHECKING
+from typing import IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
