@@ -1,3 +1,4 @@
+import fcntl
 import os
 import signal
 import subprocess
@@ -26,6 +27,41 @@ from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
     from bapctools.run import Run
+
+PIPE_SIZE: Optional[int] = None
+
+
+# This function can only be used on Linux.
+def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
+    global PIPE_SIZE
+    if PIPE_SIZE is not None:
+        return PIPE_SIZE
+
+    with open("/proc/sys/fs/pipe-max-size") as f:
+        PIPE_SIZE = int(f.read())  # Defaults to 1 MiB on most systems.
+
+    # Try to set the pipe size in the same way as subprocess.Popen does:
+    # https://github.com/python/cpython/blob/v3.14.4/Lib/subprocess.py#L1737
+    pipe_read, pipe_write = -1, -1
+    try:
+        pipe_read, pipe_write = os.pipe()
+        if hasattr(fcntl, "F_SETPIPE_SZ"):
+            fcntl.fcntl(pipe_write, fcntl.F_SETPIPE_SZ, PIPE_SIZE)
+    except PermissionError:
+        (bar or PrintBar("Run interactive test case")).warn(
+            "Permission error when setting pipe size. Running with default pipe size."
+        )
+        PIPE_SIZE = -1
+    finally:
+        if pipe_read != -1:
+            os.close(pipe_read)
+        if pipe_write != -1:
+            os.close(pipe_write)
+
+    if config.args.verbose >= 3:
+        eprint("Pipe size:  ", PIPE_SIZE)
+
+    return PIPE_SIZE
 
 
 # Return a ExecResult object amended with verdict.
@@ -227,11 +263,6 @@ def run_interactive_testcase(
     elif interaction:
         assert threading.current_thread() is threading.main_thread()
 
-    with open("/proc/sys/fs/pipe-max-size") as f:
-        pipe_size = int(f.read())
-    if config.args.verbose >= 3:
-        eprint("Buffer size:", pipe_size)
-
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
@@ -271,7 +302,7 @@ while True:
                     # TODO: Make a flag to pass validator error directly to terminal.
                     stderr=subprocess.PIPE if validator_error is False else None,
                     cwd=validator_dir,
-                    pipesize=pipe_size,
+                    pipesize=get_pipe_size(bar),
                     preexec_fn=limit_setter(
                         validator_command, validation_time, validation_memory, 0
                     ),
@@ -298,7 +329,7 @@ while True:
                         stdin=subprocess.PIPE,
                         stdout=validator.stdin,
                         stderr=interaction_file,
-                        pipesize=pipe_size,
+                        pipesize=get_pipe_size(bar),
                         preexec_fn=limit_setter(None, None, None, gid),
                     )
                     team_tee_pid = team_tee.pid
@@ -307,7 +338,7 @@ while True:
                         stdin=validator.stdout,
                         stdout=subprocess.PIPE,
                         stderr=interaction_file,
-                        pipesize=pipe_size,
+                        pipesize=get_pipe_size(bar),
                         preexec_fn=limit_setter(None, None, None, gid),
                     )
                     val_tee_pid = val_tee.pid
@@ -318,7 +349,7 @@ while True:
                     stdout=(team_tee if team_tee else validator).stdin,
                     stderr=subprocess.PIPE if team_error is False else None,
                     cwd=submission_dir,
-                    pipesize=pipe_size,
+                    pipesize=get_pipe_size(bar),
                     preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                 )
                 submission_pid = submission.pid
