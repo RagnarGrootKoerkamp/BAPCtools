@@ -2635,18 +2635,3 @@ def generate(problem: Problem) -> bool:
         return gen_config.reorder()
 
     return True
-
-
-def testcases(problem: Problem) -> set[Path]:
-    try:
-        gen_config = GeneratorConfig(problem)
-    except ParseException:
-        return set()
-    if gen_config.has_yaml:
-        return {
-            problem.path / "data" / p.parent / (p.name + ".in")
-            for p, x in gen_config.known_cases.items()
-            if x.parse_error is None
-        }
-    else:
-        return {t for t in problem.path.glob("data/**/*.in") if not t.is_symlink()}

@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from bapctools import config, problem
-from bapctools.util import PrintBar
+from bapctools.util import PrintBar, ProgressBar, YamlParser
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -58,7 +58,8 @@ class TestProblemYaml:
         config.n_error = 0
         config.n_warn = 0
 
-        p = problem.ProblemSettings(test_data["yaml"], cast(problem.Problem, MockProblem()))
+        parser = YamlParser("problem.yaml", test_data["yaml"])
+        p = problem.ProblemSettings(parser, cast(problem.Problem, MockProblem()))
         assert config.n_error == 0 and config.n_warn == 0, (
             f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
         )
@@ -74,9 +75,10 @@ class TestProblemYaml:
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
 
-        monkeypatch.setattr(PrintBar, "fatal", fatal)
-        monkeypatch.setattr(PrintBar, "error", error)
-        monkeypatch.setattr(PrintBar, "warn", warn)
+        for bar_type in [PrintBar, ProgressBar]:
+            monkeypatch.setattr(bar_type, "fatal", fatal)
+            monkeypatch.setattr(bar_type, "error", error)
+            monkeypatch.setattr(bar_type, "warn", warn)
         for module in ["bapctools.expectations", "bapctools.problem", "bapctools.util"]:
             monkeypatch.setattr(f"{module}.fatal", fatal)
             monkeypatch.setattr(f"{module}.error", error)
@@ -88,7 +90,8 @@ class TestProblemYaml:
         )
 
         try:
-            problem.ProblemSettings(test_data["yaml"], cast(problem.Problem, MockProblem()))
+            parser = YamlParser("problem.yaml", test_data["yaml"])
+            problem.ProblemSettings(parser, cast(problem.Problem, MockProblem()))
         except SystemExit as e:
             assert e.code == -42
 

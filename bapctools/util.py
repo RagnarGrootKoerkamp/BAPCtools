@@ -1,6 +1,7 @@
 # read problem settings from config files
 
 import copy
+import difflib
 import errno
 import hashlib
 import os
@@ -115,15 +116,17 @@ def verbose(msg: Any) -> None:
 
 
 def warn(msg: Any) -> None:
-    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
-    config.n_warn += 1
+    if config.args.suppress_warnings < 1:
+        eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
+        config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
-    config.n_error += 1
+    if config.args.suppress_warnings < 2:
+        eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
+        config.n_error += 1
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
@@ -413,8 +416,9 @@ class ProgressBar:
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
-            config.n_warn += 1
-            self.log(message, data, Fore.YELLOW, print_item=print_item)
+            if config.args.suppress_warnings < 1:
+                config.n_warn += 1
+                self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
@@ -427,10 +431,24 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         with self:
-            config.n_error += 1
-            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+            if config.args.suppress_warnings < 2:
+                config.n_error += 1
+                self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
             if not resume:
                 self._release_item()
+
+    def fatal(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> NoReturn:
+        with self:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+            exit1()
 
     # Skip an item.
     def skip(self) -> None:
@@ -582,8 +600,9 @@ class PrintBar:
             self.log(message, data, color, resume=resume, print_item=print_item)
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
-        config.n_warn += 1
-        self.log(message, data, Fore.YELLOW, print_item=print_item)
+        if config.args.suppress_warnings < 1:
+            config.n_warn += 1
+            self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     def error(
         self,
@@ -593,8 +612,9 @@ class PrintBar:
         resume: bool = False,
         print_item: bool = True,
     ) -> None:
-        config.n_error += 1
-        self.log(message, data, Fore.RED, print_item=print_item)
+        if config.args.suppress_warnings < 2:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, print_item=print_item)
 
     def fatal(
         self,
@@ -603,7 +623,7 @@ class PrintBar:
         *,
         resume: bool = False,
         print_item: bool = True,
-    ) -> None:
+    ) -> NoReturn:
         config.n_error += 1
         self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
         exit1()
@@ -729,6 +749,7 @@ class YamlParser:
         self.errors = 0
         self.source = source
         self.yaml = yaml
+        self.known_keys = set[str]()
         self.parent_path = parent_path
         self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
         self.bar = bar
@@ -741,12 +762,20 @@ class YamlParser:
             if not isinstance(key, str):
                 self.bar.warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
-                self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
+                closest = difflib.get_close_matches(key, self.known_keys, n=1)
+                if closest:
+                    self.bar.warn(
+                        f"found unknown {self.source} key: {key} in {self.parent_str}. Did you mean: {closest[0]}?"
+                    )
+                else:
+                    self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
 
     def pop(self, key: str) -> object:
+        self.known_keys.add(key)
         return self.yaml.pop(key, None)
 
     def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = normalize_yaml_value(self.yaml.pop(key), t)
             if value is None or isinstance(value, t):
@@ -757,6 +786,7 @@ class YamlParser:
         return None
 
     def extract(self, key: str, default: T, constraint: Optional[str] = None) -> T:
+        self.known_keys.add(key)
         value = self.extract_optional(key, type(default))
         result = default if value is None else value
         if constraint:
@@ -770,6 +800,7 @@ class YamlParser:
         return result
 
     def extract_and_error(self, key: str, t: type[T]) -> T:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = normalize_yaml_value(self.yaml.pop(key), t)
             if isinstance(value, t):
@@ -781,6 +812,7 @@ class YamlParser:
         return t()
 
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
+        self.known_keys.add(key)
         if key in self.yaml:
             use = f", use `{new}` instead" if new else ""
             self.bar.warn(f"key `{self._key_path(key)}` is deprecated{use}. SKIPPED.")
@@ -789,6 +821,7 @@ class YamlParser:
     def extract_optional_list(
         self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
     ) -> list[T]:
+        self.known_keys.add(key)
         if key in self.yaml:
             value = self.yaml.pop(key)
             if value is None:
@@ -812,6 +845,7 @@ class YamlParser:
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
+        self.known_keys.add(key)
         return YamlParser(self.source, self.extract(key, {}), self._key_path(key), self.bar)
 
 
@@ -931,14 +965,11 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
 
 def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
     if has_questionary:
-        try:
-            validate = None if allow_empty else EmptyValidator
-            return cast(
-                str,
-                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        validate = None if allow_empty else EmptyValidator
+        return cast(
+            str,
+            questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+        )
     else:
         text = f" ({default})" if default else ""
         return _ask_variable(name + text, default if default else "", allow_empty)
@@ -946,13 +977,10 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
 
 def ask_variable_bool(name: str, default: bool = True) -> bool:
     if has_questionary:
-        try:
-            return cast(
-                bool,
-                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        return cast(
+            bool,
+            questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+        )
     else:
         text = " (Y/n)" if default else " (y/N)"
         return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
@@ -960,16 +988,13 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
 
 def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
     if has_questionary:
-        try:
-            plain = questionary.Style([("selected", "noreverse")])
-            return cast(
-                str,
-                questionary.select(
-                    name + ":", choices=choices, default=default, style=plain
-                ).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
+        plain = questionary.Style([("selected", "noreverse")])
+        return cast(
+            str,
+            questionary.select(
+                name + ":", choices=choices, default=default, style=plain
+            ).unsafe_ask(),
+        )
     else:
         default = default or choices[0]
         text = f" ({default})" if default else ""
@@ -1483,53 +1508,44 @@ def exec_command(
         kwargs.pop("memory")
 
     process: Optional[ResourcePopen] = None
-    old_handler = None
-
-    def interrupt_handler(sig: Any, frame: Any) -> None:
-        nonlocal process
-        if process is not None:
-            process.kill()
-        if callable(old_handler):
-            old_handler(sig, frame)
-
-    if threading.current_thread() is threading.main_thread():
-        old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     timeout_expired = False
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn is not False:
-            process = ResourcePopen(
-                command,
-                preexec_fn=limit_setter(command, timeout, memory),
-                **kwargs,
-            )
-        else:
-            process = ResourcePopen(command, **kwargs)
-    except PermissionError as e:
-        # File is likely not executable.
-        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
-    except OSError as e:
-        # File probably doesn't exist.
-        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+        try:
+            if not is_windows() and preexec_fn is not False:
+                process = ResourcePopen(
+                    command,
+                    preexec_fn=limit_setter(command, timeout, memory),
+                    **kwargs,
+                )
+            else:
+                process = ResourcePopen(command, **kwargs)
+        except PermissionError as e:
+            # File is likely not executable.
+            return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+        except OSError as e:
+            # File probably doesn't exist.
+            return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-    try:
-        (stdout, stderr) = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        # Timeout expired.
-        timeout_expired = True
-        process.kill()
-        (stdout, stderr) = process.communicate()
+        try:
+            (stdout, stderr) = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Timeout expired.
+            timeout_expired = True
+            process.kill()
+            (stdout, stderr) = process.communicate()
+    except KeyboardInterrupt:
+        if process is not None:
+            process.kill()
+        raise KeyboardInterrupt()
 
     tend = time.monotonic()
 
-    if threading.current_thread() is threading.main_thread():
-        signal.signal(signal.SIGINT, old_handler)
-
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
-        raise AbortException()
+        raise KeyboardInterrupt()
 
     def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s
@@ -1662,7 +1678,7 @@ class ShellCommand:
 
     def __call__(self, *args: str | Path) -> str:
         res = exec_command(
-            ["git", *args],
+            [self.cmd, *args],
             crop=False,
             preexec_fn=False,
             timeout=None,

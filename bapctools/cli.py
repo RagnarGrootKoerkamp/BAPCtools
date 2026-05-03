@@ -18,7 +18,6 @@ import argparse
 import hashlib
 import os
 import re
-import signal
 import sys
 import tempfile
 from collections import Counter
@@ -1214,9 +1213,10 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     if action == "solve_stats":
         if level == "problem":
             fatal("solve_stats only works for a contest")
-        config.args.jobs = (os.cpu_count() or 1) // 2
-        solve_stats.generate_solve_stats(config.args.post_freeze)
-        return
+        with config.temporary_args():
+            config.args.jobs = (os.cpu_count() or 1) // 2
+            solve_stats.generate_solve_stats(config.args.post_freeze)
+            return
 
     if action == "download_submissions":
         if level == "problem":
@@ -1253,13 +1253,12 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             and not config.args.no_generate
         ):
             # Call `generate` with modified arguments.
-            old_args = config.args.copy()
-            config.args.jobs = (os.cpu_count() or 1) // 2
-            config.args.add = None
-            config.args.verbose = 0
-            config.args.no_visualizer = True
-            success &= generate.generate(problem)
-            config.args = old_args
+            with config.temporary_args():
+                config.args.jobs = (os.cpu_count() or 1) // 2
+                config.args.add = None
+                config.args.verbose = 0
+                config.args.no_visualizer = True
+                success &= generate.generate(problem)
         if action in ["fuzz"]:
             success &= fuzz.Fuzz(problem).run()
         if action in ["pdf", "all"]:
@@ -1308,8 +1307,9 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
         if action in ["run", "all"]:
             success &= problem.run_submissions()
         if action in ["test"]:
-            config.args.no_bar = True
-            success &= problem.test_submissions()
+            with config.temporary_args():
+                config.args.no_bar = True
+                success &= problem.test_submissions()
         if action in ["constraints"]:
             success &= constraints.check_constraints(problem)
         if action in ["check_testing_tool"]:
@@ -1323,15 +1323,13 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if not config.args.skip:
                 if not config.args.no_generate:
                     # Set up arguments for generate.
-                    old_args = config.args.copy()
-                    config.args.check_deterministic = not config.args.force
-                    config.args.add = None
-                    config.args.verbose = 0
-                    config.args.testcases = None
-                    config.args.force = False
-                    success &= generate.generate(problem)
-                    config.args = old_args
-
+                    with config.temporary_args():
+                        config.args.check_deterministic = not config.args.force
+                        config.args.add = None
+                        config.args.verbose = 0
+                        config.args.testcases = None
+                        config.args.force = False
+                        success &= generate.generate(problem)
                 if not config.args.kattis:
                     success &= latex.build_problem_pdfs(problem)
                     if not config.args.no_solutions:
@@ -1449,15 +1447,10 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
 # Takes command line arguments
 def main() -> None:
-    def interrupt_handler(sig: Any, frame: Any) -> None:
-        fatal("Running interrupted")
-
-    signal.signal(signal.SIGINT, interrupt_handler)
-
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args())
-    except AbortException:
+    except (AbortException, KeyboardInterrupt):
         fatal("Running interrupted")
 
 
