@@ -23,6 +23,23 @@ def stats(problems: list[Problem]) -> None:
         stats_all(problems)
 
 
+# lists all testcases, tries to consider generators.yaml
+def testcases(problem: Problem) -> set[Path]:
+    try:
+        with config.suppress_warnings(level=2):
+            gen_config = generate.GeneratorConfig(problem)
+    except generate.ParseException:
+        return set()
+    if gen_config.has_yaml:
+        return {
+            problem.path / "data" / p.parent / (p.name + ".in")
+            for p, x in gen_config.known_cases.items()
+            if x.parse_error is None
+        }
+    else:
+        return {t for t in problem.path.glob("data/**/*.in") if not t.is_symlink()}
+
+
 # This prints the number belonging to the count.
 # This can be a red/white colored number, or Y/N
 def _get_stat(
@@ -134,7 +151,7 @@ def problem_stats(problems: list[Problem]) -> None:
     eprint(Style.BRIGHT + header + Style.RESET_ALL)
 
     for problem in problems:
-        generated_testcases = generate.testcases(problem)
+        generated_testcases = testcases(problem)
 
         def count(
             path: str
@@ -428,7 +445,7 @@ def stats_all(problems: list[Problem]) -> None:
         return parser.parse(date) if date else None
 
     eprint("-" * len(header))
-    testcases = [len(generate.testcases(p)) for p in problems]
+    testcases = [len(testcases(p)) for p in problems]
     testcase_stats = get_stats(testcases)
     eprint(format_row("Testcases", *testcases, *testcase_stats))
     changed: list[Optional[float | int]] = []
