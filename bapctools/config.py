@@ -293,7 +293,7 @@ args = ARGS("config.py")
 
 
 @contextmanager
-def restore_args() -> Generator[None]:
+def temporary_args() -> Generator[None]:
     assert threading.current_thread() is threading.main_thread()
     old_args = args.copy()
     try:
@@ -303,6 +303,8 @@ def restore_args() -> Generator[None]:
         args.__dict__.update(old_args.__dict__)
 
 
+# suppresses warning messages as well as setting n_warn
+# if level == 2, this does also suppress errors
 @contextmanager
 def suppress_warnings(level: int = 1) -> Generator[None]:
     assert threading.current_thread() is threading.main_thread()
