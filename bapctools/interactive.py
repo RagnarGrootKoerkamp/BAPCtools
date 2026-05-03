@@ -7,7 +7,7 @@ import time
 from collections.abc import Sequence
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Final, IO, Literal, Optional, TYPE_CHECKING
+from typing import Any, IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
@@ -26,8 +26,6 @@ from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
     from bapctools.run import Run
-
-BUFFER_SIZE: Final[int] = 2**20
 
 
 # Return a ExecResult object amended with verdict.
@@ -228,6 +226,12 @@ def run_interactive_testcase(
         assert not interaction.is_relative_to(run.tmpdir)
     elif interaction:
         assert threading.current_thread() is threading.main_thread()
+
+    with open("/proc/sys/fs/pipe-max-size") as f:
+        pipe_size = int(f.read())
+    if config.args.verbose >= 3:
+        eprint("Buffer size:", pipe_size)
+
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
@@ -267,7 +271,7 @@ while True:
                     # TODO: Make a flag to pass validator error directly to terminal.
                     stderr=subprocess.PIPE if validator_error is False else None,
                     cwd=validator_dir,
-                    pipesize=BUFFER_SIZE,
+                    pipesize=pipe_size,
                     preexec_fn=limit_setter(
                         validator_command, validation_time, validation_memory, 0
                     ),
@@ -294,7 +298,7 @@ while True:
                         stdin=subprocess.PIPE,
                         stdout=validator.stdin,
                         stderr=interaction_file,
-                        pipesize=BUFFER_SIZE,
+                        pipesize=pipe_size,
                         preexec_fn=limit_setter(None, None, None, gid),
                     )
                     team_tee_pid = team_tee.pid
@@ -303,7 +307,7 @@ while True:
                         stdin=validator.stdout,
                         stdout=subprocess.PIPE,
                         stderr=interaction_file,
-                        pipesize=BUFFER_SIZE,
+                        pipesize=pipe_size,
                         preexec_fn=limit_setter(None, None, None, gid),
                     )
                     val_tee_pid = val_tee.pid
@@ -314,7 +318,7 @@ while True:
                     stdout=(team_tee if team_tee else validator).stdin,
                     stderr=subprocess.PIPE if team_error is False else None,
                     cwd=submission_dir,
-                    pipesize=BUFFER_SIZE,
+                    pipesize=pipe_size,
                     preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                 )
                 submission_pid = submission.pid
