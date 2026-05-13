@@ -80,7 +80,7 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     movetree(src_base, dst_base)
 
 
-def args_split(args: str) -> "CommentedSeq":
+def args_split(args: str) -> CommentedSeq:
     splitted = CommentedSeq(shlex.split(args))
     splitted.fa.set_flow_style()
     return splitted
@@ -283,7 +283,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             changed = True
 
     def apply_recursively(
-        operation: Callable[["CommentedMap", str], bool], data: "CommentedMap", path: str = ""
+        operation: Callable[[CommentedMap, str], bool], data: CommentedMap, path: str = ""
     ) -> bool:
         changed = operation(data, path)
         if "data" in data and data["data"]:
@@ -298,7 +298,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
 
-    def rename_testdata_to_test_group_yaml(data: "CommentedMap", path: str) -> bool:
+    def rename_testdata_to_test_group_yaml(data: CommentedMap, path: str) -> bool:
         old, new = "testdata.yaml", "test_group.yaml"
         if old in data:
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
@@ -307,7 +307,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             return True
         return False
 
-    def upgrade_generated_test_group_yaml(data: "CommentedMap", path: str) -> bool:
+    def upgrade_generated_test_group_yaml(data: CommentedMap, path: str) -> bool:
         changed = False
         if "test_group.yaml" in data:
             test_group_yaml = cast(CommentedMap, data["test_group.yaml"])
@@ -333,7 +333,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     changed = True
         return changed
 
-    def replace_hint_desc_in_test_cases(data: "CommentedMap", path: str) -> bool:
+    def replace_hint_desc_in_test_cases(data: CommentedMap, path: str) -> bool:
         changed = False
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
@@ -346,7 +346,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     if (
                         child_data
                         and generate.is_testcase(child_data)
-                        and isinstance(child_data, dict)
+                        and isinstance(child_data, CommentedMap)
                     ):
                         if "desc" in child_data:
                             ryaml_get_or_add(child_data, "yaml")["description"] = child_data["desc"]
