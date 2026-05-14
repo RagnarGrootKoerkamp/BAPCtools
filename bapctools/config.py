@@ -1,6 +1,7 @@
 # Global variables that are constant after the programs arguments have been parsed.
 
 import copy
+import difflib
 import os
 import re
 import sys
@@ -128,6 +129,7 @@ TEST_TLE_SUBMISSIONS: bool = False
 class ARGS:
     def __init__(self, source: str | Path, **kwargs: Any) -> None:
         self._set = set[str]()
+        self._known_keys = set[str]()
         self._source = source
 
         def warn(msg: Any) -> None:
@@ -148,6 +150,7 @@ class ARGS:
             return value
 
         def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:
+            self._known_keys.add(key)
             if key in kwargs:
                 value = normalize_arg(kwargs.pop(key), t)
                 if value is None:
@@ -169,6 +172,7 @@ class ARGS:
         def get_list_arg(
             key: str, t: type[T], constraint: Optional[str] = None
         ) -> Optional[list[T]]:
+            self._known_keys.add(key)
             values = get_optional_arg(key, list)
             if values is None:
                 return None
@@ -189,6 +193,7 @@ class ARGS:
             return checked
 
         def get_arg(key: str, default: T, constraint: Optional[str] = None) -> T:
+            self._known_keys.add(key)
             value = get_optional_arg(key, type(default), constraint)
             result = default if value is None else value
             return result
@@ -275,7 +280,9 @@ class ARGS:
         self.suppress_warnings: int = 0
 
         for key in kwargs:
-            warn(f"unknown key in {source}: '{key}'")
+            closest = difflib.get_close_matches(key, self._known_keys, n=1)
+            hint = f". Did you mean: {closest[0]}?" if closest else ""
+            warn(f"found unknown {source} key: {key}{hint}")
 
     def add_if_not_set(self, args: "ARGS") -> None:
         for key in args._set:

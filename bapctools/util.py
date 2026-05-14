@@ -763,12 +763,8 @@ class YamlParser:
                 self.bar.warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
                 closest = difflib.get_close_matches(key, self.known_keys, n=1)
-                if closest:
-                    self.bar.warn(
-                        f"found unknown {self.source} key: {key} in {self.parent_str}. Did you mean: {closest[0]}?"
-                    )
-                else:
-                    self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
+                hint = f". Did you mean: {closest[0]}?" if closest else ""
+                self.bar.warn(f"found unknown {self.source} key: {key} in {self.parent_str}{hint}")
 
     def pop(self, key: str) -> object:
         self.known_keys.add(key)
