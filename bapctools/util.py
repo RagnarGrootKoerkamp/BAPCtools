@@ -748,7 +748,7 @@ class YamlParser:
         assert isinstance(yaml, dict)
         self.errors = 0
         self.source = source
-        self.yaml = yaml
+        self.yaml = dict(yaml)
         self.known_keys = set[str]()
         self.parent_path = parent_path
         self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
