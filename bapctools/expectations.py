@@ -38,8 +38,8 @@ class Person:
     @staticmethod
     def extract_optional_persons(source: YamlParser, key: str) -> list["Person"]:
         key_path = f"{source.parent_path}.{key}"
-        if key in source.yaml:
-            value = source.yaml.pop(key)
+        if key in source.remaining:
+            value = source.remaining.pop(key)
             if value is None:
                 return []
             if isinstance(value, (str, dict)):
@@ -130,8 +130,8 @@ class TestcaseExpectation:
             if not verdicts:
                 return default
             if any(v not in KNOWN_EXPECTATION_VERDICTS for v in verdicts):
-                warn(
-                    f"some values for key `{parser.parent_path}.{key}` in {parser.source} are unknown. SKIPPED."
+                parser.bar.warn(
+                    f"some values for key `{parser.parent_path}.{key}` in submissions.yaml are unknown. SKIPPED."
                 )
                 return default
             return {KNOWN_EXPECTATION_VERDICTS[v] for v in verdicts}
@@ -140,18 +140,20 @@ class TestcaseExpectation:
         self.required: set[Verdict] = extract_verdicts("required", self.permitted)
         if not self.required.issubset(self.permitted):
             missing = ",".join(v.short() for v in self.required - self.permitted)
-            warn(f"`{parser.parent_path}` has [{missing}] as required but not as permitted")
+            parser.bar.warn(
+                f"`{parser.parent_path}` has [{missing}] as required but not as permitted"
+            )
 
-        if "score" in parser.yaml:
+        if "score" in parser.remaining:
             # Not implemented
             # self.score: Optional[float | tuple[float, float]] = 0
-            is_list = isinstance(parser.yaml["score"], list)
+            is_list = isinstance(parser.remaining["score"], list)
             score = parser.extract_optional_list("score", float)
             if len(score) not in [0, 2 if is_list else 1]:
-                warn(
+                parser.bar.warn(
                     f"(`{parser.parent_path}.score` must be a single float or a list of two floats.)"
                 )
-            warn("Scoring is not implemented in BAPCtools.")
+            parser.bar.warn("Scoring is not implemented in BAPCtools.")
 
         self.message: Optional[str] = parser.extract_optional("message", str)
         self.lower_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED not in self.permitted
@@ -162,11 +164,11 @@ class TestcaseExpectation:
             self.lower_time_limit = use_for_time_limit == "lower"
             self.upper_time_limit = use_for_time_limit == "upper"
             if use_for_time_limit not in [True, False, "lower", "upper"]:
-                warn(
+                parser.bar.warn(
                     f"`{parser.parent_path}.use_for_time_limit` must be bool, `lower`, or `upper`. SKIPPED."
                 )
         if self.lower_time_limit and self.upper_time_limit:
-            error(f"`{parser.parent_path}` is used for upper and lower time limit!")
+            parser.bar.error(f"`{parser.parent_path}` is used for upper and lower time limit!")
 
     def matches(self, testcase: Testcase) -> bool:
         if self.test_case_regex is None:
@@ -193,7 +195,7 @@ class SubmissionExpectation:
         self.expectations: list[TestcaseExpectation] = []
         if yaml_data is not None:
             self.expectations.append(TestcaseExpectation(parser))
-            for key in list(parser.yaml):
+            for key in list(parser.remaining):
                 if not isinstance(key, str):
                     continue
                 has_prefix = False
@@ -201,7 +203,9 @@ class SubmissionExpectation:
                     has_prefix |= key == prefix
                     has_prefix |= key.startswith(f"{prefix}/")
                 if not has_prefix:
-                    warn(f"test case glob `{key}` does not start with `sample`, `secret`, or `*`")
+                    parser.bar.warn(
+                        f"test case glob `{key}` does not start with `sample`, `secret`, or `*`"
+                    )
                 self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
         parser.check_unknown_keys()
 

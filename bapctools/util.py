@@ -748,7 +748,7 @@ class YamlParser:
         assert isinstance(yaml, dict)
         self.errors = 0
         self.source = source
-        self.yaml = dict(yaml)
+        self.remaining = dict(yaml)
         self.known_keys = set[str]()
         self.parent_path = parent_path
         self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
@@ -758,7 +758,7 @@ class YamlParser:
         return key if self.parent_path is None else f"{self.parent_path}.{key}"
 
     def check_unknown_keys(self) -> None:
-        for key in self.yaml:
+        for key in self.remaining:
             if not isinstance(key, str):
                 self.bar.warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
@@ -768,12 +768,12 @@ class YamlParser:
 
     def pop(self, key: str) -> object:
         self.known_keys.add(key)
-        return self.yaml.pop(key, None)
+        return self.remaining.pop(key, None)
 
     def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
         self.known_keys.add(key)
-        if key in self.yaml:
-            value = normalize_yaml_value(self.yaml.pop(key), t)
+        if key in self.remaining:
+            value = normalize_yaml_value(self.remaining.pop(key), t)
             if value is None or isinstance(value, t):
                 return value
             self.bar.warn(
@@ -797,8 +797,8 @@ class YamlParser:
 
     def extract_and_error(self, key: str, t: type[T]) -> T:
         self.known_keys.add(key)
-        if key in self.yaml:
-            value = normalize_yaml_value(self.yaml.pop(key), t)
+        if key in self.remaining:
+            value = normalize_yaml_value(self.remaining.pop(key), t)
             if isinstance(value, t):
                 return value
             self.bar.error(f"incompatible value for key '{key}' in {self.source}.")
@@ -809,17 +809,17 @@ class YamlParser:
 
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
         self.known_keys.add(key)
-        if key in self.yaml:
+        if key in self.remaining:
             use = f", use `{new}` instead" if new else ""
             self.bar.warn(f"key `{self._key_path(key)}` is deprecated{use}. SKIPPED.")
-            self.yaml.pop(key)
+            self.remaining.pop(key)
 
     def extract_optional_list(
         self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
     ) -> list[T]:
         self.known_keys.add(key)
-        if key in self.yaml:
-            value = self.yaml.pop(key)
+        if key in self.remaining:
+            value = self.remaining.pop(key)
             if value is None:
                 return []
             if allow_value and isinstance(value, t):

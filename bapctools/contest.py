@@ -11,7 +11,6 @@ from bapctools.util import (
     log,
     read_yaml,
     verbose,
-    warn,
     YamlParser,
 )
 
@@ -39,10 +38,12 @@ class ContestYaml:
                 self.start_time += "+00:00"
 
         # contains remaining proper keys
-        self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
-        for key in parser.yaml:
-            if not isinstance(key, str):
-                warn(f"invalid contest.yaml key: {key} in root")
+        self._yaml = {}
+        for key in list(parser.remaining):
+            if isinstance(key, str):
+                self._yaml[key] = parser.pop(key)
+
+        parser.check_unknown_keys()
 
     def dict(self) -> dict[str, object]:
         data = {k: v for k, v in vars(self).items() if not k.startswith("_") and v is not None}
@@ -59,7 +60,7 @@ class ProblemsYamlEntry:
             if rgb is None:
                 return None
             if not rgb.startswith("#"):
-                error(
+                parser.bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -67,7 +68,7 @@ class ProblemsYamlEntry:
             if len(hex_part) == 3:
                 hex_part = "".join(c * 2 for c in hex_part)
             if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
-                error(
+                parser.bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -79,34 +80,35 @@ class ProblemsYamlEntry:
         self.rgb: Optional[str] = get_hex(parser.extract_optional("rgb", str))
 
         # unused keys
-        if isinstance(parser.yaml.get("name", None), str):
-            parser.yaml["name"] = {"en": parser.yaml["name"]}
+        if isinstance(parser.remaining.get("name", None), str):
+            parser.remaining["name"] = {"en": parser.remaining["name"]}
         names: dict[object, object] = parser.extract("name", {"en": ""})
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                warn(
+                parser.bar.warn(
                     f"invalid language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             elif not isinstance(name, str):
-                warn(
+                parser.bar.warn(
                     f"incompatible value for language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             else:
                 self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
-            error(
+            parser.bar.error(
                 f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
             )
             self.time_limit = None
 
         # contains remaining proper keys
-        self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
-        for key in parser.yaml:
-            if key not in self._yaml:
-                warn(f"invalid problems.yaml key: {key} for problem {index} (id: {self.id})")
+        self._yaml = {}
+        for key in list(parser.remaining):
+            if isinstance(key, str):
+                self._yaml[key] = parser.pop(key)
 
+        parser.check_unknown_keys()
         self.ok = parser.errors == 0
 
 
