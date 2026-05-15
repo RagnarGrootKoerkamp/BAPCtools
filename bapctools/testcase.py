@@ -78,7 +78,7 @@ class TestGroup:
             visualize.OutputVisualizer.args_key,
             validate.OutputValidator.args_key,
         ]:
-            if key in parser.yaml:
+            if key in parser.remaining:
                 setattr(
                     self,
                     key,
@@ -94,19 +94,19 @@ class TestGroup:
             )
             key = validator_type.args_key
             source_dir = validator_type.source_dir
-            if key in parser.yaml:
-                if isinstance(parser.yaml[key], list):
+            if key in parser.remaining:
+                if isinstance(parser.remaining[key], list):
                     setattr(
                         self,
                         key,
                         parser.extract_optional_list(key, str, allow_value=False, allow_empty=True),
                     )
-                elif isinstance(parser.yaml[key], dict):
+                elif isinstance(parser.remaining[key], dict):
                     # only the hole dict is inherited not individual entries
                     args_parser = parser.extract_parser(key)
                     args = {}
                     for val in (problem.path / source_dir).iterdir():
-                        if val.name not in args_parser.yaml:
+                        if val.name not in args_parser.remaining:
                             continue
                         args[val.name] = args_parser.extract_optional_list(
                             val.name,
@@ -116,7 +116,7 @@ class TestGroup:
                         )
                     setattr(self, key, args)
                     args_parser.check_unknown_keys()
-                elif parser.yaml[key] is None:
+                elif parser.remaining[key] is None:
                     parser.pop(key)
                     setattr(self, key, [])
                 else:

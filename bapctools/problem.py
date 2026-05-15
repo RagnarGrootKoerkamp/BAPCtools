@@ -58,7 +58,7 @@ class Keywords:
         self.keywords = set[str]()
 
         synonyms_parser = parser.extract_parser("synonyms")
-        for key, value in synonyms_parser.yaml.items():
+        for key, value in synonyms_parser.remaining.items():
             if not isinstance(key, str):
                 warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
                 continue
@@ -88,7 +88,7 @@ class Keywords:
             else:
                 warn(f"invalid entry `{yaml}` in keywords.yaml. SKIPPED.")
 
-        parse(parser.yaml)
+        parse(parser.remaining)
 
     def find(self, key: str) -> Optional[str]:
         matches = difflib.get_close_matches(key, self.keywords, n=1, cutoff=0.8)
@@ -133,9 +133,9 @@ class ProblemCredits:
         self.acknowledgements: list[Person] = []
 
         parser.extract_deprecated("author", "credits.authors")
-        if "credits" not in parser.yaml:
+        if "credits" not in parser.remaining:
             return
-        if isinstance(parser.yaml["credits"], str):
+        if isinstance(parser.remaining["credits"], str):
             self.authors = [
                 Person("problem.yaml", parser.extract("credits", ""), "credits", parser.bar)
             ]
@@ -148,7 +148,7 @@ class ProblemCredits:
 
         translators = credits.extract_parser("translators")
         self.translators = {}
-        for lang in list(translators.yaml.keys()):
+        for lang in list(translators.remaining.keys()):
             if not isinstance(lang, str):
                 parser.bar.warn(
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
@@ -184,15 +184,15 @@ class ProblemSources(list[ProblemSource]):
             return ProblemSource(name, url)
 
         parser.extract_deprecated("source_url", "source.url")
-        if "source" not in parser.yaml:
+        if "source" not in parser.remaining:
             return
-        if isinstance(parser.yaml["source"], str):
+        if isinstance(parser.remaining["source"], str):
             self.append(ProblemSource(parser.extract("source", "")))
             return
-        if isinstance(parser.yaml["source"], dict):
+        if isinstance(parser.remaining["source"], dict):
             self.append(parse_source(parser.extract_parser("source")))
             return
-        if isinstance(parser.yaml["source"], list):
+        if isinstance(parser.remaining["source"], list):
             sources = parser.extract("source", list[object]())
             for i, source in enumerate(sources):
                 if isinstance(source, str):
@@ -223,7 +223,7 @@ class ProblemLimits:
         self.time_limit_to_tle = time_multipliers.extract("time_limit_to_tle", 1.5, ">= 1")
         time_multipliers.check_unknown_keys()
 
-        self.time_limit_is_default: bool = "time_limit" not in parser.yaml
+        self.time_limit_is_default: bool = "time_limit" not in parser.remaining
         self.time_resolution: float = parser.extract("time_resolution", 1.0, "> 0")  # in seconds
         self.raw_time_limit: float = parser.extract("time_limit", self.time_resolution, "> 0")
         time_steps = self.raw_time_limit / self.time_resolution
@@ -252,7 +252,7 @@ class ProblemLimits:
         )  # in MiB
         if problem_settings.multi_pass:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
-        elif "validation_passes" in parser.yaml:
+        elif "validation_passes" in parser.remaining:
             parser.pop("validation_passes")
             parser.bar.warn(
                 "limit: validation_passes is only used for multi-pass problems. SKIPPED."
@@ -295,8 +295,8 @@ class ProblemSettings:
         parser: YamlParser,
         problem: "Problem",
     ):
-        if isinstance(parser.yaml.get("name", None), str):
-            parser.yaml["name"] = {"en": parser.yaml["name"]}
+        if isinstance(parser.remaining.get("name", None), str):
+            parser.remaining["name"] = {"en": parser.remaining["name"]}
 
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2025-09.html#problem-metadata)
@@ -308,11 +308,11 @@ class ProblemSettings:
             parser.bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parser.extract_deprecated("validation", "type")
-        if "type" not in parser.yaml:
+        if "type" not in parser.remaining:
             mode = {"pass-fail"}
-        elif isinstance(parser.yaml["type"], str):
+        elif isinstance(parser.remaining["type"], str):
             mode = set(parser.extract("type", "pass-fail").split())
-        elif isinstance(parser.yaml["type"], list):
+        elif isinstance(parser.remaining["type"], list):
             mode = set(parser.extract_optional_list("type", str))
             if not mode:
                 mode = {"pass-fail"}
