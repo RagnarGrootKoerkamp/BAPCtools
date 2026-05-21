@@ -312,6 +312,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     if not child_name:
                         child_name = '""'
                     if generate.is_directory(child_data):
+                        assert isinstance(child_data, CommentedMap)
                         changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
 
@@ -362,7 +363,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         child_name = '""'
                     if (
                         child_data
-                        and generate.is_testcase(child_data)
+                        and generate.is_test_case(child_data)
                         and isinstance(child_data, CommentedMap)
                     ):
                         if "desc" in child_data:

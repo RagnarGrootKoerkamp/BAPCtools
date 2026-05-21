@@ -27,12 +27,11 @@ def stats(problems: list[Problem]) -> None:
 
 # lists all testcases, tries to consider generators.yaml
 def testcases(problem: Problem) -> set[Path]:
-    try:
-        with config.suppress_warnings(level=2):
-            with open(os.devnull, "w") as devnull:
-                with contextlib.redirect_stderr(devnull):
-                    gen_config = generate.GeneratorConfig(problem)
-    except generate.ParseException:
+    with config.suppress_warnings(level=2):
+        with open(os.devnull, "w") as devnull:
+            with contextlib.redirect_stderr(devnull):
+                gen_config = generate.GeneratorConfig(problem)
+    if not gen_config.ok:
         return set()
     if gen_config.has_yaml:
         return {
