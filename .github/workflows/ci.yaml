@@ -46,6 +46,7 @@ jobs:
                 python3-matplotlib
                 python3-requests
                 python3-pytest
+                python3-typing-extensions
                 build-essential
                 default-jre
                 default-jdk
