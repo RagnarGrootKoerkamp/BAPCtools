@@ -63,8 +63,10 @@ class TestGeneratorConfig:
         ),
     )
     def test_bad_generators_yamls(self, yamldoc):
+        config.n_warn = 0
+        config.n_error = 0
         with pytest.raises(generate.ParseException):
             gen_config = MockGeneratorConfig(MockProblem())
-            gen_config._parse_yaml(yamldoc)
-            if gen_config.n_parse_error > 0:
+            gen_config._parse_root(yamldoc)
+            if gen_config.n_parse_error > 0 or config.n_warn > 0 or config.n_error > 0:
                 raise generate.ParseException("")
