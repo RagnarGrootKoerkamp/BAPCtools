@@ -341,7 +341,7 @@ class SolutionInvocation(Invocation):
 
 
 # Return absolute path to default submission, starting from the submissions directory.
-# This function will always prints a message.
+# This function will always print a message.
 # Which submission is used is implementation defined, unless one is explicitly given on the command line.
 def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
@@ -373,13 +373,18 @@ solution: /{config.args.default_solution}"""
         solution_short_path = solution.relative_to(problem.path / "submissions")
 
         if generator_config.has_yaml:
-            yaml_path = problem.path / "generators" / "generators.yaml"
-            raw = yaml_path.read_text()
-            raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
-            yaml_path.write_text(raw)
-            bar.log(
-                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
-            )
+            if not isinstance(generator_config.yaml, dict) or "solution" in generator_config.yaml:
+                bar.warn(
+                    f"No solution specified. {solution_short_path} could not be added to generators.yaml"
+                )
+            else:
+                yaml_path = problem.path / "generators" / "generators.yaml"
+                raw = yaml_path.read_text()
+                raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
+                yaml_path.write_text(raw)
+                bar.log(
+                    f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
+                )
         else:
             log(
                 f"""No solution specified. Selected {solution_short_path}. Use
@@ -1802,11 +1807,10 @@ class GeneratorConfig:
             self.yaml = None
             self.has_yaml = False
 
-        self.ok = True
         try:
             self.root_dir = self._parse_root(self.yaml)
         except ParseException as e:
-            self.ok = False
+            self.n_parse_error += 1
             PrintBar("generators.yaml", item=e.path).error(e.message)
 
     def _parse_root(self, raw_yaml: object) -> DirectoryRule:
@@ -1967,14 +1971,14 @@ class GeneratorConfig:
             includes = parser.extract_optional_list("include", str)
             for include in includes:
                 if "/" in include:
-                    self.ok = False
+                    self.n_parse_error += 1
                     parser.bar.error(
                         f"Include {include} should be a test case/group key, not a path. SKIPPED."
                     )
                     continue
 
                 if include not in self.known_keys:
-                    self.ok = False
+                    self.n_parse_error += 1
                     parser.bar.error(
                         f"Unknown include key {include} does not refer to a previous test case. SKIPPED."
                     )
@@ -1982,7 +1986,7 @@ class GeneratorConfig:
 
                 is_included, cases_list = self.known_keys[include]
                 if len(cases_list) != 1:
-                    self.ok = False
+                    self.n_parse_error += 1
                     parser.bar.error(f"Included key {include} is ambiguous. SKIPPED.")
                     continue
 
@@ -2015,7 +2019,7 @@ class GeneratorConfig:
                         parser.bar.error(
                             f"Numbered test case/group {d.path}[{i}] must have exactly one entry. SKIPPED."
                         )
-                    self.ok = False
+                    self.n_parse_error += 1
                     continue
 
                 # we ignore the `data` keys in the path
@@ -2052,7 +2056,7 @@ class GeneratorConfig:
                             child_name = itertools.repeat(child_key)
                     else:
                         if not child_key:
-                            self.ok = False
+                            self.n_parse_error += 1
                             sub_parser.bar.error(
                                 "Unnumbered test case/group must not have an empty key. SKIPPING."
                             )
@@ -2071,7 +2075,7 @@ class GeneratorConfig:
                         ts = parse_test_case(child_path, child_key, child_name, child_yaml, d)
                         d.data.extend(ts)
                     else:
-                        self.ok = False
+                        self.n_parse_error += 1
                         sub_parser.bar.error(
                             f"{valid_key} is neither a test case nor a directory. SKIPPING."
                         )
@@ -2092,7 +2096,7 @@ class GeneratorConfig:
                             parser.bar.error(
                                 f"included with multiple targets {target} and {self.known_cases[p].path}."
                             )
-                        self.ok = False
+                        self.n_parse_error += 1
                 else:
                     self.known_cases[p] = t
                     d.includes[name] = t
@@ -2595,7 +2599,7 @@ def generate(problem: Problem) -> bool:
         return True
 
     gen_config = GeneratorConfig(problem, config.args.testcases)
-    if not gen_config.ok:
+    if gen_config.n_parse_error > 0:
         return False
 
     if config.args.add is not None:
