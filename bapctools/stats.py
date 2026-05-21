@@ -31,7 +31,7 @@ def testcases(problem: Problem) -> set[Path]:
         with open(os.devnull, "w") as devnull:
             with contextlib.redirect_stderr(devnull):
                 gen_config = generate.GeneratorConfig(problem)
-    if not gen_config.ok:
+    if gen_config.n_parse_error > 0:
         return set()
     if gen_config.has_yaml:
         return {
