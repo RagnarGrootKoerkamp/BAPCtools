@@ -761,14 +761,15 @@ class TestcaseRule(Rule):
             else:
                 generator_config.rules_cache[self.hash] = self
 
-            if not any(all(ext in hashes for ext in required) for required in self.required_in):
-                generator_config.n_parse_error += 1
+            known_ext = {*hashes.keys(), *self.linked.keys()}
+            if not any(set(required) <= known_ext for required in self.required_in):
+                generator_config.n_test_case_error += 1
                 # An error is shown during generate.
 
         except ParseException as e:
             # For test cases we can handle the parse error locally since this does not influence much else
             self.parse_error = e.message
-            generator_config.n_parse_error += 1
+            generator_config.n_test_case_error += 1
 
     def _has_required_in(t, infile: Path) -> bool:
         for required in t.required_in:
@@ -1766,6 +1767,11 @@ class GeneratorConfig:
     def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
+        # we differentiate between two types or errors:
+        # 1. n_test_case_error: parse errors that only influence one test case
+        # 2. n_parse_error all: other parse errors
+        # only type 2 is considered critical
+        self.n_test_case_error = 0
         self.n_parse_error = 0
 
         # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
@@ -1932,8 +1938,9 @@ class GeneratorConfig:
                 t = TestcaseRule(
                     self.problem, self, key, name, raw_yaml, parser, parent, count_value
                 )
-                parser.pop("count")
-                parser.check_unknown_keys()
+                if t.parse_error is None:
+                    parser.pop("count")
+                    parser.check_unknown_keys()
 
                 if t.path in self.known_cases:
                     # TODO: how can this happen?
@@ -2360,10 +2367,7 @@ data/*
             if rule.copy is not None and rule.copy.is_relative_to(self.problem.path)
         }
 
-        generators_yaml = self.problem.path / "generators" / "generators.yaml"
-        data = read_yaml(generators_yaml)
-        if data is None:
-            data = CommentedMap()
+        data = self.yaml if self.has_yaml else CommentedMap()
         assert isinstance(data, CommentedMap)
 
         parent = ryaml_get_or_add(data, "data")
@@ -2390,13 +2394,14 @@ data/*
         if len(parent["data"]) == 0:
             parent["data"] = None
 
-        write_yaml(data, generators_yaml)
+        yaml_path = self.problem.path / "generators" / "generators.yaml"
+        write_yaml(data, yaml_path)
         bar.finalize()
         return True
 
     # reorder all test cases in the given directories
     def reorder(self) -> bool:
-        if self.n_parse_error > 0:
+        if self.n_parse_error + self.n_test_case_error > 0:
             return False
 
         directory_rules = set()
@@ -2562,7 +2567,7 @@ data/*
         new_config.build(skip_double_build_warning=True)
         new_config.run()
         new_config.clean_up()
-        return new_config.n_parse_error == 0
+        return self.n_parse_error + self.n_test_case_error == 0
 
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
