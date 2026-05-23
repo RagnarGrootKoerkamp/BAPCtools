@@ -37,7 +37,7 @@ def testcases(problem: Problem) -> set[Path]:
         return {
             problem.path / "data" / p.parent / (p.name + ".in")
             for p, x in gen_config.known_cases.items()
-            if x.parse_error is None
+            if x.ok
         }
     else:
         return {t for t in problem.path.glob("data/**/*.in") if not t.is_symlink()}

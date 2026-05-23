@@ -213,7 +213,7 @@ class Fuzz:
             if (
                 not t.in_is_generated
                 or t.root in config.INVALID_CASE_DIRECTORIES
-                or t.parse_error is not None
+                or not t.ok
                 or t.generator is None
                 or not t.generator.uses_seed
             ):
