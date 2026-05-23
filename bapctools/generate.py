@@ -55,19 +55,19 @@ class ParseException(Exception):
         self.path = path
 
 
-def assert_type(
-    name: str,
+T = TypeVar("T")
+
+
+def is_type(
     obj: object,
-    types: tuple[type[object], ...] | type[object],
+    t: type[T],
+    name: str,
     path: Optional[Path] = None,
-) -> None:
-    if isinstance(obj, types):
-        return
-    if not isinstance(types, tuple):
-        types = (types,)
-    named_types = " or ".join("None" if t is None else t.__name__ for t in types)
+) -> TypeIs[T]:
+    if isinstance(obj, t):
+        return True
     raise ParseException(
-        f"{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}",
+        f"{name} must be of type {t.__name__}, found {obj.__class__.__name__}: {obj}",
         path,
     )
 
@@ -525,8 +525,8 @@ class TestcaseRule(Rule):
     ) -> None:
         assert is_test_case(raw_yaml)
 
-        # if not None rule will be skipped during generation
-        self.parse_error: Optional[str] = None
+        # if False rule will be skipped during generation
+        self.ok = True
 
         # root in /data
         self.root = (parent.path / name).parts[0]
@@ -620,9 +620,9 @@ class TestcaseRule(Rule):
                 raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
 
             # 1. generate
-            if "generate" in parser.remaining:
-                assert_type("generate", parser.remaining["generate"], str)
-                command_string = parser.extract("generate", "")
+            command_string = parser.pop("generate")
+            if command_string is not None:
+                assert is_type(command_string, str, "generate")
                 if len(command_string) == 0:
                     raise ParseException("'generate' must not be empty.")
 
@@ -660,9 +660,10 @@ class TestcaseRule(Rule):
                 hashes[".in"] = self.generator.hash(self.seed)
 
             # 2. path
-            if "copy" in parser.remaining:
-                assert_type("copy", parser.remaining["copy"], str)
-                copy_entry = parser.extract("copy", "")
+            copy_entry = parser.pop("copy")
+            if copy_entry is not None:
+                assert is_type(copy_entry, str, "copy")
+
                 if Path(copy_entry).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
                     parser.bar.warn(f"`copy: {copy_entry}` should not include the extension.")
                 self.copy = resolve_path(copy_entry, allow_absolute=False, allow_relative=True)
@@ -677,18 +678,15 @@ class TestcaseRule(Rule):
             # 3./4. link to another file or hardcoded data
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                 key = ext[1:]
-                if key not in parser.remaining:
+                value = parser.pop(key)
+                if value is None:
                     continue
 
                 # yaml can only be hardcoded (convert dict back to string)
                 if key == "yaml":
-                    raw = parser.remaining[key]
-                    if isinstance(raw, dict):
-                        raw = write_yaml(raw)
-                        assert raw is not None
-                        parser.remaining[key] = raw
-
-                value = parser.pop(key)
+                    if isinstance(value, dict):
+                        value = write_yaml(value)
+                        assert value is not None
 
                 # 3. linked
                 if (
@@ -734,18 +732,17 @@ class TestcaseRule(Rule):
                 raw_match_entries = parser.remaining["match"]
                 if isinstance(raw_match_entries, (str, list)):
                     parser.remaining["match"] = {"in": raw_match_entries}
-
-                match_parser = parser.extract_parser("match")
-                for ext in ["in", "ans"]:
-                    entries = match_parser.extract_optional_list(
-                        ext, str, allow_value=True, allow_empty=True
-                    )
-                    for entry in entries:
-                        try:
-                            self.patterns[ext].append(re.compile(entry, re.MULTILINE | re.DOTALL))
-                        except re.error:
-                            raise ParseException(f"could not parse regex `{entry}`.")
-                match_parser.check_unknown_keys()
+            match_parser = parser.extract_parser("match")
+            for ext in ["in", "ans"]:
+                entries = match_parser.extract_optional_list(
+                    ext, str, allow_value=True, allow_empty=True
+                )
+                for entry in entries:
+                    try:
+                        self.patterns[ext].append(re.compile(entry, re.MULTILINE | re.DOTALL))
+                    except re.error:
+                        raise ParseException(f"could not parse regex `{entry}`.")
+            match_parser.check_unknown_keys()
 
             # Error for unknown keys.
             for any_key in UNIQUE_DIRECTORY_KEYS:
@@ -765,10 +762,10 @@ class TestcaseRule(Rule):
             if not any(set(required) <= known_ext for required in self.required_in):
                 generator_config.n_test_case_error += 1
                 # An error is shown during generate.
-
         except ParseException as e:
             # For test cases we can handle the parse error locally since this does not influence much else
-            self.parse_error = e.message
+            parser.bar.error(f"{self.path}: {e.message}")
+            self.ok = False
             generator_config.n_test_case_error += 1
 
     def _has_required_in(t, infile: Path) -> bool:
@@ -977,8 +974,8 @@ class TestcaseRule(Rule):
         if t.copy_of is not None and not t.copy_of.generate_success:
             bar.done(False, f"See {t.copy_of.path}. SKIPPED.")
             return
-        if t.parse_error is not None:
-            bar.done(False, f"{t.parse_error}. SKIPPED.")
+        if not t.ok:
+            bar.done(False, "Rule contained errors. SKIPPED.")
             return
         if t.generator and t.generator.program is None:
             bar.done(False, "Generator didn't build. SKIPPED.")
@@ -1938,7 +1935,7 @@ class GeneratorConfig:
                 t = TestcaseRule(
                     self.problem, self, key, name, raw_yaml, parser, parent, count_value
                 )
-                if t.parse_error is None:
+                if t.ok:
                     parser.pop("count")
                     parser.check_unknown_keys()
 
