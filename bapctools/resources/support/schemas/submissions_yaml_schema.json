@@ -10,16 +10,20 @@
                     "type": "object",
                     "properties": {
                         "email": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The person's email address, such as `jcarberry@brown.edu`"
                         },
                         "kattis": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The person's username on Kattis, such as `jcarberry01`"
                         },
                         "name": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The person's name, such as `Josiah Carberry`"
                         },
                         "orcid": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The person's ID in the Open Researcher and Contributor ID system, such as `0000-0002-1825-0097`"
                         }
                     },
                     "required": [
@@ -43,13 +47,12 @@
                             "$ref": "#/$defs/Person"
                         }
                     ],
-                    "minLength": 1
+                    "minItems": 1
                 }
             ]
         },
         "expectation": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
                 "message": {
                     "type": "string"
@@ -64,7 +67,7 @@
                             "$ref": "#/$defs/verdict"
                         }
                     ],
-                    "minLength": 1
+                    "minItems": 1
                 },
                 "required": {
                     "type": "array",
@@ -76,7 +79,7 @@
                             "$ref": "#/$defs/verdict"
                         }
                     ],
-                    "minLength": 1
+                    "minItems": 1
                 },
                 "score": {
                     "anyOf": [
@@ -93,8 +96,8 @@
                                     "type": "integer"
                                 }
                             ],
-                            "maxLength": 2,
-                            "minLength": 2
+                            "maxItems": 2,
+                            "minItems": 2
                         }
                     ]
                 },
@@ -136,7 +139,7 @@
         }
     },
     "type": "object",
-    "additionalProperties": {
+    "unevaluatedProperties": {
         "type": "object",
         "additionalProperties": {
             "$ref": "#/$defs/expectation"

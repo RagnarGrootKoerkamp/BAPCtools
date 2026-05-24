@@ -9,7 +9,7 @@
         },
         "config": {
             "type": "object",
-            "additionalProperties": false,
+            "description": "Test cases and test groups allow configuration of solution, and random salt.",
             "properties": {
                 "random_salt": {
                     "type": "string"
@@ -19,6 +19,7 @@
                 },
                 "solution": {
                     "type": "string",
+                    "description": "Path to solution starts with slash, such as \"/submissions/accepted/foo.py\"",
                     "$ref": "#/$defs/path",
                     "pattern": "^/"
                 }
@@ -26,7 +27,6 @@
         },
         "data_dict": {
             "type": "object",
-            "additionalProperties": false,
             "patternProperties": {
                 "^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$": {
                     "anyOf": [
@@ -46,6 +46,7 @@
         },
         "path": {
             "type": "string",
+            "description": "Paths are separated by /,  they may start with (but not end with) /.\nPaths can both refer to objects like the test group \"data/secret/huge\" or\na program file like \"/submissions/accepted/x.cpp\"",
             "pattern": "^/?([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}/)*[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$"
         },
         "test_case": {
@@ -77,25 +78,35 @@
                         },
                         "copy": {
                             "type": "string",
+                            "description": "The \"copy\" key uses a path relative to \"/generators/\" ending in a test case name,\nsuch as \"manual/samples/3\".",
                             "$ref": "#/$defs/path",
                             "not": {
                                 "pattern": "^/"
                             }
                         },
                         "count": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            },
-                            "anyOf": [
+                            "allOf": [
                                 {
-                                    "type": "integer"
+                                    "description": "Produce multiple test cases",
+                                    "anyOf": [
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "array"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
                                 },
                                 {
-                                    "type": "array"
-                                },
-                                {
-                                    "type": "string"
+                                    "type": "array",
+                                    "description": "if count is a list of integers, use that directly",
+                                    "items": {
+                                        "type": "integer"
+                                    },
+                                    "uniqueItems": true
                                 }
                             ]
                         },
@@ -185,7 +196,6 @@
         },
         "test_case_configuration": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
                 "description": {
                     "type": "string"
@@ -198,7 +208,7 @@
         },
         "test_case_or_group_configuration": {
             "type": "object",
-            "additionalProperties": false,
+            "description": "Test data configuration",
             "properties": {
                 "args": {
                     "type": "array",
@@ -273,7 +283,6 @@
         },
         "test_group": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
                 "data": {
                     "anyOf": [
@@ -293,14 +302,7 @@
                     "items": {
                         "$ref": "#/$defs/path"
                     }
-                }
-            },
-            "$ref": "#/$defs/test_group_config"
-        },
-        "test_group_config": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
+                },
                 "test_group.yaml": {
                     "$ref": "#/$defs/test_group_configuration"
                 }
@@ -309,7 +311,6 @@
         },
         "test_group_configuration": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
                 "max_score": {
                     "anyOf": [
@@ -382,11 +383,10 @@
         }
     },
     "type": "object",
-    "additionalProperties": true,
+    "unevaluatedProperties": true,
     "properties": {
         "data": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
                 "fuzz": {
                     "$ref": "#/$defs/test_group"
@@ -417,6 +417,7 @@
         },
         "generators": {
             "type": "object",
+            "description": "Generators are named like files or test cases, like \"tree.py\" or \"a\".\nEach consists of a nonempty list of paths relative to \"/generators/\",\nsuch as [\"tree_generator/tree.py\", \"lib.py\"].",
             "patternProperties": {
                 "^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$": {
                     "allOf": [
@@ -434,17 +435,25 @@
                                     "pattern": "^/"
                                 }
                             },
-                            "minLength": 1
+                            "minItems": 1
                         }
                     ]
                 }
             }
         },
+        "random_salt": {
+            "type": "string"
+        },
+        "solution": {
+            "type": "string",
+            "$ref": "#/$defs/path",
+            "pattern": "^/"
+        },
         "version": {
             "type": "string"
         }
     },
-    "$ref": "#/$defs/test_group_config",
+    "$ref": "#/$defs/config",
     "required": [
         "data"
     ]

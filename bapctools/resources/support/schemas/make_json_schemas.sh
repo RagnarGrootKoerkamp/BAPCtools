@@ -1,10 +1,25 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd "$(dirname "$0")"
+CUE="${HOME}/go/bin/cue" # or just cue, but I need the most recent build
+# Change names #Foo and %23Foo to DEFFoo. This is because some LSP
+# implementations are confused about the URI fragment identifer syntax.
+SED_PATTERN='s/(#|%23)([A-Za-z0-9_]+)/DEF\2/g'
 
-# As of cue 0.15, we need to change #Definition to Definition to avoid confusing URI snippet syntax
-# Presumably, this will change with a future CUE update, so the `sed` call will be redundant
-cue export --out jsonschema -e '#Generators' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > generators_yaml_schema.json
-cue export --out jsonschema -e '#Problem' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > problem_yaml_schema.json
-cue export --out jsonschema -e '#test_group' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > test_group_yaml_schema.json
-cue export --out jsonschema -e '#SubmissionsJson' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > submissions_yaml_schema.json
+export_schema() {
+    local schema="$1"
+    local output="$2"
+
+    echo "Exporting $schema → $output"
+    "$CUE" export --out jsonschema -e "$schema" \
+	  | sed -E '
+	      s/^ {4}"additionalProperties"/    "unevaluatedProperties"/
+	      /^ {5,}"additionalProperties": false,?$/d
+	    ' \
+        > "$output"
+}
+
+export_schema '#Generators'      generators_yaml_schema.json
+export_schema '#Problem'         problem_yaml_schema.json
+export_schema '#test_group'      test_group_yaml_schema.json
+export_schema '#SubmissionsJson' submissions_yaml_schema.json
