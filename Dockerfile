@@ -16,10 +16,11 @@ RUN pacman -Syu --noconfirm \
 	python-argcomplete \
 	python-colorama \
 	python-matplotlib \
-    python-pip \
+	python-pip \
 	python-pytest \
 	python-requests \
 	python-ruamel-yaml \
+	python-typing_extensions \
 	python-yaml \
 	jdk21-openjdk \
 	kotlin \
