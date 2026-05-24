@@ -764,7 +764,7 @@ class TestcaseRule(Rule):
                 # An error is shown during generate.
         except ParseException as e:
             # For test cases we can handle the parse error locally since this does not influence much else
-            parser.bar.error(f"{self.path}: {e.message}")
+            parser.bar.error(e.message)
             self.ok = False
             generator_config.n_test_case_error += 1
 
@@ -1827,7 +1827,7 @@ class GeneratorConfig:
                 "could not parse generators.yaml, root must represent a directory."
             )
 
-        parser = YamlParser("generators.yaml", raw_yaml)
+        parser = YamlParser("generators.yaml", raw_yaml, bar=PrintBar("generators.yaml"))
 
         # we don't really care about the version
         parser.pop("version")
@@ -1903,11 +1903,12 @@ class GeneratorConfig:
 
         # might return multiple rules because of count
         def parse_test_case(
-            path: str, key: str, name_gen: Iterator[str], raw_yaml: object, parent: DirectoryRule
+            key: str, name_gen: Iterator[str], raw_yaml: object, parent: DirectoryRule
         ) -> list[TestcaseRule]:
             assert is_test_case(raw_yaml)
 
-            bar = PrintBar("generators.yaml")
+            key_path = ".".join(parent.path.parts + (key,))
+            bar = PrintBar("generators.yaml", item=key_path)
 
             if isinstance(raw_yaml, dict):
                 parser_yaml = raw_yaml
@@ -1927,7 +1928,7 @@ class GeneratorConfig:
 
             ts: list[TestcaseRule] = []
             for i, count_value in enumerate(count_list):
-                parser = YamlParser("generators.yaml", parser_yaml, path, bar)
+                parser = YamlParser("generators.yaml", parser_yaml, bar=bar)
                 name = next(name_gen)
                 if has_count(parser.remaining):
                     name += f"-{count_value:0{padding}}"
@@ -2026,8 +2027,7 @@ class GeneratorConfig:
                     self.n_parse_error += 1
                     continue
 
-                # we ignore the `data` keys in the path
-                sub_parser = YamlParser(parser.source, entry, parser.parent_path, parser.bar)
+                sub_parser = YamlParser(parser.source, entry, bar=parser.bar)
 
                 # Process named children alphabetically, but not in the root directory.
                 # There, process in the 'natural order'.
@@ -2067,16 +2067,16 @@ class GeneratorConfig:
                             continue
                         child_name = itertools.repeat(child_key)
 
-                    child_path = sub_parser.key_path(child_key)
                     if is_directory(child_yaml):
+                        child_path = ".".join(d.path.parts + (child_key,))
                         child_parser = YamlParser(
-                            sub_parser.source, child_yaml, child_path, sub_parser.bar
+                            sub_parser.source, child_yaml, bar=sub_parser.bar.start(child_path)
                         )
                         cd = parse_directory(child_key, child_name, child_yaml, child_parser, d)
                         d.data.append(cd)
                         child_parser.check_unknown_keys()
                     elif is_test_case(child_yaml):
-                        ts = parse_test_case(child_path, child_key, child_name, child_yaml, d)
+                        ts = parse_test_case(child_key, child_name, child_yaml, d)
                         d.data.extend(ts)
                     else:
                         self.n_parse_error += 1
@@ -2116,6 +2116,12 @@ class GeneratorConfig:
             "check_testing_tool",
         ]:
             parser.check_unknown_keys(warn=False)
+        if self.n_parse_error:
+            parser.bar.error("could not be parsed")
+        elif self.n_test_case_error:
+            parser.bar.warn("contains errors\n")
+        else:
+            parser.bar.log("parsed\n")
         return root
 
     # test_case_short_path: secret/1.in
