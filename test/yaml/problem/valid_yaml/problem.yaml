@@ -1,56 +1,56 @@
 name:
   en: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 2023-02-draft
+problem_format_version: 2025-09
+#---
+#name: Hello World!
+#uuid: 550e8400-e29b-41d4-a716-446655440000
+#problem_format_version: 2023-02
+#---
+#name: Hello World!
+#uuid: 550e8400-e29b-41d4-a716-446655440000
+#problem_format_version: draft
+#---
+#name: Hello World!
+#uuid: 550e8400-e29b-41d4-a716-446655440000
+#problem_format_version: legacy-icpc
 ---
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 2023-02
----
-name: Hello World!
-uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: draft
----
-name: Hello World!
-uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: legacy-icpc
----
-name: Hello World!
-uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type: pass-fail
 ---
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type: scoring
 ---
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type: interactive
 ---
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type: multi-pass
 ---
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type: submit-answer
 ---
 # Can give type as sequence instead:
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type:
   - pass-fail
 ---
 # Can give more than one type
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type:
   - pass-fail # redundant, because pass-fail is default
   - interactive
@@ -58,7 +58,7 @@ type:
 # Can give more than one type
 name: Hello World!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 type:
   - scoring
   - interactive
@@ -70,19 +70,19 @@ name:
   pt-PT: Oi mundo!
   fil: Kumusta mundo!
 uuid: 550e8400-e29b-41d4-a716-446655440000
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 ---
 # One-language names are fine
 name:
   en: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be string
 source: NWERC 2024
 name:
   en: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be map
@@ -90,7 +90,7 @@ source:
   name: NWERC 2024
 name:
   en: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be map with two keys (name, url)
@@ -99,14 +99,14 @@ source:
   url: https://2024.nwerc.example/contest
 name:
   en: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be just a string
 source: NWERC 2024
 name:
   en: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Many sources can be specified:
@@ -116,27 +116,27 @@ source:
   - SWERC 2024
   - name: SEERC 2024
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify license
 license: public domain
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify license
 license: cc0
 rights_owner: Bob
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify rights owner via credits
 license: cc0
 credits: Bob
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify rights owner via credits.authors
@@ -144,20 +144,20 @@ license: cc0
 credits:
   authors: Bob
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify rights owner via source
 license: cc0
 source: NCPC 1856
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify embargo
 embargo_until: 2025-12-31
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Credits
@@ -181,7 +181,7 @@ credits:
   packagers:
     - Package Creatorson
 name: Hello World!
-problem_format_version: 9999-99
+problem_format_version: 2025-09
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # The credits section from the draft 2025-09 spec ultimo 2025

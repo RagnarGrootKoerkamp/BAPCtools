@@ -1,4 +1,7 @@
+@experiment(explicitopen)
+
 package problempackageformat
+
 
 // Use cue version 0.11 or later
 // To validate generators.yaml using cue:
@@ -32,7 +35,7 @@ import "strings"
 }
 
 #test_group_config: {
-	#config
+	#config...
 	"test_group.yaml": #test_group_configuration
 }
 
@@ -42,7 +45,7 @@ import "strings"
 		generate?: #command & !~"^/"
 
 		// Produce multiple test cases
-		count: int | [...] | string
+		count: int | [...int] | string
 
 		// Count defines a list of integers that are substituted for {count} in the generate call
 		_count_list: _ | *[1]
@@ -95,7 +98,7 @@ import "strings"
 		interaction?: =~"^([<>][^\\n]*\\n|---\\n)+$"
 		yaml?:        #test_case_configuration
 
-		#config
+		#config...
 	}
 
 #data_dict: {[#name]: #test_group | #test_case}
@@ -104,7 +107,7 @@ import "strings"
 #test_group: {
 	data?: #data_dict | [...#data_list]
 	include?: [...#path]
-	#test_group_config
+	#test_group_config...
 }
 
 #Generators: {
@@ -121,7 +124,7 @@ import "strings"
 		invalid_output?: #test_group
 		valid_output?:   #test_group
 	})
-	#test_group_config
+	#test_group_config...
 	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2026-01"
 
 	... // Do allow unknown_key at top level for tooling

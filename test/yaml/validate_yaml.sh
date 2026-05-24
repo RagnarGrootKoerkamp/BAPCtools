@@ -41,6 +41,7 @@ declare -A schema_map=(
 ["*generators.yaml"]="#Generators"
 ["*problem.yaml"]="#Problem"
 ["*test_group.yaml"]="#test_group_configuration"
+["*/data/**/*.yaml"]="#test_case_configuration"
 ["*submissions.yaml"]="#Submissions"
 ["*languages.yaml"]="#Languages"
 # add more schemas here
