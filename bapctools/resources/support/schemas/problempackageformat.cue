@@ -15,7 +15,11 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 // a program file like "/submissions/accepted/x.cpp"
 #path: =~"^/?(\(name_regex)/)*\(name_regex)$"
 
+#absolute_path: #path & =~"^/"
+#relative_path: #path & !~"^/"
+
 // A test data group is a subdivision of `secret`
+
 
 #test_data_group: =~"secret/\(name_regex)$"
 

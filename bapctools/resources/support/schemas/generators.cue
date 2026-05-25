@@ -2,14 +2,15 @@
 
 package problempackageformat
 
-
-// Use cue version 0.11 or later
 // To validate generators.yaml using cue:
 // > cue vet generators.yaml *.cue -d "#Generators"
 
 import "struct"
+
 import "list"
+
 import "strconv"
+
 import "regexp"
 
 import "strings"
@@ -23,15 +24,15 @@ import "strings"
 #command:      C={
 	!~"\\{seed.*\\{seed" // don't use seed twice
 	_parts: strings.Fields(C)
-	_parts: [#path, ...#command_args]
+	_parts: [#relative_path & =~"^", ...#command_args]
 }
 
 // Test cases and test groups allow configuration of solution, random salt and retries.
 #config: {
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
-	solution?:    #path & =~"^/"
+	solution?:    #absolute_path
 	random_salt?: string
-	retries?: int
+	retries?:     int
 }
 
 #test_group_config: {
@@ -40,9 +41,9 @@ import "strings"
 }
 
 #test_case:
-	#command & !~"^/" |
+	#command |
 	{
-		generate?: #command & !~"^/"
+		generate?: #command
 
 		// Produce multiple test cases
 		count: int | [...int] | string
@@ -52,7 +53,7 @@ import "strings"
 
 		{
 			// if count is an integer, produce the list [1, 2, ..., count]
-			count: int
+			count:       int
 			_count_list: list.Range(1, count+1, 1)
 		} | {
 			// if count is a list of integers, use that directly
@@ -74,7 +75,7 @@ import "strings"
 
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
-		copy?: #path & !~"^/"
+		copy?: #relative_path
 		match?: string | [...string] | {
 			in?: string | [...string]
 			ans?: string | [...string]
@@ -114,7 +115,8 @@ import "strings"
 	// Generators are named like files or test cases, like "tree.py" or "a".
 	// Each consists of a nonempty list of paths relative to "/generators/",
 	// such as ["tree_generator/tree.py", "lib.py"].
-	generators?: [#name]: [...(#path & !~"^/")] & [_, ...]
+	generators?: [#name]: [...#relative_path] & [_, ...]
+
 	data: close({
 		sample!:         #test_group
 		secret!:         #test_group
@@ -124,8 +126,9 @@ import "strings"
 		invalid_output?: #test_group
 		valid_output?:   #test_group
 	})
+
 	#test_group_config...
-	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2026-01"
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2026-05"
 
 	... // Do allow unknown_key at top level for tooling
 }
