@@ -8,6 +8,7 @@
                 },
                 {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "email": {
                             "type": "string",
@@ -53,6 +54,7 @@
         },
         "expectation": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "message": {
                     "type": "string"
@@ -139,7 +141,7 @@
         }
     },
     "type": "object",
-    "unevaluatedProperties": {
+    "additionalProperties": {
         "type": "object",
         "additionalProperties": {
             "$ref": "#/$defs/expectation"
