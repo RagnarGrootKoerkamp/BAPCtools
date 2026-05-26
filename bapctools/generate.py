@@ -72,6 +72,18 @@ def is_type(
     )
 
 
+def is_list_type(
+    obj: object,
+    t: type[T],
+    name: str,
+    path: Optional[Path] = None,
+) -> TypeIs[list[T]]:
+    assert is_type(obj, list, name, path)
+    for i, entry in enumerate(obj):
+        assert is_type(entry, t, f"{name}[{i}]", path)
+    return True
+
+
 UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
     "copy",
     "generate",
@@ -734,10 +746,10 @@ class TestcaseRule(Rule):
                     parser.remaining["match"] = {"in": raw_match_entries}
             match_parser = parser.extract_parser("match")
             for ext in ["in", "ans"]:
-                entries = match_parser.extract_optional_list(
-                    ext, str, allow_value=True, allow_empty=True
-                )
-                for entry in entries:
+                entries = match_parser.extract_optional_list(ext, object, allow_empty=True)
+                for i, entry in enumerate(entries):
+                    if not isinstance(entry, str):
+                        raise ParseException(f"match.{ext}[{i}] is not a string.")
                     try:
                         self.patterns[ext].append(re.compile(entry, re.MULTILINE | re.DOTALL))
                     except re.error:
@@ -1850,9 +1862,7 @@ class GeneratorConfig:
                 path = Path("generators") / gen
                 deps = parser.extract_optional_list(gen, str, allow_value=False, allow_empty=True)
                 if not deps:
-                    parser.bar.warn(
-                        f"Generator dependencies for `{gen}` should not be empty. SKIPPED"
-                    )
+                    parser.bar.warn(f"Generator `{gen}` is missing dependencies. SKIPPED")
                     continue
 
                 generators[path] = [Path("generators") / d for d in deps]
@@ -1973,26 +1983,31 @@ class GeneratorConfig:
             def add_included_dir(d: DirectoryRule) -> None:
                 included_test_cases.extend(d.includes.values())
 
-            includes = parser.extract_optional_list("include", str)
-            for include in includes:
+            includes = parser.extract_optional_list("include", object, allow_empty=True)
+            for i, include in enumerate(includes):
+                if not isinstance(include, str):
+                    self.n_parse_error += 1
+                    parser.bar.error(f"Include {i} should be a test case/group key. SKIPPED.")
+                    continue
+
                 if "/" in include:
                     self.n_parse_error += 1
                     parser.bar.error(
-                        f"Include {include} should be a test case/group key, not a path. SKIPPED."
+                        f"Include {i}:{include} should be a test case/group key, not a path. SKIPPED."
                     )
                     continue
 
                 if include not in self.known_keys:
                     self.n_parse_error += 1
                     parser.bar.error(
-                        f"Unknown include key {include} does not refer to a previous test case. SKIPPED."
+                        f"Unknown include key {i}:{include} does not refer to a previous test case. SKIPPED."
                     )
                     continue
 
                 is_included, cases_list = self.known_keys[include]
                 if len(cases_list) != 1:
                     self.n_parse_error += 1
-                    parser.bar.error(f"Included key {include} is ambiguous. SKIPPED.")
+                    parser.bar.error(f"Included key {i}:{include} is ambiguous. SKIPPED.")
                     continue
 
                 self.known_keys[include] = (True, cases_list)
@@ -2002,7 +2017,8 @@ class GeneratorConfig:
                 else:
                     rule.walk(add_included_case, add_included_dir, skip_restricted=False)
 
-            data = parser.extract_optional_list("data", dict, allow_value=True, allow_empty=True)
+            data = parser.extract_optional_list("data", object, allow_empty=True)
+            assert is_list_type(data, dict, "data")
 
             # 2. pre determine the number of test child test groups
             # (only used if d.numbered is True)
