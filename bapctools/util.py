@@ -829,7 +829,7 @@ class YamlParser:
             value = self.remaining.pop(key)
             if value is None:
                 return []
-            if allow_value and isinstance(value, t):
+            if allow_value and isinstance(value, t) and not isinstance(value, list):
                 return [value]
             if isinstance(value, list):
                 if not all(isinstance(v, t) for v in value):
