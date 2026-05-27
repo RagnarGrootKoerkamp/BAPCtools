@@ -749,11 +749,14 @@ class TestcaseRule(Rule):
                 entries = match_parser.extract_optional_list(ext, object, allow_empty=True)
                 for i, entry in enumerate(entries):
                     if not isinstance(entry, str):
-                        raise ParseException(f"match.{ext}[{i}] is not a string.")
+                        generator_config.n_test_case_error += 1
+                        match_parser.bar.error(f"match.{ext}[{i}] is not a string.")
+                        continue
                     try:
                         self.patterns[ext].append(re.compile(entry, re.MULTILINE | re.DOTALL))
                     except re.error:
-                        raise ParseException(f"could not parse regex `{entry}`.")
+                        generator_config.n_test_case_error += 1
+                        match_parser.bar.error(f"could not parse regex `{entry}`.")
             match_parser.check_unknown_keys()
 
             # Error for unknown keys.
