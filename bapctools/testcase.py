@@ -451,7 +451,7 @@ class Testcase:
         warn_instead_of_error: bool = False,
     ) -> bool:
         results = []
-        output_validator_crash = False
+        output_validator_crash_unexpected = False
         for validator in validators:
             name = validator.name
             args = []
@@ -510,8 +510,9 @@ class Testcase:
                 if (
                     isinstance(validator, validate.OutputValidator)
                     and ret.status == ExecStatus.ERROR
+                    and mode != validate.Mode.ANSWER
                 ):
-                    output_validator_crash = True
+                    output_validator_crash_unexpected = True
                     warn = True
                 elif ret.status == ExecStatus.TIMEOUT:
                     warn = True
@@ -585,7 +586,7 @@ class Testcase:
                 issues.append(f"At least one validator must exit with {config.RTV_WA}.")
             elif ExecStatus.TIMEOUT in results:
                 issues.append("Validator timed out.")
-            if output_validator_crash:
+            if output_validator_crash_unexpected:
                 issues.append("Output Validator crashed.")
 
             success = not issues
