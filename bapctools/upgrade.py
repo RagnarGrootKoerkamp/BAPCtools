@@ -10,6 +10,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, generate
 from bapctools.util import (
+    ensure_symlink,
     fatal,
     is_problem_directory,
     ProgressBar,
@@ -171,6 +172,22 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             test_case_yaml["hint"] = f.read_text().strip()
             write_yaml(test_case_yaml, f.with_suffix(".yaml"))
             f.unlink()
+
+    # create .in.download and .ans.download for .interaction files
+
+    for f in (problem_path / "data" / "sample").rglob("*.interaction"):
+        name = f.relative_to(problem_path / "data").with_suffix("")
+        in_file = f.with_suffix(".in")
+        if not in_file.is_file():
+            continue
+        in_download_file = f.with_suffix(".in.download")
+        if not in_download_file.exists():
+            ensure_symlink(in_download_file, in_file, relative=True)
+            bar.log(f"created symlink .in.download -> .in for '{name}'")
+        ans_download_file = f.with_suffix(".ans.download")
+        if not ans_download_file.exists():
+            ans_download_file.write_text("")
+            bar.log(f"created empty .ans.download file for '{name}'")
 
 
 def rename_testdata_to_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
@@ -364,9 +381,70 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                             changed = True
         return changed
 
+    def _auto_generate_interaction() -> bool:
+        problem_yaml = problem_path / "problem.yaml"
+        if not problem_yaml.is_file():
+            return False
+        data = cast(CommentedMap, read_yaml(problem_yaml))
+
+        for key in ["validation", "type"]:
+            if key not in data:
+                continue
+            entry = data[key]
+            if not isinstance(entry, (str, list)):
+                return False
+            if "interactive" in entry:
+                return True
+            if "multi-pass" in entry:
+                return True
+            return False
+        return False
+
+    auto_generate_interaction = _auto_generate_interaction()
+
+    def add_download_override(data: CommentedMap, path: str) -> bool:
+        changed = False
+        if "data" in data and data["data"]:
+            children = data["data"] if isinstance(data["data"], list) else [data["data"]]
+            for dictionary in children:
+                if not isinstance(dictionary, dict):
+                    continue
+                for child_name, child_data in sorted(dictionary.items()):
+                    if not child_name:
+                        child_name = '""'
+                    if (
+                        child_data
+                        and generate.is_testcase(child_data)
+                        and isinstance(child_data, CommentedMap)
+                    ):
+                        if "interaction" in child_data and not child_data["interaction"]:
+                            continue
+                        if not auto_generate_interaction and "interaction" not in child_data:
+                            continue
+                        if "in.download" not in child_data:
+                            link = CommentedMap({"link": "in"})
+                            link.fa.set_flow_style()
+                            child_data["in.download"] = link
+                            bar.log(
+                                f"created symlink .in.download -> .in in generators.yaml ({path}.{child_name})"
+                            )
+                            changed = True
+                        if "ans.download" not in child_data:
+                            child_data["ans.download"] = ""
+                            bar.log(
+                                f"created empty .ans.download in generators.yaml ({path}.{child_name})"
+                            )
+                            changed = True
+        return changed
+
     changed |= apply_recursively(rename_testdata_to_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(upgrade_generated_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(replace_hint_desc_in_test_cases, yaml_data, "")
+    if "data" in yaml_data and isinstance(yaml_data["data"], CommentedMap):
+        data = yaml_data["data"]
+        if "sample" in data and isinstance(data["sample"], CommentedMap):
+            sample = data["sample"]
+            changed |= apply_recursively(add_download_override, sample, "")
 
     if changed:
         write_yaml(yaml_data, generators_yaml)
@@ -615,7 +693,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
-    bar.start(problem_path)
+    bar.start(problem_path.name)
 
     upgrade_data(problem_path, bar)
     rename_testdata_to_test_group_yaml(problem_path, bar)
@@ -635,12 +713,14 @@ def upgrade(problem_dir: Optional[Path]) -> None:
         if not is_problem_directory(problem_dir):
             fatal(f"{problem_dir} does not contain a problem.yaml")
         paths = [problem_dir]
-        bar = ProgressBar("upgrade", items=paths)
+        names = [p.name for p in paths]
+        bar = ProgressBar("upgrade", items=names)
     else:
         assert config.level == "problemset"
         contest_dir = Path.cwd()
         paths = [p for p in contest_dir.iterdir() if is_problem_directory(p)]
-        bar = ProgressBar("upgrade", items=["contest.yaml", *paths])
+        names = [p.name for p in paths]
+        bar = ProgressBar("upgrade", items=["contest.yaml", *names])
 
         bar.start("contest.yaml")
         if (contest_dir / "contest.yaml").is_file():
