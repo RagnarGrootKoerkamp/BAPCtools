@@ -415,7 +415,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         child_name = '""'
                     if (
                         child_data
-                        and generate.is_testcase(child_data)
+                        and generate.is_test_case(child_data)
                         and isinstance(child_data, CommentedMap)
                     ):
                         if "interaction" in child_data and not child_data["interaction"]:
