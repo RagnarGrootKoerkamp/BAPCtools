@@ -291,6 +291,21 @@ class SuppressingParser(argparse.ArgumentParser):
         super().__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 
+# We use our own version action to lazily determine the version
+class LazyVersion(argparse.Action):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
+        from importlib.metadata import version
+
+        print("BAPCtools version", version("BAPCtools"))
+        parser.exit()
+
+
 def build_parser() -> SuppressingParser:
     parser = SuppressingParser(
         description="""
@@ -301,6 +316,12 @@ Run this from one of:
     - a problem directory
 """,
         formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        nargs=0,
+        action=LazyVersion,
+        help="Display version information.",
     )
 
     # Global options
