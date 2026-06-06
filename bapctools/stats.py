@@ -1,3 +1,5 @@
+import contextlib
+import os
 import statistics
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta, timezone
@@ -27,7 +29,9 @@ def stats(problems: list[Problem]) -> None:
 def testcases(problem: Problem) -> set[Path]:
     try:
         with config.suppress_warnings(level=2):
-            gen_config = generate.GeneratorConfig(problem)
+            with open(os.devnull, "w") as devnull:
+                with contextlib.redirect_stderr(devnull):
+                    gen_config = generate.GeneratorConfig(problem)
     except generate.ParseException:
         return set()
     if gen_config.has_yaml:
