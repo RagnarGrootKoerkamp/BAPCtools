@@ -1826,13 +1826,22 @@ class GeneratorConfig:
             self.yaml = None
             self.has_yaml = False
 
+        bar = PrintBar("generators.yaml")
         try:
-            self.root_dir = self._parse_root(self.yaml)
+            self.root_dir = self._parse_root(self.yaml, bar)
         except ParseException as e:
             self.n_parse_error += 1
-            PrintBar("generators.yaml", item=e.path).error(e.message)
+            bar.start(e.path).error(e.message)
 
-    def _parse_root(self, raw_yaml: object) -> DirectoryRule:
+        if self.n_parse_error:
+            bar.error("could not be parsed\n")
+        elif self.n_test_case_error:
+            bar.warn("contains errors\n")
+        else:
+            # TODO print newline if something was logged
+            pass
+
+    def _parse_root(self, raw_yaml: object, bar: BAR_TYPE) -> DirectoryRule:
         if raw_yaml is None:
             raw_yaml = dict()
 
@@ -1843,7 +1852,7 @@ class GeneratorConfig:
                 "could not parse generators.yaml, root must represent a directory."
             )
 
-        parser = YamlParser("generators.yaml", raw_yaml, bar=PrintBar("generators.yaml"))
+        parser = YamlParser("generators.yaml", raw_yaml, bar=bar)
 
         # we don't really care about the version
         parser.pop("version")
@@ -2136,12 +2145,6 @@ class GeneratorConfig:
             "check_testing_tool",
         ]:
             parser.check_unknown_keys(warn=False)
-        if self.n_parse_error:
-            parser.bar.error("could not be parsed")
-        elif self.n_test_case_error:
-            parser.bar.warn("contains errors\n")
-        else:
-            parser.bar.log("parsed\n")
         return root
 
     # test_case_short_path: secret/1.in
