@@ -1834,12 +1834,10 @@ class GeneratorConfig:
             bar.start(e.path).error(e.message)
 
         if self.n_parse_error:
-            bar.error("could not be parsed\n")
+            bar.error("could not be parsed")
         elif self.n_test_case_error:
-            bar.warn("contains errors\n")
-        else:
-            # TODO print newline if something was logged
-            pass
+            bar.warn("contains errors")
+        bar.finalize(print_done=False)
 
     def _parse_root(self, raw_yaml: object, bar: BAR_TYPE) -> DirectoryRule:
         if raw_yaml is None:
@@ -2097,7 +2095,7 @@ class GeneratorConfig:
                             continue
                         child_name = itertools.repeat(child_key)
 
-                    child_path = ".".join(d.path.parts + (child_key,))
+                    child_path = ".".join(d.path.parts + (child_key or '""',))
                     child_bar = sub_parser.bar.start(child_path)
                     if is_directory(child_yaml):
                         child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
