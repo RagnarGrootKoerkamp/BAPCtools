@@ -544,7 +544,7 @@ class ProgressBar:
                 self._print(self.get_prefix(), message)
 
             # When something was printed, add a newline between parts.
-            if self.global_logged and not suppress_newline:
+            if (self.global_logged or message) and not suppress_newline:
                 self._print()
 
         assert ProgressBar.current_bar is not None
@@ -562,17 +562,32 @@ class PrintBar:
         *,
         item: Optional[ITEM_TYPE] = None,
     ) -> None:
-        self.prefix = str(prefix) if prefix else None
-        self.item_width = None
+        self.prefix: Optional[str] = str(prefix) if prefix else None
+        self.item_width: Optional[int] = None
+        self.max_len: Optional[int] = max_len
         if item is not None:
             self.item_width = ProgressBar.item_len(item) + 1
-        if max_len is not None:
-            self.item_width = max_len + 1
-        self.item = item
+        if self.max_len is not None:
+            self.item_width = self.max_len + 1
+        self.item: Optional[ITEM_TYPE] = item
+        self.global_logged: bool = False
+        self.parent: Optional[PrintBar] = None
+
+    def _set_logged(self) -> None:
+        if self.global_logged:
+            return
+        self.global_logged = True
+        if self.parent is not None:
+            self.parent._set_logged()
 
     def start(self, item: Optional[ITEM_TYPE] = None) -> "PrintBar":
         bar_copy = copy.copy(self)
         bar_copy.item = item
+        if item is not None:
+            bar_copy.item_width = max(bar_copy.item_width or 0, ProgressBar.item_len(item) + 1)
+        if bar_copy.max_len is not None:
+            bar_copy.item_width = bar_copy.max_len + 1
+        bar_copy.parent = self
         return bar_copy
 
     def log(
@@ -584,6 +599,7 @@ class PrintBar:
         resume: bool = True,
         print_item: bool = True,
     ) -> None:
+        self._set_logged()
         prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None, print_item)
         eprint(prefix, color, message, ProgressBar._format_data(data), Style.RESET_ALL, sep="")
 
@@ -627,6 +643,30 @@ class PrintBar:
         config.n_error += 1
         self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
         exit1()
+
+    def finalize(
+        self,
+        *,
+        print_done: bool = True,
+        message: Optional[str] = None,
+        suppress_newline: bool = False,
+    ) -> bool:
+        # At most one of print_done and message may be passed.
+        if message:
+            assert print_done is True
+
+        # Print 'DONE' when nothing was printed yet but a summary was requested.
+        if print_done and not self.global_logged and not message:
+            message = f"{Fore.GREEN}Done{Style.RESET_ALL}"
+
+        if message:
+            self.log(message)
+
+        # When something was printed, add a newline between parts.
+        if (self.global_logged or message) and not suppress_newline:
+            eprint()
+
+        return self.global_logged and not suppress_newline
 
 
 BAR_TYPE = PrintBar | ProgressBar
