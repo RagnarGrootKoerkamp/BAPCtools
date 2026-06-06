@@ -19,6 +19,7 @@ from bapctools import config, parallel, program, run, validate, visualize
 from bapctools.problem import Problem
 from bapctools.testcase import Testcase
 from bapctools.util import (
+    BAR_TYPE,
     combine_hashes,
     combine_hashes_dict,
     ensure_symlink,
@@ -1916,12 +1917,13 @@ class GeneratorConfig:
 
         # might return multiple rules because of count
         def parse_test_case(
-            key: str, name_gen: Iterator[str], raw_yaml: object, parent: DirectoryRule
+            key: str,
+            name_gen: Iterator[str],
+            raw_yaml: object,
+            bar: BAR_TYPE,
+            parent: DirectoryRule,
         ) -> list[TestcaseRule]:
             assert is_test_case(raw_yaml)
-
-            key_path = ".".join(parent.path.parts + (key,))
-            bar = PrintBar("generators.yaml", item=key_path)
 
             if isinstance(raw_yaml, dict):
                 parser_yaml = raw_yaml
@@ -2086,16 +2088,15 @@ class GeneratorConfig:
                             continue
                         child_name = itertools.repeat(child_key)
 
+                    child_path = ".".join(d.path.parts + (child_key,))
+                    child_bar = sub_parser.bar.start(child_path)
                     if is_directory(child_yaml):
-                        child_path = ".".join(d.path.parts + (child_key,))
-                        child_parser = YamlParser(
-                            sub_parser.source, child_yaml, bar=sub_parser.bar.start(child_path)
-                        )
+                        child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
                         cd = parse_directory(child_key, child_name, child_yaml, child_parser, d)
                         d.data.append(cd)
                         child_parser.check_unknown_keys()
                     elif is_test_case(child_yaml):
-                        ts = parse_test_case(child_key, child_name, child_yaml, d)
+                        ts = parse_test_case(child_key, child_name, child_yaml, child_bar, d)
                         d.data.extend(ts)
                     else:
                         self.n_parse_error += 1
