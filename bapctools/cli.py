@@ -319,6 +319,7 @@ Run this from one of:
     )
     parser.add_argument(
         "--version",
+        "-v",
         nargs=0,
         action=LazyVersion,
         help="Display version information.",
