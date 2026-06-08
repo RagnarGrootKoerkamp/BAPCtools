@@ -628,7 +628,7 @@ class Submission(program.Program):
 
             message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
 
-        printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
+        printed_newline = bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
             verdict_table.print(force=True, new_lines=0)
             verdict_table.last_printed = []

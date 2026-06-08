@@ -1051,6 +1051,9 @@ Run this from one of:
     if not is_windows():
         argcomplete.autocomplete(parser)
 
+    if hasattr(parser, "suggest_on_error"):
+        parser.suggest_on_error = True
+
     parser.known_actions = list(subparsers.choices.keys())
     return parser
 
