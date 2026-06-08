@@ -15,6 +15,7 @@ Bommel.
 """
 
 import argparse
+import difflib
 import hashlib
 import os
 import re
@@ -289,6 +290,8 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
 class SuppressingParser(argparse.ArgumentParser):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs, argument_default=argparse.SUPPRESS)
+        # this is set during build_parser
+        self.known_actions: list[str] = []
 
 
 # We use our own version action to lazily determine the version
@@ -318,8 +321,8 @@ Run this from one of:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        "--version",
         "-v",
+        "--version",
         nargs=0,
         action=LazyVersion,
         help="Display version information.",
@@ -382,9 +385,7 @@ Run this from one of:
     )
     global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
-    subparsers = parser.add_subparsers(
-        title="actions", dest="action", parser_class=SuppressingParser, required=True
-    )
+    subparsers = parser.add_subparsers(title="actions", dest="action", required=True)
 
     # upgrade
     subparsers.add_parser(
@@ -1046,6 +1047,7 @@ Run this from one of:
     if not is_windows():
         argcomplete.autocomplete(parser)
 
+    parser.known_actions = list(subparsers.choices.keys())
     return parser
 
 
@@ -1471,6 +1473,11 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 def main() -> None:
     try:
         parser = build_parser()
+        if len(sys.argv) >= 2 and sys.argv[1] not in parser.known_actions:
+            action = sys.argv[1]
+            closest = difflib.get_close_matches(action, parser.known_actions, n=1)
+            hint = f", did you mean '{closest[0]}'?" if closest else ""
+            parser.error(f"argument action: invalid choice: '{action}'{hint}")
         run_parsed_arguments(parser.parse_args())
     except (AbortException, KeyboardInterrupt):
         fatal("Running interrupted")
