@@ -190,7 +190,7 @@ Validators can be one of
 
 - a single-file program.
 - a multi-file program with all files in a common directory.
-- a .ctd CheckTestData file (this needs the `checktestdata` executable in your `$PATH`).
+- a .ctd CheckTestData file (this needs the `pyctd` executable in your `$PATH`, see [PyCTD](https://github.com/mzuenni/pyctd)).
 - a .viva file.
 
 You can use `--remove` to delete all failing testcases or `--move <dir>` to move
