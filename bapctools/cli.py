@@ -300,9 +300,13 @@ class LazyVersion(argparse.Action):
         values: Any,
         option_string: Optional[str] = None,
     ) -> None:
-        from importlib.metadata import version
+        from importlib.metadata import PackageNotFoundError, version
 
-        print("BAPCtools version", version("BAPCtools"))
+        try:
+            version_str = version("BAPCtools")
+        except PackageNotFoundError:
+            version_str = "<unknown>"
+        print("BAPCtools version", version_str)
         parser.exit()
 
 
