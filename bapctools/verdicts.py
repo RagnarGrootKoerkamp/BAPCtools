@@ -682,23 +682,23 @@ class TableProgressBar(ProgressBar):
                 self.has_buffered.wait()
                 with self:
                     assert ProgressBar.lock_depth == 1
-                    if isinstance(sys.stderr, io.TextIOWrapper):
-                        reset_line_buffering = sys.stderr.line_buffering
-                        sys.stderr.reconfigure(line_buffering=False)
-                    self.table._clear()
-                    for buffered in self.buffer:
-                        buffered()
-                    self.buffer = []
-                    self.table.print(update=True, printed_lengths=[ProgressBar.columns])
-                    eprint(end="", flush=True)
-                    self.has_buffered.clear()
-                    if isinstance(sys.stderr, io.TextIOWrapper):
-                        sys.stderr.reconfigure(line_buffering=reset_line_buffering)
-                if not self.finalized:
-                    # limit the number of prints per second
-                    time.sleep(0.01)
-                else:
-                    break
+                    if self.buffer:
+                        if isinstance(sys.stderr, io.TextIOWrapper):
+                            reset_line_buffering = sys.stderr.line_buffering
+                            sys.stderr.reconfigure(line_buffering=False)
+                        self.table._clear()
+                        for buffered in self.buffer:
+                            buffered()
+                        self.buffer = []
+                        self.table.print(update=True, printed_lengths=[ProgressBar.columns])
+                        eprint(end="", flush=True)
+                        self.has_buffered.clear()
+                        if isinstance(sys.stderr, io.TextIOWrapper):
+                            sys.stderr.reconfigure(line_buffering=reset_line_buffering)
+                        if self.finalized:
+                            break
+                # limit the number of prints per second
+                time.sleep(0.01)
             assert not self.buffer
 
         self.io_thread = threading.Thread(target=buffer_printer, daemon=True)
@@ -713,6 +713,7 @@ class TableProgressBar(ProgressBar):
 
     def _print(self, *args: Any, **kwargs: Any) -> None:
         assert self._is_locked()
+        assert not self.finalized
         kwargs.setdefault("sep", "")
         kwargs["flush"] = False  # drop all flushes...
         self.buffer.append(lambda: eprint(*args, **kwargs))
