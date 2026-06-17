@@ -2,7 +2,8 @@ import io
 import shutil
 import sys
 import threading
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, TYPE_CHECKING
@@ -404,10 +405,10 @@ class VerdictTable:
         self.current_test_cases: set[str] = set()
         self.last_printed: list[int] = []
         self.width: int
-        self.print_without_force: bool
+        self.print_updates: bool
         if config.args.tree:
             self.width = width if width >= 20 else -1
-            self.print_without_force = not config.args.no_bar and config.args.overview
+            self.print_updates = not config.args.no_bar and config.args.overview
             self.checked_height: int | bool = height
         else:
             self.name_width: int = min(
@@ -416,10 +417,8 @@ class VerdictTable:
             )
             self.width = width if width >= self.name_width + 2 + 10 else -1
 
-            self.print_without_force = (
-                not config.args.no_bar and config.args.overview and self.width >= 0
-            )
-            if self.print_without_force:
+            self.print_updates = not config.args.no_bar and config.args.overview and self.width >= 0
+            if self.print_updates:
                 # generate example lines for one submission
                 name = "x" * self.name_width
                 lines = [f"{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:"]
@@ -441,8 +440,8 @@ class VerdictTable:
                     printed += length + 1
 
                 # dont print table if it fills too much of the screen
-                self.print_without_force = len(lines) * len(self.submissions) + 5 < height
-                if not self.print_without_force:
+                self.print_updates = len(lines) * len(self.submissions) + 5 < height
+                if not self.print_updates:
                     eprint(
                         f"{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}"
                     )
@@ -465,22 +464,16 @@ class VerdictTable:
         self.results[-1].set(test_case, verdict, duration)
         self.current_test_cases.discard(test_case)
 
-    def _clear(self, *, force: bool = True) -> None:
-        if force or self.print_without_force:
-            if self.last_printed:
-                actual_width = ProgressBar.columns
-                lines = sum(
-                    max(1, (printed + actual_width - 1) // actual_width)
-                    for printed in self.last_printed
-                )
+    def _clear(self) -> None:
+        if self.last_printed:
+            actual_width = ProgressBar.columns
+            lines = sum(
+                max(1, (printed + actual_width - 1) // actual_width)
+                for printed in self.last_printed
+            )
 
-                eprint(
-                    "\033[K\033[A" * (lines - 1),
-                    end="\r",
-                    flush=True,
-                )
-
-                self.last_printed = []
+            eprint("\033[K\033[A" * (lines - 1), end="\r", flush=False)
+            self.last_printed = []
 
     def _get_verdict(self, s: int, test_case: str, check_sample: bool = True) -> str:
         res = f"{Style.DIM}-{Style.RESET_ALL}"
@@ -499,13 +492,13 @@ class VerdictTable:
     def _print_tree(
         self,
         *,
-        force: bool = True,
+        update: bool = False,
         new_lines: int = 1,
         printed_lengths: list[int] | None = None,
     ) -> None:
         if printed_lengths is None:
             printed_lengths = []
-        if force or self.print_without_force:
+        if not update or self.print_updates:
             printed_text = ["\n\033[2K" * new_lines]
             printed_lengths += [0] * new_lines
 
@@ -578,7 +571,7 @@ class VerdictTable:
                     printed_lengths.append(printed)
                     printed_text.append("\n\033[K")
 
-            self._clear(force=True)
+            self._clear()
 
             if self.checked_height is not True:
                 height = sum(
@@ -588,24 +581,24 @@ class VerdictTable:
                     eprint(
                         f"\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n",
                     )
-                    self.print_without_force = False
+                    self.print_updates = False
                 self.checked_height = True
-                if not force and not self.print_without_force:
+                if update and not self.print_updates:
                     return
 
-            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
             self.last_printed = printed_lengths
 
     def _print_table(
         self,
         *,
-        force: bool = True,
+        update: bool = False,
         new_lines: int = 2,
         printed_lengths: list[int] | None = None,
     ) -> None:
         if printed_lengths is None:
             printed_lengths = []
-        if force or self.print_without_force:
+        if not update or self.print_updates:
             printed_text = ["\n\033[2K" * new_lines]
             printed_lengths += [0] * new_lines
             for s, submission in enumerate(self.submissions):
@@ -637,8 +630,9 @@ class VerdictTable:
 
                 printed_lengths.append(printed)
                 printed_text.append("\n\033[K")
-            self._clear(force=True)
-            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
+
+            self._clear()
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
             self.last_printed = printed_lengths
 
     def ProgressBar(
@@ -678,33 +672,50 @@ class TableProgressBar(ProgressBar):
             items=items,
             needs_leading_newline=needs_leading_newline,
         )
+        self.finalized = False
         self.table = table
+        self.buffer = list[Callable[[], None]]()
+        self.has_buffered = threading.Event()
 
-    # at the begin of any IO the progress bar locks so we can clear the table at this point
-    def __enter__(self) -> None:
-        super().__enter__()
-        if ProgressBar.lock_depth == 1:
-            if isinstance(sys.stderr, io.TextIOWrapper):
-                self.reset_line_buffering = sys.stderr.line_buffering
-                sys.stderr.reconfigure(line_buffering=False)
-            self.table._clear(force=False)
+        def buffer_printer() -> None:
+            while True:
+                self.has_buffered.wait()
+                with self:
+                    assert ProgressBar.lock_depth == 1
+                    if isinstance(sys.stderr, io.TextIOWrapper):
+                        reset_line_buffering = sys.stderr.line_buffering
+                        sys.stderr.reconfigure(line_buffering=False)
+                    self.table._clear()
+                    for buffered in self.buffer:
+                        buffered()
+                    self.buffer = []
+                    self.table.print(update=True, printed_lengths=[ProgressBar.columns])
+                    eprint(end="", flush=True)
+                    self.has_buffered.clear()
+                    if isinstance(sys.stderr, io.TextIOWrapper):
+                        sys.stderr.reconfigure(line_buffering=reset_line_buffering)
+                if not self.finalized:
+                    # limit the number of prints per second
+                    time.sleep(0.01)
+                else:
+                    break
+            assert not self.buffer
 
-    # at the end of any IO the progress bar unlocks so we can reprint the table at this point
+        self.io_thread = threading.Thread(target=buffer_printer, daemon=True)
+        self.io_thread.start()
+
+    # at the end of all IO, notify the print thread
     def __exit__(self, *args: Any) -> None:
-        if ProgressBar.lock_depth == 1:
-            # ProgressBar.columns is just an educated guess for the number of printed chars
-            # in the ProgressBar
-            self.table.print(force=False, printed_lengths=[ProgressBar.columns])
-            if isinstance(sys.stderr, io.TextIOWrapper):
-                sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
-            eprint(end="", flush=True)
+        exit = ProgressBar.lock_depth == 1
         super().__exit__(*args)
+        if exit and self.buffer:
+            self.has_buffered.set()
 
     def _print(self, *args: Any, **kwargs: Any) -> None:
         assert self._is_locked()
         kwargs.setdefault("sep", "")
         kwargs["flush"] = False  # drop all flushes...
-        eprint(*args, **kwargs)
+        self.buffer.append(lambda: eprint(*args, **kwargs))
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
         from bapctools.run import Run
@@ -715,15 +726,6 @@ class TableProgressBar(ProgressBar):
         assert isinstance(copy, TableProgressBar)
         return copy
 
-    def done(
-        self,
-        success: bool = True,
-        message: str = "",
-        data: Optional[str] = None,
-        print_item: bool = True,
-    ) -> None:
-        super().done(success, message, data, print_item)
-
     def finalize(
         self,
         *,
@@ -732,10 +734,11 @@ class TableProgressBar(ProgressBar):
         suppress_newline: bool = False,
     ) -> bool:
         with self:
+            self.finalized = True
             res = super().finalize(
                 print_done=print_done,
                 message=message,
                 suppress_newline=suppress_newline,
             )
-            self.table._clear(force=True)
-            return res
+        self.io_thread.join()
+        return res

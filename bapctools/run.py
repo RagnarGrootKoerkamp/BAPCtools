@@ -630,7 +630,7 @@ class Submission(program.Program):
 
         printed_newline = bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
-            verdict_table.print(force=True, new_lines=0)
+            verdict_table.print(new_lines=0)
             verdict_table.last_printed = []
             eprint()
             printed_newline = True
