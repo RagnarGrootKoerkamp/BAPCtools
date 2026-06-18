@@ -654,6 +654,51 @@ class VerdictTable:
         )
 
 
+class IOThread:
+    def __init__(self, table: VerdictTable) -> None:
+        self.finalized = False
+        self.table = table
+        self.buffer = list[Callable[[], None]]()
+        self.has_buffered = threading.Event()
+
+        def buffer_printer() -> None:
+            while True:
+                self.has_buffered.wait()
+                with ProgressBar.lock:
+                    if isinstance(sys.stderr, io.TextIOWrapper):
+                        reset_line_buffering = sys.stderr.line_buffering
+                        sys.stderr.reconfigure(line_buffering=False)
+                    self.table._clear()
+                    for buffered in self.buffer:
+                        buffered()
+                    self.buffer = []
+                    self.table.print(update=True, printed_lengths=[ProgressBar.columns])
+                    eprint(end="", flush=True)
+                    self.has_buffered.clear()
+                    if isinstance(sys.stderr, io.TextIOWrapper):
+                        sys.stderr.reconfigure(line_buffering=reset_line_buffering)
+                    if self.finalized:
+                        break
+                # limit the number of prints per second
+                time.sleep(0.01)
+            assert not self.buffer
+
+        self.io_thread = threading.Thread(target=buffer_printer, daemon=True)
+        self.io_thread.start()
+
+    def notify(self) -> None:
+        self.has_buffered.set()
+
+    def print(self, *args: Any, **kwargs: Any) -> None:
+        assert not self.finalized
+        self.buffer.append(lambda: eprint(*args, **kwargs))
+
+    def finalize(self) -> None:
+        self.finalized = True
+        self.notify()
+        self.io_thread.join()
+
+
 class TableProgressBar(ProgressBar):
     def __init__(
         self,
@@ -672,51 +717,21 @@ class TableProgressBar(ProgressBar):
             items=items,
             needs_leading_newline=needs_leading_newline,
         )
-        self.finalized = False
         self.table = table
-        self.buffer = list[Callable[[], None]]()
-        self.has_buffered = threading.Event()
-
-        def buffer_printer() -> None:
-            while True:
-                self.has_buffered.wait()
-                with self:
-                    assert ProgressBar.lock_depth == 1
-                    if self.buffer:
-                        if isinstance(sys.stderr, io.TextIOWrapper):
-                            reset_line_buffering = sys.stderr.line_buffering
-                            sys.stderr.reconfigure(line_buffering=False)
-                        self.table._clear()
-                        for buffered in self.buffer:
-                            buffered()
-                        self.buffer = []
-                        self.table.print(update=True, printed_lengths=[ProgressBar.columns])
-                        eprint(end="", flush=True)
-                        self.has_buffered.clear()
-                        if isinstance(sys.stderr, io.TextIOWrapper):
-                            sys.stderr.reconfigure(line_buffering=reset_line_buffering)
-                        if self.finalized:
-                            break
-                # limit the number of prints per second
-                time.sleep(0.01)
-            assert not self.buffer
-
-        self.io_thread = threading.Thread(target=buffer_printer, daemon=True)
-        self.io_thread.start()
+        self.io = IOThread(table)
 
     # at the end of all IO, notify the print thread
     def __exit__(self, *args: Any) -> None:
         exit = ProgressBar.lock_depth == 1
         super().__exit__(*args)
-        if exit and self.buffer:
-            self.has_buffered.set()
+        if exit:
+            self.io.notify()
 
     def _print(self, *args: Any, **kwargs: Any) -> None:
         assert self._is_locked()
-        assert not self.finalized
         kwargs.setdefault("sep", "")
         kwargs["flush"] = False  # drop all flushes...
-        self.buffer.append(lambda: eprint(*args, **kwargs))
+        self.io.print(*args, **kwargs)
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
         from bapctools.run import Run
@@ -740,7 +755,5 @@ class TableProgressBar(ProgressBar):
                 message=message,
                 suppress_newline=suppress_newline,
             )
-            self.finalized = True
-        self.has_buffered.set()
-        self.io_thread.join()
+        self.io.finalize()
         return res
