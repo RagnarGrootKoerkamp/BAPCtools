@@ -735,11 +735,12 @@ class TableProgressBar(ProgressBar):
         suppress_newline: bool = False,
     ) -> bool:
         with self:
-            self.finalized = True
             res = super().finalize(
                 print_done=print_done,
                 message=message,
                 suppress_newline=suppress_newline,
             )
+            self.finalized = True
+        self.has_buffered.set()
         self.io_thread.join()
         return res
