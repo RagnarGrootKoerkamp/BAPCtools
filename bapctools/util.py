@@ -1365,7 +1365,6 @@ def limit_setter(
 
     if group is not None:
         assert not is_windows()
-        assert not is_mac()
 
     if is_windows() or is_bsd():
         cores = False
