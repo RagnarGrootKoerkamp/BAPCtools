@@ -37,8 +37,12 @@ def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
     if PIPE_SIZE is not None:
         return PIPE_SIZE
 
+    # currently python only supports this on linux
+    if is_windows() or is_bsd():
+        return -1
+
     with open("/proc/sys/fs/pipe-max-size") as f:
-        PIPE_SIZE = int(f.read())  # Defaults to 1 MiB on most systems.
+        PIPE_SIZE = int(f.read())  # Defaults to 1 MiB on most systems.
 
     # Try to set the pipe size in the same way as subprocess.Popen does:
     # https://github.com/python/cpython/blob/v3.14.4/Lib/subprocess.py#L1737
@@ -127,7 +131,7 @@ def run_interactive_testcase(
     # - Wait for the validator to complete.
     # This cannot handle cases where the validator reports WA and the submission timeout out
     # afterwards.
-    if is_windows() or is_bsd():
+    if is_windows():
         pass_id = 0
         max_duration = 0.0
         tle_result = None
@@ -247,7 +251,7 @@ def run_interactive_testcase(
             tle_result.duration = max_duration
             return tle_result
 
-    # On Linux:
+    # On Posix:
     # - Start validator
     # - Start submission, limiting CPU time to time_limit+1s
     # - Set alarm for time_limit+1s, and kill submission on SIGALRM if needed.
@@ -256,7 +260,6 @@ def run_interactive_testcase(
     # - Close remaining program + write end of pipe
     # - Close remaining read end of pipes
 
-    # TODO: Print interaction when needed.
     if isinstance(interaction, Path):
         assert not interaction.is_relative_to(run.tmpdir)
     elif interaction:
