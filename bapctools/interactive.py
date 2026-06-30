@@ -129,9 +129,12 @@ def run_interactive_testcase(
     # - Start the submission
     # - Wait for the submission to complete or timeout
     # - Wait for the validator to complete.
-    # This cannot handle cases where the validator reports WA and the submission timeout out
+    # This cannot handle cases where the validator reports WA and the submission timeout
     # afterwards.
     if is_windows():
+        if isinstance(interaction, Path):
+            (bar or PrintBar("Run")).warn("Cannot create .interaction file on windows")
+
         pass_id = 0
         max_duration = 0.0
         tle_result = None
