@@ -233,8 +233,8 @@ class ARGS:
         self.local_time_multiplier: Optional[float] = get_optional_arg(
             "local_time_multiplier", float, "> 0"
         )
-        self.memory: Optional[int] = get_optional_arg("legacy", int, "> 0")
-        self.move_to: Optional[str] = get_optional_arg("colors", str)
+        self.memory: Optional[int] = get_optional_arg("memory", int, "> 0")
+        self.move_to: Optional[str] = get_optional_arg("move_to", str)
         self.no_bar: bool = get_arg("no_bar", False)
         self.no_generate: bool = get_arg("no_generate", False)
         self.no_solution: bool = get_arg("no_solution", False)
@@ -242,7 +242,7 @@ class ARGS:
         self.no_testcase_sanity_checks: bool = get_arg("no_testcase_sanity_checks", False)
         self.no_time_limit: bool = get_arg("no_time_limit", False)
         self.no_validators: bool = get_arg("no_validators", False)
-        self.no_visualizer: bool = get_arg("no_visualizer", True, ">= 0")
+        self.no_visualizer: bool = get_arg("no_visualizer", True)
         self.number: Optional[str] = get_optional_arg("number", str)
         self.open: Optional[Literal[True] | Path] = get_optional_arg("open", Path)
         self.order: Optional[str] = get_optional_arg("order", str)
