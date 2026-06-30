@@ -1062,6 +1062,11 @@ def remove_path(path: Path) -> None:
             path.unlink()
         except IsADirectoryError:
             shutil.rmtree(path)
+        except PermissionError:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                raise
     except (NotADirectoryError, FileNotFoundError):
         pass
 
