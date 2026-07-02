@@ -300,7 +300,7 @@ args = ARGS("config.py")
 
 
 @contextmanager
-def temporary_args() -> Generator[None]:
+def temporary_args() -> Generator[None, None, None]:
     assert threading.current_thread() is threading.main_thread()
     old_args = args.copy()
     try:
@@ -313,7 +313,7 @@ def temporary_args() -> Generator[None]:
 # suppresses warning messages as well as setting n_warn
 # if level == 2, this does also suppress errors
 @contextmanager
-def suppress_warnings(level: int = 1) -> Generator[None]:
+def suppress_warnings(level: int = 1) -> Generator[None, None, None]:
     assert threading.current_thread() is threading.main_thread()
     old_suppress_warnings = args.suppress_warnings
     args.suppress_warnings = level

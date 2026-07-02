@@ -84,8 +84,8 @@ class SequentialQueue(AbstractQueue[T]):
     # Execute all tasks.
     def done(self) -> None:
         if self.pin:
-            cores = list(os.sched_getaffinity(0))
-            os.sched_setaffinity(0, {cores[0]})
+            cores = list(os.sched_getaffinity(0))  # type: ignore[attr-defined]
+            os.sched_setaffinity(0, {cores[0]})  # type: ignore[attr-defined]
 
         # no task will be handled after self.abort()
         while self.tasks and not self.aborted:
@@ -96,7 +96,7 @@ class SequentialQueue(AbstractQueue[T]):
                     raise e
 
         if self.pin:
-            os.sched_setaffinity(0, cores)
+            os.sched_setaffinity(0, cores)  # type: ignore[attr-defined]
 
 
 class ParallelQueue(AbstractQueue[T]):
@@ -116,7 +116,7 @@ class ParallelQueue(AbstractQueue[T]):
 
         if self.pin:
             # only use available cores and reserve one
-            cores = list(os.sched_getaffinity(0))
+            cores = list(os.sched_getaffinity(0))  # type: ignore[attr-defined]
             if self.num_threads > len(cores) - 1:
                 self.num_threads = len(cores) - 1
 
@@ -133,7 +133,7 @@ class ParallelQueue(AbstractQueue[T]):
 
     def _worker(self, cores: Literal[False] | list[int] = False) -> None:
         if cores is not False:
-            os.sched_setaffinity(0, cores)
+            os.sched_setaffinity(0, cores)  # type: ignore[attr-defined]
         while True:
             with self.mutex:
                 # if self.aborted we need no item in the queue and can stop

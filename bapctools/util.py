@@ -862,7 +862,7 @@ def ryaml_get_or_add(
         yaml[key] = t()
     value = yaml[key]
     assert isinstance(value, t)
-    return value
+    return value  # type: ignore[no-any-return]
 
 
 # This tries to preserve the correct comments.
@@ -1402,7 +1402,7 @@ def limit_setter(
             os.setpgid(0, group)
 
         if cores is not False:
-            os.sched_setaffinity(0, cores)
+            os.sched_setaffinity(0, cores)  # type: ignore[attr-defined]
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))

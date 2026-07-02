@@ -699,6 +699,7 @@ class TestcaseRule(Rule):
                                 )
                             value = value["link"]
                             assert_type(f"{key}.link", value, str)
+                            assert isinstance(value, str)
                             if value not in ALLOWED_LINK_VALUES:
                                 raise ParseException(
                                     f"Unknown value `{value}` for for key {key}.link."
