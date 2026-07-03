@@ -1060,9 +1060,7 @@ def remove_path(path: Path) -> None:
     try:
         try:
             path.unlink()
-        except IsADirectoryError:
-            shutil.rmtree(path)
-        except PermissionError:
+        except OSError:
             if path.is_dir():
                 shutil.rmtree(path)
             else:
