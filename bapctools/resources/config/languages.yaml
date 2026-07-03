@@ -171,7 +171,7 @@ java:
     name: 'Java'
     priority: 850
     files: '*.java'
-    compile: 'javac -encoding UTF-8 -sourcepath {path} -d {path} {files}'
+    compile: 'javac -encoding UTF-8 -cp {path} -sourcepath {path} -d {path} {files}'
     run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path} {mainclass}'
 
 javascript:
