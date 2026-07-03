@@ -234,7 +234,7 @@ class Run:
             return False
         # clear all files outside of feedbackdir
         for f in self.tmpdir.iterdir():
-            if f == self.feedbackdir:
+            if f.resolve() == self.feedbackdir.resolve():
                 continue
             remove_path(f)
         # use nextpass.in as next input
