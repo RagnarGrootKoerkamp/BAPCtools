@@ -116,7 +116,7 @@ def change_directory() -> Optional[Path]:
 def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     # We create one tmpdir per contest.
     h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
-    tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
+    tmpdir = (Path(tempfile.gettempdir()) / ("bapctools_" + h)).resolve()
     tmpdir.mkdir(parents=True, exist_ok=True)
 
     def fallback_problems() -> list[tuple[Path, str]]:
