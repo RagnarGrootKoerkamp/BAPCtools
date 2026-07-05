@@ -43,10 +43,15 @@ jobs:
           sudo tlmgr update --self
           sudo tlmgr install \
             latexmk lm \
-            collection-latexrecommended collection-latexextra \
-            collection-science \
-            babel-german hyphen-german \
-            asymptote
+            collection-latexrecommended \
+            algorithms algorithmicx animate cancel courier \
+            enumitem environ eqparbox etoolbox \
+            frcursive hyphenat jknapltx \
+            listingsutf8 pgf pgfplots \
+            setspace siunitx standalone subcaption \
+            tcolorbox tikz-qtree tocloft upquote wrapfig \
+            xparse \
+            babel-german hyphen-german
       - run: pip install --editable . --group dev
       - run: |
           export PATH="/Library/TeX/texbin:$PATH"
