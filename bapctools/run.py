@@ -99,7 +99,7 @@ class Run:
             assert interaction is not True
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
-            with interaction.open("a") if interaction else nullcontext(None) as interaction_file:
+            with interaction.open("a") if interaction else nullcontext(None) as interaction_file:  # type: ignore[attr-defined]
                 nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
                 pass_id = 0
                 max_duration = 0.0
@@ -234,7 +234,7 @@ class Run:
             return False
         # clear all files outside of feedbackdir
         for f in self.tmpdir.iterdir():
-            if f == self.feedbackdir:
+            if f.resolve() == self.feedbackdir.resolve():
                 continue
             remove_path(f)
         # use nextpass.in as next input

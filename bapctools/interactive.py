@@ -271,7 +271,7 @@ def run_interactive_testcase(
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
-        else nullcontext(None) as interaction_file
+        else nullcontext(None) as interaction_file  # type: ignore[attr-defined]
     ):
         # Connect pipes with tee.
         TEE_CODE = R"""
@@ -366,7 +366,10 @@ while True:
                             validation_time - timeout
                         ):
                             return
-                        os.killpg(gid, signal.SIGKILL)
+                        try:
+                            os.killpg(gid, signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            pass
 
                     kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                     kill_handler.start()
@@ -403,7 +406,10 @@ while True:
                             # Kill the team submission and everything else in case we already know it's WA.
                             if first_done and validator_status != config.RTV_AC:
                                 stop_kill_handler.set()
-                                os.killpg(gid, signal.SIGKILL)
+                                try:
+                                    os.killpg(gid, signal.SIGKILL)
+                                except (ProcessLookupError, PermissionError):
+                                    pass
                             first_done = False
                         elif pid == submission_pid:
                             if first is None:
@@ -433,7 +439,10 @@ while True:
 
                     stop_kill_handler.set()
                 except KeyboardInterrupt:
-                    os.killpg(gid, signal.SIGKILL)
+                    try:
+                        os.killpg(gid, signal.SIGKILL)
+                    except (ProcessLookupError, PermissionError):
+                        pass
                     raise KeyboardInterrupt()
 
                 assert submission_time is not None

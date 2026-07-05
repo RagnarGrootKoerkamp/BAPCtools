@@ -10,6 +10,10 @@
 #ifndef VALIDATE_H
 #define VALIDATE_H
 
+#ifdef __APPLE__
+#define DOUBLE_FALLBACK
+#endif
+
 #include <algorithm>
 #include <array>
 #include <bitset>

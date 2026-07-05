@@ -83,3 +83,10 @@ check_untyped_defs = true
 enable_error_code="truthy-bool,truthy-iterable"
 strict = true
 mypy_path = ["third_party/stubs/"]
+
+[[tool.mypy.overrides]]
+# These files contain platform-specific type: ignore comments (macOS/Linux
+# differ on sched_*, nullcontext typing, and return type inference) that are
+# unused on the other platform. Suppress the resulting unused-ignore warnings.
+module = ["bapctools.parallel", "bapctools.util", "bapctools.interactive", "bapctools.run"]
+warn_unused_ignores = false

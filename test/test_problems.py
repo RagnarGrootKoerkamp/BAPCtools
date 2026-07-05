@@ -310,6 +310,7 @@ def tmp_contest_dir(tmp_path):
 @pytest.mark.usefixtures("tmp_contest_dir")
 class TestNewContestProblem:
     def test_new_contest_problem(self, monkeypatch):
+        monkeypatch.setattr("bapctools.util.has_questionary", False)
         monkeypatch.setattr("sys.stdin", io.StringIO("\n\n\n\n\n\n\n\n\n\n\n\n\n\n"))
         cli.test(["new_contest", "contest_name"])
         cli.test(
