@@ -15,6 +15,7 @@ from bapctools.util import (
     is_problem_directory,
     ProgressBar,
     read_yaml,
+    resolve_up,
     ryaml_filter,
     ryaml_get_or_add,
     ryaml_replace,
@@ -33,17 +34,6 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     src_base = src_base.absolute()
     dst_base = dst_base.absolute()
     base = [a for a, b in zip(reversed(src_base.parents), reversed(dst_base.parents)) if a == b][-1]
-
-    def resolve_up(parts: tuple[str, ...]) -> Path:
-        resolved: list[str] = []
-        for part in parts:
-            if part == ".":
-                continue
-            if part == ".." and len(resolved) and resolved[-1] != "..":
-                resolved.pop()
-            else:
-                resolved.append(part)
-        return Path(*resolved)
 
     def movetree(src: Path, dst: Path) -> None:
         if src.is_symlink():

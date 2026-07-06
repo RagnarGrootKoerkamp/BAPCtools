@@ -1069,6 +1069,19 @@ def remove_path(path: Path) -> None:
         pass
 
 
+# function to resolve .. in parts
+def resolve_up(parts: tuple[str, ...]) -> Path:
+    resolved: list[str] = []
+    for part in parts:
+        if part == ".":
+            continue
+        if part == ".." and len(resolved) and resolved[-1] != "..":
+            resolved.pop()
+        else:
+            resolved.append(part)
+    return Path(*resolved)
+
+
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
     try:
@@ -1202,18 +1215,24 @@ def copytree_and_substitute(
 
     if skip and src in skip:
         pass
-    elif preserve_symlinks and os.path.islink(src):
+    elif preserve_symlinks and src.is_symlink():
         shutil.copy(src, dst, follow_symlinks=False)
-    elif os.path.islink(src) and src.absolute().is_relative_to(base.absolute()):
+    elif (
+        src.is_symlink()
+        and not src.readlink().is_absolute()
+        and resolve_up(src.absolute().parent.parts + src.readlink().parts).is_relative_to(
+            base.absolute()
+        )
+    ):
+        # link is local -> preserve it
         shutil.copy(src, dst, follow_symlinks=False)
-    elif os.path.isdir(src):
-        names = os.listdir(src)
-        os.makedirs(dst, exist_ok=exist_ok)
+    elif src.is_dir():
+        dst.mkdir(parents=True, exist_ok=exist_ok)
         errors = []
-        for name in names:
+        for d in src.iterdir():
             try:
-                srcFile = src / name
-                dstFile = dst / name
+                srcFile = src / d.name
+                dstFile = dst / d.name
 
                 copytree_and_substitute(
                     srcFile,
