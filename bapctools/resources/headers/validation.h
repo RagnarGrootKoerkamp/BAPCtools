@@ -1269,19 +1269,16 @@ class Validator {
 		assert(!gen);
 		std::string s = get_string("long double");
 		long double v;
-		try {
-			size_t chars_processed;
-			v = stold(s, &chars_processed);
-			if(chars_processed != s.size())
-				WA(name, ": Parsing ", s,
-				   " as long double failed! Did not process all characters.");
-			if(strict_float && !std::regex_match(s, float_regex))
-				WA(name, ": Parsing ", s, " failed, because it does not match the strict float_regex!");
-		} catch(const std::out_of_range& e) {
+		auto begin = s.c_str(), end = begin + s.size();
+		auto [ptr, ec] = std::from_chars(begin, end, v);
+		if(ec == std::errc::result_out_of_range) {
 			WA(name, ": Number " + s + " does not fit in a long double!");
-		} catch(const std::invalid_argument& e) {
-			WA("Parsing " + s + " as long double failed!");
-		}
+		} else if(ptr != end) {
+			WA(name, ": Parsing " + s + " as long double failed! Did not process all characters");
+		} else if(ec != std::errc{}) {
+			WA(name, ": Parsing " + s + " as long double failed!");
+		} else if(strict_float && !std::regex_match(s, float_regex))
+			WA(name, ": Parsing " + s + " failed, because it does not match the strict float_regex!");
 		return v;
 	}
 
