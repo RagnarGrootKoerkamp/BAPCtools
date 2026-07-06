@@ -2480,9 +2480,6 @@ data/*
 
         ok, verdict_table = Problem.run_some(test_cases, submissions)
         # ok == False only indicates that some submission did not Fail
-        # if not ok:
-        #     return False
-        # verdict_table.print(new_lines=1)
 
         test_case_paths = {t.in_path.relative_to(data).with_suffix("") for t in test_cases}
         max_test_case_len = max([len(str(t)) for t in test_case_paths])

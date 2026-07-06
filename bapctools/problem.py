@@ -1210,10 +1210,10 @@ class Problem:
         ):
             log("use -v with --visualize to see the paths to the generated images")
 
+        if config.args.overview and not config.args.tree:
+            verdict_table.print(new_lines=1)
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases)
-        elif config.args.overview and not config.args.tree:
-            verdict_table.print(force=True, new_lines=1)
 
         return ok
 
