@@ -1248,7 +1248,7 @@ class Validator {
 			WA(name, ": Number " + s + " does not fit in a long long!");
 		} else if(ptr != end) {
 			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
-		} else if (ec != std::errc{}) {
+		} else if(ec != std::errc{}) {
 			WA(name, ": Parsing " + s + " as long long failed!");
 		}
 		// Check for leading zero.
