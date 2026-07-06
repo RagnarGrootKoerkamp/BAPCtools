@@ -1069,19 +1069,6 @@ def remove_path(path: Path) -> None:
         pass
 
 
-# function to resolve .. in parts
-def resolve_up(parts: tuple[str, ...]) -> Path:
-    resolved: list[str] = []
-    for part in parts:
-        if part == ".":
-            continue
-        if part == ".." and len(resolved) and resolved[-1] != "..":
-            resolved.pop()
-        else:
-            resolved.append(part)
-    return Path(*resolved)
-
-
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
     try:
@@ -1220,7 +1207,7 @@ def copytree_and_substitute(
     elif (
         src.is_symlink()
         and not src.readlink().is_absolute()
-        and resolve_up(src.absolute().parent.parts + src.readlink().parts).is_relative_to(
+        and Path(os.path.normpath(src.absolute().parent / src.readlink())).is_relative_to(
             base.absolute()
         )
     ):

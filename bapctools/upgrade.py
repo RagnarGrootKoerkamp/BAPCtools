@@ -1,3 +1,4 @@
+import os
 import secrets
 import shlex
 import shutil
@@ -15,7 +16,6 @@ from bapctools.util import (
     is_problem_directory,
     ProgressBar,
     read_yaml,
-    resolve_up,
     ryaml_filter,
     ryaml_get_or_add,
     ryaml_replace,
@@ -47,15 +47,16 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
                 dst.symlink_to(destination)
                 src.unlink()
             else:
-                if resolve_up(src.parent.parts + destination.parts).is_relative_to(src_base):
+                if Path(os.path.normpath(src.parent / destination)).is_relative_to(src_base):
                     # the link is relative and points to another file we move
                     src.rename(dst)
                 else:
                     # the link is relative but points to a fixed place
                     src_rel = src.parent.relative_to(base)
                     dst_rel = dst.parent.relative_to(base)
-                    parts = (("..",) * len(dst_rel.parts)) + src_rel.parts + destination.parts
-                    dst.symlink_to(resolve_up(parts))
+                    dst.symlink_to(
+                        os.path.normpath(Path(*[".."] * len(dst_rel.parts)) / src_rel / destination)
+                    )
                     src.unlink()
         elif src.is_dir():
             # recursively move stuff inside dirs
