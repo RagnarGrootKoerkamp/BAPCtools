@@ -5,6 +5,7 @@ import shutil
 import stat
 import string
 import subprocess
+import sys
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -127,7 +128,7 @@ CHECKTESTDATA: Final[Language] = Language(
         "name": "checktestdata",
         "priority": 2,
         "files": "*.ctd",
-        "run": "pyctd {mainfile}",
+        "run": shlex.join([sys.executable, "-m", "checktestdata", "{mainfile}"]),
     },
 )
 COMPILED_CHECKTESTDATA: Final[Language] = Language(
@@ -136,7 +137,9 @@ COMPILED_CHECKTESTDATA: Final[Language] = Language(
         "name": "compiledchecktestdata",
         "priority": 3,
         "files": "*.ctd",
-        "compile": "pyctd -c {mainfile}.py {mainfile}",
+        "compile": shlex.join(
+            [sys.executable, "-m", "checktestdata", "-c", "{mainfile}.py", "{mainfile}"]
+        ),
         "run": "pypy3 {mainfile}.py",
     },
 )
