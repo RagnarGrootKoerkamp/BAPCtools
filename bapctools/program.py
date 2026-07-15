@@ -2,7 +2,6 @@ import os
 import re
 import shlex
 import shutil
-import stat
 import string
 import subprocess
 import sys
@@ -427,13 +426,6 @@ class Program:
 
         self.input_files: list[Path]  # Populated in Program.build
         self.language: Language  # Populated in Program.build
-
-    # is file at path executable
-    @staticmethod
-    def _is_executable(path: Path) -> bool:
-        return path.is_file() and bool(
-            path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        )
 
     # checks all languages and sorts them
     def _get_language_candidates(self, bar: ProgressBar) -> list[tuple[Language, list[Path]]]:
