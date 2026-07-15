@@ -1287,7 +1287,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             with config.temporary_args():
                 config.args.jobs = (os.cpu_count() or 1) // 2
                 config.args.add = None
-                config.args.verbose = 0
+                if config.args.verbose == 1:
+                    config.args.verbose = 0
                 config.args.no_visualizer = True
                 success &= generate.generate(problem)
         if action in ["fuzz"]:
@@ -1357,7 +1358,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                     with config.temporary_args():
                         config.args.check_deterministic = not config.args.force
                         config.args.add = None
-                        config.args.verbose = 0
+                        if config.args.verbose == 1:
+                            config.args.verbose = 0
                         config.args.testcases = None
                         config.args.force = False
                         success &= generate.generate(problem)
