@@ -15,6 +15,7 @@ from colorama import Fore
 
 from bapctools import config
 from bapctools.util import (
+    BAR_TYPE,
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
@@ -26,6 +27,7 @@ from bapctools.util import (
     glob,
     has_substitute,
     hash_file,
+    PrintBar,
     ProgressBar,
     read_yaml,
     remove_path,
@@ -45,9 +47,12 @@ class Language:
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
     # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
     INTERNAL_PREFIX: Final[str] = "BAPCtools:"
+    # Do not warn for the same mixing executeable multiple times.
+    warn_cache: set[str] = set()
 
     def __init__(self, lang_id: str, conf: dict[object, object]) -> None:
         self.ok = True
+        self.warned_fallback = False
         parser = YamlParser("languages.yaml", conf, lang_id)
 
         self.id = lang_id
@@ -118,6 +123,31 @@ class Language:
         except UnicodeDecodeError:
             return False
 
+    def is_installed(self, bar: BAR_TYPE) -> bool:
+        # Make sure we can compile programs for this language.
+        if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
+            if self.compile_exe not in Language.warn_cache and config.args.verbose:
+                Language.warn_cache.add(self.compile_exe)
+                bar.debug(
+                    f"Compile program {self.compile_exe} not found for language {self.name}. Falling back to lower priority languages."
+                )
+            return False
+        # Make sure we can run programs for this language.
+        if self.run_exe is not None and shutil.which(self.run_exe) is None:
+            if self.run_exe not in Language.warn_cache and config.args.verbose:
+                Language.warn_cache.add(self.run_exe)
+                bar.debug(
+                    f"Run program {self.run_exe} not found for language {self.name}. Falling back to lower priority languages."
+                )
+            return False
+        return True
+
+    def warn_fallback(self, bar: BAR_TYPE) -> None:
+        if self.warned_fallback:
+            return
+        self.warned_fallback = True
+        bar.debug(f"Falling back to {self.name}.")
+
 
 BINARY_NAME: Final[str] = "run"
 BUILD_NAME: Final[str] = "build"
@@ -187,6 +217,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
 # The cached languages.yaml for the current contest.
 _languages: Optional[Sequence[Language]] = None
 _program_config_lock = threading.Lock()
+_alias_setup_complete = False
 
 
 def languages() -> Sequence[Language]:
@@ -232,6 +263,56 @@ def languages() -> Sequence[Language]:
 
         _languages = tuple(languages)
         return _languages
+
+
+def create_aliases(tmpdir: Path) -> None:
+    global _alias_setup_complete, _program_config_lock
+
+    tmpdir = tmpdir / "aliases"
+    langs = languages()
+    bar = PrintBar()
+
+    def create_alias(name: str, alias: str, use_compile: bool) -> None:
+        fallback = False
+        exe = None
+        for lang in langs:
+            if lang.name != name:
+                continue
+            if not lang.is_installed(bar):
+                fallback = True
+                continue
+            exe = lang.compile_exe if use_compile else lang.run_exe
+            if exe is None:
+                continue
+            language = lang
+            break
+
+        if language is None:
+            bar.warn(f"Did not find required language {name}")
+            return
+        assert exe is not None
+        exe = shutil.which(exe)
+        assert exe is not None
+
+        if fallback:
+            language.warn_fallback(bar)
+
+        alias_path = tmpdir / alias
+        ensure_symlink(alias_path, Path(exe))
+        bar.debug(f"Adding alias {alias}: {alias_path.as_posix()} -> {exe}")
+
+    with _program_config_lock:
+        if _alias_setup_complete:
+            return
+
+        remove_path(tmpdir)
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
+
+        create_alias("Python 3", "python3", use_compile=False)
+        create_alias("C", "cc", use_compile=True)
+        create_alias("C++", "c++", use_compile=True)
+        _alias_setup_complete = True
 
 
 SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
@@ -290,6 +371,8 @@ class Program:
 
         # read and parse languages.yaml
         languages()
+        # we can use any problems tmpdir here
+        create_aliases(problem.tmpdir)
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
@@ -352,9 +435,6 @@ class Program:
             path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
         )
 
-    # Do not warn for the same fallback language multiple times.
-    warn_cache: set[str] = set()
-
     # checks all languages and sorts them
     def _get_language_candidates(self, bar: ProgressBar) -> list[tuple[Language, list[Path]]]:
         candidates = []
@@ -394,30 +474,12 @@ class Program:
 
         fallback = False
         for lang, files in candidates:
-            name = lang.name
-            # Make sure we can compile programs for this language.
-            if lang.compile_exe is not None and shutil.which(lang.compile_exe) is None:
+            if not lang.is_installed(bar):
                 fallback = True
-                if lang.compile_exe not in Program.warn_cache and config.args.verbose:
-                    Program.warn_cache.add(lang.compile_exe)
-                    bar.debug(
-                        f"Compile program {lang.compile_exe} not found for language {name}. Falling back to lower priority languages."
-                    )
-                continue
-            # Make sure we can run programs for this language.
-            if lang.run_exe is not None and shutil.which(lang.run_exe) is None:
-                fallback = True
-                if lang.run_exe not in Program.warn_cache and config.args.verbose:
-                    Program.warn_cache.add(lang.run_exe)
-                    bar.debug(
-                        f"Run program {lang.run_exe} not found for language {name}. Falling back to lower priority languages."
-                    )
                 continue
 
             if fallback:
-                if lang.id not in Program.warn_cache and config.args.verbose:
-                    Program.warn_cache.add(lang.id)
-                    bar.debug(f"Falling back to {name}.")
+                lang.warn_fallback(bar)
 
             self.language = lang
             binary, mainfile, mainclass = self._get_entry_point(files, bar)
