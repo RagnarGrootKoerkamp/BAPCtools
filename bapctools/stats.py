@@ -3,6 +3,7 @@ import os
 import statistics
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta, timezone
+from functools import cache
 from pathlib import Path
 from typing import Any, cast, Literal, Optional
 
@@ -13,11 +14,6 @@ from bapctools import config, generate, latex, program, validate
 from bapctools.problem import Problem
 from bapctools.util import eprint, error, glob, log, ShellCommand, warn
 
-Selector = (
-    str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
-)
-Stat = tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
-
 
 def stats(problems: list[Problem]) -> None:
     problem_stats(problems)
@@ -26,6 +22,7 @@ def stats(problems: list[Problem]) -> None:
 
 
 # lists all testcases, tries to consider generators.yaml
+@cache
 def testcases(problem: Problem) -> set[Path]:
     with config.suppress_warnings(level=2):
         with open(os.devnull, "w") as devnull:
@@ -43,67 +40,159 @@ def testcases(problem: Problem) -> set[Path]:
         return {t for t in problem.path.glob("data/**/*.in") if not t.is_symlink()}
 
 
-# This prints the number belonging to the count.
-# This can be a red/white colored number, or Y/N
-def _get_stat(
-    count: Optional[int | float],
-    threshold: Literal[True] | int = True,
-    upper_bound: Optional[int] = None,
-) -> str:
-    if threshold is True:
-        if count is None:
-            return Fore.WHITE + " " + Style.RESET_ALL
-        if count >= 1:
-            return Fore.WHITE + "Y" + Style.RESET_ALL
+def testcase_selector(root: str | Sequence[str]) -> Callable[[Problem], int]:
+    if isinstance(root, str):
+        root = (root,)
+    return lambda p: len({x.stem for x in testcases(p) if x.parts[2] in root})
+
+
+def glob_selector(globs: str | list[str]) -> Callable[[Problem], int | float]:
+    if isinstance(globs, str):
+        globs = [globs]
+
+    def selector(problem: Problem) -> int | float:
+        results: set[str | Path] = set()
+        for glob_pattern in globs:
+            for path in glob(problem.path, glob_pattern):
+                if path.is_file():
+                    # Exclude files containing 'TODO: Remove'.
+                    try:
+                        data = path.read_text()
+                    except UnicodeDecodeError:
+                        continue
+                    if "TODO: Remove" in data:
+                        continue
+                    results.add(path.stem)
+
+                if path.is_dir():
+                    ok = True
+                    for f in glob(path, "*"):
+                        # Exclude files containing 'TODO: Remove'.
+                        if f.is_file():
+                            try:
+                                data = f.read_text()
+                                if data.find("TODO: Remove") != -1:
+                                    ok = False
+                                    break
+                            except UnicodeDecodeError:
+                                ok = False
+                                pass
+                    if ok:
+                        results.add(path)
+        return len(results)
+
+    return selector
+
+
+def comment(problem: Problem) -> str:
+    verified = bool(problem.settings.verified)
+    comment = problem.settings.comment or ""
+
+    if verified:
+        if not comment:
+            comment = "DONE"
+        comment = Fore.GREEN + comment + Style.RESET_ALL
+    else:
+        comment = Fore.YELLOW + comment + Style.RESET_ALL
+    return comment
+
+
+class Column:
+    def __init__(
+        self,
+        name: str,
+        function: Callable[[Problem], int | float | str],
+        *,
+        width: int = 0,
+        threshold: Literal[True] | int = 0,
+        upper_bound: Optional[int] = None,
+        align: str = ">",
+        suppress: Optional[Callable[[Problem], bool]] = None,
+    ) -> None:
+        self.name = name
+        self.function = function
+        self.width = max(len(name), width)
+        self.threshold = threshold
+        self.upper_bound = upper_bound
+        self.align = align
+        self.suppress = suppress
+
+    def format_header(self) -> str:
+        return f"{self.name:<{self.width}}"
+
+    def get_value(self, problem: Problem) -> Optional[int | float | str]:
+        if self.suppress is not None and self.suppress(problem):
+            return None
+        return self.function(problem)
+
+    def format(self, value: Optional[int | float | str], plain: bool = False) -> str:
+        color = ""
+        msg = ""
+        if value is None:
+            pass
+        elif isinstance(value, str):
+            msg = value
+        elif plain:
+            msg = f"{value:.1f}" if isinstance(value, float) else str(value)
+        elif self.threshold is True:
+            # threshold columns are just formatted as Y or N
+            if value >= 1:
+                color = Fore.WHITE
+                msg = "Y"
+            else:
+                color = Fore.RED
+                msg = "N"
         else:
-            return Fore.RED + "N" + Style.RESET_ALL
-    color = Fore.WHITE
-    assert count is not None
-    if upper_bound is not None and count > upper_bound:
-        color = Fore.YELLOW
-    if count < threshold:
-        color = Fore.RED
-    count_str = f"{count:.1f}" if isinstance(count, float) else str(count)
-    return f"{color}{count_str}{Style.RESET_ALL}"
+            # values are colored depending on threshold and upper_bound
+            # threshold: a mandatory lower bound
+            # upper_bound: a suggested upper bound
+            color = Fore.WHITE
+            if self.upper_bound is not None and value > self.upper_bound:
+                color = Fore.YELLOW
+            if value < self.threshold:
+                color = Fore.RED
+            msg = f"{value:.1f}" if isinstance(value, float) else str(value)
+        return f"{color}{msg:{self.align}{self.width}}{Style.RESET_ALL}"
 
 
 def problem_stats(problems: list[Problem]) -> None:
-    stats: list[Stat] = [
-        # Roughly in order of importance
-        ("  time", lambda p: p.limits.time_limit, 0),
-        ("yaml", "problem.yaml"),
-        ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
-        ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
-        ("  val: I", [f"{validate.InputValidator.source_dir}/*"]),
-        ("A", [f"{validate.AnswerValidator.source_dir}/*"]),
-        ("O", [f"{validate.OutputValidator.source_dir}/*"]),
-        (
-            "  sample",
-            [lambda s: {x.stem for x in s if x.parts[2] == "sample"}],
-            2,
-            6,
-        ),
-        (
-            "secret",
-            [lambda s: {x.stem for x in s if x.parts[2] == "secret"}],
-            30,
-            100,
-        ),
-        (
-            "inv",
-            [lambda s: {x.stem for x in s if x.parts[2] in config.INVALID_CASE_DIRECTORIES}],
-            0,
-        ),
-        (
-            "v_o",
-            [lambda s: {x.stem for x in s if x.parts[2] in ["valid_output"]}],
-            0,
-        ),
-        ("   AC", "submissions/accepted/*", 3),
-        (" WA", "submissions/wrong_answer/*", 2),
-        ("TLE", "submissions/time_limit_exceeded/*", 1),
-        ("subs", lambda p: len(glob(p.path, "submissions/*/*")), 6),
-    ]
+    name_width = max((len(f"{p.label} {p.name}") for p in problems), default=0)
+
+    columns: list[Column] = []
+    columns.append(Column("problem", lambda p: f"{p.label} {p.name}", width=name_width, align="<"))
+    columns.append(Column("  time", lambda p: p.limits.time_limit))
+    columns.append(Column("yaml", glob_selector("problem.yaml"), threshold=True))
+    columns.append(Column("tex", glob_selector(str(latex.PdfType.PROBLEM.path("*"))), threshold=1))
+    columns.append(Column("sol", glob_selector(str(latex.PdfType.SOLUTION.path("*"))), threshold=1))
+    columns.append(
+        Column("  val: I", glob_selector(f"{validate.InputValidator.source_dir}/*"), threshold=True)
+    )
+    columns.append(
+        Column(
+            "A",
+            glob_selector(f"{validate.AnswerValidator.source_dir}/*"),
+            threshold=True,
+            suppress=lambda p: p.interactive,
+        )
+    )
+    columns.append(
+        Column(
+            "O",
+            glob_selector(f"{validate.OutputValidator.source_dir}/*"),
+            threshold=True,
+            suppress=lambda p: not p.custom_output,
+        )
+    )
+    columns.append(Column("  sample", testcase_selector("sample"), threshold=2, upper_bound=6))
+    columns.append(Column("secret", testcase_selector("secret"), threshold=30, upper_bound=100))
+    columns.append(Column("inv", testcase_selector(config.INVALID_CASE_DIRECTORIES)))
+    columns.append(Column("v_o", testcase_selector("valid_output")))
+    columns.append(Column("   AC", glob_selector("submissions/accepted/*"), threshold=3))
+    columns.append(Column(" WA", glob_selector("submissions/wrong_answer/*"), threshold=2))
+    columns.append(Column("TLE", glob_selector("submissions/time_limit_exceeded/*"), threshold=1))
+    columns.append(Column("subs", glob_selector("submissions/*/*"), threshold=6))
+
+    # add columns for specific programminglanguages
     languages = {
         "  c(++)": ["c", "c++"],
         "py": ["python 2", "python 3", "cpython 2", "cpython 3"],
@@ -124,123 +213,34 @@ def problem_stats(problems: list[Problem]) -> None:
                         f"Language {lang.id} ('{lang.name}') does not define `files:` in languages.yaml"
                     )
         if paths:
-            stats.append((column, list(set(paths)), 1))
+            columns.append(Column(column, glob_selector(list(set(paths))), threshold=1))
         if not lang_defined:
             warn(
                 f"Language {column.strip()} ({str(lang_names)[1:-1]}) not defined in languages.yaml"
             )
 
-    headers = ["problem", *(h[0] for h in stats), "   comment"]
-    cumulative: list[int | float] = [0] * (len(stats))
+    columns.append(Column("   comment", comment, align="<"))
 
-    header_string = ""
-    format_string = ""
-    for header in headers:
-        if header == "problem":
-            width = len(header)
-            for problem in problems:
-                width = max(width, len(f"{problem.label} {problem.name}"))
-            header_string += "{:<" + str(width) + "}"
-            format_string += "{:<" + str(width) + "}"
-        elif header == "  comment":
-            header_string += "{}"
-            format_string += "{}"
-        else:
-            width = len(header)
-            header_string += " {:>" + str(width) + "}"
-            format_string += " {:>" + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + "}"
+    # print header
+    header = [c.format_header() for c in columns]
+    header_string = " ".join(header)
+    eprint(Style.BRIGHT + header_string + Style.RESET_ALL)
 
-    header = header_string.format(*headers)
-    eprint(Style.BRIGHT + header + Style.RESET_ALL)
-
+    total: list[int | float] = [0] * len(columns)
+    # print rows
     for problem in problems:
-        generated_testcases = testcases(problem)
-
-        def count(
-            path: str
-            | list[str]
-            | list[Callable[[set[Path]], set[str]]]
-            | Callable[[set[Path]], set[str]],
-        ) -> set[Any]:
-            if isinstance(path, list):
-                return set.union(*(count(p) for p in path))
-            if callable(path):
-                testcases = path(generated_testcases)
-                assert isinstance(testcases, set)
-                return testcases
-            results: set[str | Path] = set()
-            for p in glob(problem.path, path):
-                if p.is_file():
-                    # Exclude files containing 'TODO: Remove'.
-                    try:
-                        data = p.read_text()
-                    except UnicodeDecodeError:
-                        continue
-                    if "TODO: Remove" in data:
-                        continue
-                    results.add(p.stem)
-
-                if p.is_dir():
-                    ok = True
-                    for f in glob(p, "*"):
-                        # Exclude files containing 'TODO: Remove'.
-                        if f.is_file():
-                            try:
-                                data = f.read_text()
-                                if data.find("TODO: Remove") != -1:
-                                    ok = False
-                                    break
-                            except UnicodeDecodeError:
-                                ok = False
-                                pass
-                    if ok:
-                        results.add(p)
-
-            return results
-
-        def value(x: Stat) -> Optional[int | float]:
-            if x[0] == "  time" or x[0] == "subs":
-                assert callable(x[1])
-                return x[1](problem)
-            if x[0] == "A" and problem.interactive:
-                return None  # Do not show an entry for the answer validator if it is not required
-            if x[0] == "O" and not problem.custom_output:
-                return None  # Do not show an entry for the output validator if it is not required
-            assert not callable(x[1])
-            return len(count(x[1]))
-
-        counts = [value(s) for s in stats]
-        for i in range(0, len(stats)):
-            cumulative[i] += counts[i] or 0
-
-        verified = bool(problem.settings.verified)
-        comment = problem.settings.comment or ""
-
-        if verified:
-            if not comment:
-                comment = "DONE"
-            comment = Fore.GREEN + comment + Style.RESET_ALL
-        else:
-            comment = Fore.YELLOW + comment + Style.RESET_ALL
-
-        eprint(
-            format_string.format(
-                f"{problem.label} {problem.name}",
-                *[
-                    _get_stat(
-                        counts[i],
-                        True if len(stat) <= 2 else stat[2],
-                        None if len(stat) <= 3 else stat[3],
-                    )
-                    for i, stat in enumerate(stats)
-                ],
-                comment,
-            ),
-        )
+        values = [c.get_value(problem) for c in columns]
+        for i, v in enumerate(values):
+            if isinstance(v, (int, float)):
+                total[i] += v
+        eprint(*(c.format(v) for c, v in zip(columns, values)))
 
     # print the cumulative count
-    eprint("-" * len(header))
-    eprint(format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""))
+    eprint("-" * len(header_string))
+    total_row: list[Optional[int | float | str]] = list(total)
+    total_row[0] = "TOTAL"
+    total_row[-1] = None
+    eprint(*(c.format(v, plain=True) for c, v in zip(columns, total_row)))
 
 
 try:
