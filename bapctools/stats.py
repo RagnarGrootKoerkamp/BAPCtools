@@ -12,7 +12,7 @@ from dateutil import parser
 
 from bapctools import config, generate, latex, program, validate
 from bapctools.problem import Problem
-from bapctools.util import eprint, error, glob, log, ShellCommand, warn
+from bapctools.util import drop_suffix, eprint, error, glob, log, ShellCommand
 
 
 def stats(problems: list[Problem]) -> None:
@@ -32,18 +32,78 @@ def testcases(problem: Problem) -> set[Path]:
         return set()
     if gen_config.has_yaml:
         return {
-            problem.path / "data" / p.parent / (p.name + ".in")
+            problem.path / "data" / p.parent / p.name
             for p, x in gen_config.known_cases.items()
             if x.ok
         }
     else:
-        return {t for t in problem.path.glob("data/**/*.in") if not t.is_symlink()}
+        files = []
+        for ext in (".in", ".in.download", ".in.statement", ".interaction"):
+            files += [
+                drop_suffix(f, [ext])
+                for f in glob(problem.path, f"data/**/*{ext}")
+                if not f.is_symlink()
+            ]
+        return set(files)
 
 
 def testcase_selector(root: str | Sequence[str]) -> Callable[[Problem], int]:
     if isinstance(root, str):
         root = (root,)
-    return lambda p: len({x.stem for x in testcases(p) if x.parts[2] in root})
+    return lambda p: len({x for x in testcases(p) if x.parts[2] in root})
+
+
+def _skip_path(path: Path) -> bool:
+    if path.is_file():
+        # Exclude files containing 'TODO: Remove'.
+        try:
+            data = path.read_text()
+        except UnicodeDecodeError:
+            return True
+        if "TODO: Remove" in data:
+            return True
+    if path.is_dir():
+        for f in glob(path, "*"):
+            if f.is_file() and _skip_path(f):
+                return True
+    return False
+
+
+# lists all submissions, and their language
+@cache
+def submissions(problem: Problem) -> list[tuple[Path, Optional[program.Language]]]:
+    languages = program.languages()
+    result = []
+    for f in glob(problem.path, "submissions/*/*"):
+        if _skip_path(f):
+            continue
+
+        source_files = []
+        if f.is_dir():
+            source_files = list(glob(f, "*"))
+        elif f.is_file():
+            source_files = [f]
+
+        candidates = []
+        for lang in languages:
+            score, matching = lang.evaluate(source_files)
+            if matching:
+                candidates.append((score, lang, matching))
+        best_lang = max(candidates)[1] if candidates else None
+        result.append((f, best_lang))
+    return result
+
+
+def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[Problem], int]:
+    if isinstance(languages, str):
+        languages = (languages,)
+    return lambda p: len(
+        {
+            x
+            for x, lang in submissions(p)
+            if lang and lang.name.lower() in languages and x.parts[2] == root
+        }
+    )
 
 
 def glob_selector(globs: str | list[str]) -> Callable[[Problem], int | float]:
@@ -51,35 +111,10 @@ def glob_selector(globs: str | list[str]) -> Callable[[Problem], int | float]:
         globs = [globs]
 
     def selector(problem: Problem) -> int | float:
-        results: set[str | Path] = set()
+        files = []
         for glob_pattern in globs:
-            for path in glob(problem.path, glob_pattern):
-                if path.is_file():
-                    # Exclude files containing 'TODO: Remove'.
-                    try:
-                        data = path.read_text()
-                    except UnicodeDecodeError:
-                        continue
-                    if "TODO: Remove" in data:
-                        continue
-                    results.add(path.stem)
-
-                if path.is_dir():
-                    ok = True
-                    for f in glob(path, "*"):
-                        # Exclude files containing 'TODO: Remove'.
-                        if f.is_file():
-                            try:
-                                data = f.read_text()
-                                if data.find("TODO: Remove") != -1:
-                                    ok = False
-                                    break
-                            except UnicodeDecodeError:
-                                ok = False
-                                pass
-                    if ok:
-                        results.add(path)
-        return len(results)
+            files += [f for f in glob(problem.path, glob_pattern) if not _skip_path(f)]
+        return len(set(files))
 
     return selector
 
@@ -158,68 +193,45 @@ class Column:
 def problem_stats(problems: list[Problem]) -> None:
     name_width = max((len(f"{p.label} {p.name}") for p in problems), default=0)
 
-    columns: list[Column] = []
-    columns.append(Column("problem", lambda p: f"{p.label} {p.name}", width=name_width, align="<"))
-    columns.append(Column("  time", lambda p: p.limits.time_limit))
-    columns.append(Column("yaml", glob_selector("problem.yaml"), threshold=True))
-    columns.append(Column("tex", glob_selector(str(latex.PdfType.PROBLEM.path("*"))), threshold=1))
-    columns.append(Column("sol", glob_selector(str(latex.PdfType.SOLUTION.path("*"))), threshold=1))
-    columns.append(
-        Column("  val: I", glob_selector(f"{validate.InputValidator.source_dir}/*"), threshold=True)
-    )
-    columns.append(
+    columns: list[Column] = [
+        Column("problem", lambda p: f"{p.label} {p.name}", width=name_width, align="<"),
+        Column("  time", lambda p: p.limits.time_limit),
+        Column("yaml", glob_selector("problem.yaml"), threshold=True),
+        Column("tex", glob_selector(str(latex.PdfType.PROBLEM.path("*"))), threshold=1),
+        Column("sol", glob_selector(str(latex.PdfType.SOLUTION.path("*"))), threshold=1),
+        Column(
+            "  val: I", glob_selector(f"{validate.InputValidator.source_dir}/*"), threshold=True
+        ),
         Column(
             "A",
             glob_selector(f"{validate.AnswerValidator.source_dir}/*"),
             threshold=True,
             suppress=lambda p: p.interactive,
-        )
-    )
-    columns.append(
+        ),
         Column(
             "O",
             glob_selector(f"{validate.OutputValidator.source_dir}/*"),
             threshold=True,
             suppress=lambda p: not p.custom_output,
-        )
-    )
-    columns.append(Column("  sample", testcase_selector("sample"), threshold=2, upper_bound=6))
-    columns.append(Column("secret", testcase_selector("secret"), threshold=30, upper_bound=100))
-    columns.append(Column("inv", testcase_selector(config.INVALID_CASE_DIRECTORIES)))
-    columns.append(Column("v_o", testcase_selector("valid_output")))
-    columns.append(Column("   AC", glob_selector("submissions/accepted/*"), threshold=3))
-    columns.append(Column(" WA", glob_selector("submissions/wrong_answer/*"), threshold=2))
-    columns.append(Column("TLE", glob_selector("submissions/time_limit_exceeded/*"), threshold=1))
-    columns.append(Column("subs", glob_selector("submissions/*/*"), threshold=6))
-
-    # add columns for specific programminglanguages
-    languages = {
-        "  c(++)": ["c", "c++"],
-        "py": ["python 2", "python 3", "cpython 2", "cpython 3"],
-        "java": ["java"],
-        "kt": ["kotlin"],
-    }
-    for column, lang_names in languages.items():
-        paths = []
-        lang_defined = False
-        for lang in program.languages():
-            if lang.name.lower() in lang_names:
-                lang_defined = True
-                lang_globs = lang.files
-                if lang_globs:
-                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs]
-                else:
-                    warn(
-                        f"Language {lang.id} ('{lang.name}') does not define `files:` in languages.yaml"
-                    )
-        if paths:
-            columns.append(Column(column, glob_selector(list(set(paths))), threshold=1))
-        if not lang_defined:
-            warn(
-                f"Language {column.strip()} ({str(lang_names)[1:-1]}) not defined in languages.yaml"
-            )
-
-    columns.append(Column("   comment", comment, align="<"))
+        ),
+        Column("  sample", testcase_selector("sample"), threshold=2, upper_bound=6),
+        Column("secret", testcase_selector("secret"), threshold=30, upper_bound=100),
+        Column("inv", testcase_selector(config.INVALID_CASE_DIRECTORIES)),
+        Column("v_o", testcase_selector("valid_output")),
+        Column("   AC", glob_selector("submissions/accepted/*"), threshold=3),
+        Column(" WA", glob_selector("submissions/wrong_answer/*"), threshold=2),
+        Column("TLE", glob_selector("submissions/time_limit_exceeded/*"), threshold=1),
+        Column("subs", glob_selector("submissions/*/*"), threshold=6),
+        Column("  c(++)", submission_selector("accepted", ("c", "c++")), threshold=1),
+        Column(
+            "py",
+            submission_selector("accepted", ("python 2", "python 3", "cpython 2", "cpython 3")),
+            threshold=1,
+        ),
+        Column("java", submission_selector("accepted", "java"), threshold=1),
+        Column("kt", submission_selector("accepted", "kotlin"), threshold=1),
+        Column("   comment", comment, align="<"),
+    ]
 
     # print header
     header = [c.format_header() for c in columns]
