@@ -364,7 +364,8 @@ class Submission(program.Program):
         for lang in program.languages():
             if lang.name == self.expectations.language:
                 score, matching = lang.evaluate(self.input_files)
-                candidates.append((score, lang, matching))
+                if matching:
+                    candidates.append((score, lang, matching))
         if not candidates:
             known = {lang.name for lang in program.languages()}
             closest = difflib.get_close_matches(self.expectations.language, known)
