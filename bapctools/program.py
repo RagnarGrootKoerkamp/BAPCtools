@@ -113,7 +113,7 @@ class Language:
         return self.id > other.id
 
     # Returns true when file f matches the shebang regex.
-    def matches_shebang(self, f: Path) -> bool:
+    def _matches_shebang(self, f: Path) -> bool:
         if self.shebang is None:
             return True
         try:
@@ -121,6 +121,15 @@ class Language:
                 return self.shebang.search(o.readline()) is not None
         except UnicodeDecodeError:
             return False
+
+    # Returns true when file f matches the shebang regex and the file glob.
+    def _matches(self, f: Path) -> bool:
+        return any(f.match(glob) for glob in self.files) and self._matches_shebang(f)
+
+    def evaluate(self, files: list[Path]) -> tuple[tuple[int, int, int], list[Path]]:
+        matching = [f for f in files if self._matches(f)]
+        score = (self.priority // 1000, len(matching), self.priority)
+        return (score, matching)
 
     def is_installed(self, bar: BAR_TYPE) -> bool:
         # Make sure we can compile programs for this language.
@@ -431,17 +440,9 @@ class Program:
     def _get_language_candidates(self, bar: ProgressBar) -> list[tuple[Language, list[Path]]]:
         candidates = []
         for lang in languages():
-            matching_files = []
-            for f in self.input_files:
-                if any(f.match(glob) for glob in lang.files) and lang.matches_shebang(f):
-                    matching_files.append(f)
-
-            if len(matching_files) == 0:
-                continue
-
-            candidates.append(
-                ((lang.priority // 1000, len(matching_files), lang.priority), lang, matching_files)
-            )
+            score, matching = lang.evaluate(self.input_files)
+            if matching:
+                candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
