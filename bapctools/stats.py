@@ -259,7 +259,6 @@ try:
     import pygments
     from pygments import lexers
 
-    loc_cache: dict[Path, int | None] = {}
     has_pygments = True
 except Exception:
     has_pygments = False
@@ -287,33 +286,29 @@ def _is_code(language: str, type: Any, text: str) -> bool:
         return True
 
 
+@cache
 def loc(file: Path) -> Optional[int]:
-    if file not in loc_cache:
-        try:
-            content = file.read_text()
-            lexer = lexers.guess_lexer_for_filename(file, content)
-            assert isinstance(lexer, pygments.lexer.Lexer)
-            language = getattr(lexer, "name").lower()
-            tokens = lexer.get_tokens(content)
+    try:
+        content = file.read_text()
+        lexer = lexers.guess_lexer_for_filename(file, content)
+        assert isinstance(lexer, pygments.lexer.Lexer)
+        language = getattr(lexer, "name").lower()
+        tokens = lexer.get_tokens(content)
 
-            count = 0
-            has_code = False
-            for type, text in tokens:
-                for line in text.splitlines(True):
-                    if _is_code(language, type, line):
-                        has_code = True
-                    if line.endswith("\n") and has_code:
-                        count += 1
-                        has_code = False
-            if has_code:
-                count += 1
-
-            loc_cache[file] = count
-        except Exception:
-            # Either we could not read the file (for example binaries)
-            # or we did not find a lexer
-            loc_cache[file] = None
-    return loc_cache[file]
+        count = 0
+        has_code = False
+        for type, text in tokens:
+            for line in text.splitlines(True):
+                if _is_code(language, type, line):
+                    has_code = True
+                if line.endswith("\n") and has_code:
+                    count += 1
+                    has_code = False
+        return count + 1 if has_code else count
+    except Exception:
+        # Either we could not read the file (for example binaries)
+        # or we did not find a lexer
+        return None
 
 
 def stats_all(problems: list[Problem]) -> None:
@@ -460,9 +455,9 @@ def stats_all(problems: list[Problem]) -> None:
         return parser.parse(date) if date else None
 
     eprint("-" * len(header))
-    testcases = [len(testcases(p)) for p in problems]
-    testcase_stats = get_stats(testcases)
-    eprint(format_row("Testcases", *testcases, *testcase_stats))
+    cases = [len(testcases(p)) for p in problems]
+    case_stats = get_stats(cases)
+    eprint(format_row("Testcases", *cases, *case_stats))
     changed: list[Optional[float | int]] = []
     for p in problems:
         times = [
