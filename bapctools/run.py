@@ -525,7 +525,10 @@ class Submission(program.Program):
                 data = "  ".join([permittedmsg, data])
 
             duration_style = ""
-            if time_sensitive_lower < result.duration < time_sensitive_upper:
+            if (
+                result.duration > time_sensitive_lower
+                and Verdict.TIME_LIMIT_EXCEEDED not in permitted
+            ):
                 duration_style = Fore.YELLOW
             if result.verdict == Verdict.ACCEPTED and got_permitted:
                 color = f"{Style.DIM}"
@@ -599,8 +602,12 @@ class Submission(program.Program):
 
         (salient_testcase, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
+        salient_tle = salient_print_verdict == Verdict.TIME_LIMIT_EXCEEDED
+
         salient_duration_style = ""
-        if time_sensitive_lower < salient_duration < time_sensitive_upper:
+        if salient_duration > time_sensitive_lower and not salient_tle:
+            salient_duration_style = Fore.YELLOW
+        if salient_duration < time_sensitive_upper and salient_tle:
             salient_duration_style = Fore.YELLOW
         if passed_permitted and passed_required:
             color = Fore.GREEN
