@@ -1178,6 +1178,17 @@ class Problem:
             ok &= submission_ok
         return ok, verdict_table
 
+    def run_until(problem) -> verdicts.RunUntil:
+        if config.args.all == 2 or config.args.reorder:
+            return verdicts.RunUntil.ALL
+        if (
+            config.args.all == 1
+            or config.args.verbose
+            or config.args.action in ["all", "time_limit"]
+        ):
+            return verdicts.RunUntil.DURATION
+        return verdicts.RunUntil.FIRST_ERROR
+
     # called by bt run
     def run_submissions(problem) -> bool:
         ts_pair = problem.prepare_run()
@@ -1190,7 +1201,8 @@ class Problem:
             if config.args.local_time_multiplier is not None and config.args.time_limit is None
             else ""
         )
-        PrintBar("Run").log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
+        bar = PrintBar("Run")
+        bar.log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
 
         ok, verdict_table = Problem.run_some(testcases, submissions)
 
@@ -1204,6 +1216,20 @@ class Problem:
 
         if config.args.overview and not config.args.tree:
             verdict_table.print(new_lines=1)
+
+        if problem.run_until() in [verdicts.RunUntil.DURATION, verdicts.RunUntil.ALL]:
+            time_sensitive_lower = problem.limits.time_limit / problem.limits.ac_to_time_limit
+            time_sensitive_upper = problem.limits.time_limit * problem.limits.time_limit_to_tle
+            time_sensitive = False
+            for row in verdict_table.results:
+                durations = [d for d in row.duration.values() if d is not None]
+                if durations:
+                    time_sensitive |= time_sensitive_lower < max(durations) < time_sensitive_upper
+            if time_sensitive:
+                bar.warn(
+                    f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f} and {time_sensitive_upper:.1f})"
+                )
+
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases)
 

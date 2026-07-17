@@ -286,7 +286,6 @@ class Submission(program.Program):
         )
 
         self.verdict: Optional[Verdict] = None
-        self.duration = None
 
         if self.path.absolute().is_relative_to((problem.path / "submissions").absolute()):
             self.expectations: expectations.SubmissionExpectation = (
@@ -439,16 +438,7 @@ class Submission(program.Program):
             max_testcase_len += max_pass_len + len(f":{Fore.CYAN}{Style.RESET_ALL}")
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
-        run_until = RunUntil.FIRST_ERROR
-
-        if (
-            config.args.all == 1
-            or config.args.verbose
-            or config.args.action in ["all", "time_limit"]
-        ):
-            run_until = RunUntil.DURATION
-        if config.args.all == 2 or config.args.reorder:
-            run_until = RunUntil.ALL
+        run_until = self.problem.run_until()
 
         run_testcase: list[Testcase] = []
         skip_testcase: list[Testcase] = []
@@ -467,6 +457,11 @@ class Submission(program.Program):
             count=len(runs),
             max_len=max_item_len,
             needs_leading_newline=needs_leading_newline,
+        )
+
+        time_sensitive_lower = self.problem.limits.time_limit / self.problem.limits.ac_to_time_limit
+        time_sensitive_upper = (
+            self.problem.limits.time_limit * self.problem.limits.time_limit_to_tle
         )
 
         def process_run(run: Run) -> None:
@@ -529,12 +524,19 @@ class Submission(program.Program):
                 permittedmsg = f"permitted: [{','.join([v.short() for v in permitted])}]"
                 data = "  ".join([permittedmsg, data])
 
+            duration_style = ""
+            if time_sensitive_lower < result.duration < time_sensitive_upper:
+                duration_style = Fore.YELLOW
             if result.verdict == Verdict.ACCEPTED and got_permitted:
                 color = f"{Style.DIM}"
+            elif got_permitted:
+                color = Fore.GREEN
             else:
-                color = Fore.GREEN if got_permitted else Fore.RED
-            timeout = result.duration >= self.problem.limits.timeout
-            duration_style = Style.BRIGHT if timeout else ""
+                color = Fore.RED
+                duration_style = ""
+            if result.duration >= self.problem.limits.timeout:
+                duration_style = f"{Style.BRIGHT}{duration_style}"
+
             passmsg = (
                 f":{Fore.CYAN}{result.pass_id:<{max_pass_len}}{Style.RESET_ALL}"
                 if self.problem.multi_pass
@@ -594,13 +596,19 @@ class Submission(program.Program):
         verdict = verdicts["."]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
         self.verdict = verdict
-        color = Fore.GREEN if passed_permitted and passed_required else Fore.RED
 
         (salient_testcase, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
-        salient_duration_style = (
-            Style.BRIGHT if salient_duration >= self.problem.limits.timeout else ""
-        )
+        salient_duration_style = ""
+        if time_sensitive_lower < salient_duration < time_sensitive_upper:
+            salient_duration_style = Fore.YELLOW
+        if passed_permitted and passed_required:
+            color = Fore.GREEN
+        else:
+            color = Fore.RED
+            salient_duration_style = ""
+        if salient_duration >= self.problem.limits.timeout:
+            salient_duration_style = f"{Style.BRIGHT}{salient_duration_style}"
 
         # Use a bold summary line if things were printed before
         if bar.logged:
@@ -618,11 +626,11 @@ class Submission(program.Program):
             )
             slowest_testcase = next(t for t in testcases if t.name == slowest_name)
 
-            slowest_color = (
-                Fore.GREEN
-                if slowest_verdict in self.expectations.all_permitted(slowest_testcase)
-                else Fore.RED
-            )
+            slowest_color = Fore.GREEN
+            if time_sensitive_lower < slowest_duration < time_sensitive_upper:
+                slowest_color = Fore.YELLOW
+            if slowest_verdict not in self.expectations.all_permitted(slowest_testcase):
+                slowest_color = Fore.RED
 
             slowest_duration_style = (
                 Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
