@@ -9,6 +9,7 @@ from bapctools.util import (
     error,
     fatal,
     log,
+    once,
     read_yaml,
     verbose,
     YamlParser,
@@ -112,16 +113,8 @@ class ProblemsYamlEntry:
         self.ok = parser.errors == 0
 
 
-# cache the contest.yaml and problems.yaml
-_contest_yaml: Optional[ContestYaml] = None
-_problems_yaml: Optional[Sequence[ProblemsYamlEntry]] = None
-
-
+@once
 def contest_yaml() -> ContestYaml:
-    global _contest_yaml
-    if _contest_yaml is not None:
-        return _contest_yaml
-
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
         raw_yaml = read_yaml(contest_yaml_path)
@@ -130,15 +123,11 @@ def contest_yaml() -> ContestYaml:
     else:
         raw_yaml = None
 
-    _contest_yaml = ContestYaml(raw_yaml)
-    return _contest_yaml
+    return ContestYaml(raw_yaml)
 
 
+@once
 def problems_yaml() -> Sequence[ProblemsYamlEntry]:
-    global _problems_yaml
-    if _problems_yaml is not None:
-        return _problems_yaml
-
     problems_yaml_path = Path("problems.yaml")
     raw_yaml: object = []
     if problems_yaml_path.is_file():
@@ -164,8 +153,7 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
             continue
         problems.append(problem)
 
-    _problems_yaml = tuple(problems)
-    return _problems_yaml
+    return tuple(problems)
 
 
 def get_api() -> str:

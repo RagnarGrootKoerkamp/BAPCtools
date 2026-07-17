@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import (
     Any,
     cast,
+    Generic,
     Literal,
     NoReturn,
     Optional,
@@ -1735,3 +1736,29 @@ class ShellCommand:
             timeout=None,
         )
         return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
+
+
+R = TypeVar("R")
+
+
+class OnceWrapper(Generic[R]):
+    def __init__(self, function: Callable[[], R]):
+        self.function = function
+        self.lock = threading.Lock()
+        self.done = False
+        self.result: Optional[R] = None
+
+    def __call__(self) -> R:
+        with self.lock:
+            if not self.done:
+                self.result = self.function()
+                self.done = True
+            return cast(R, self.result)
+
+    def reset(self) -> None:
+        with self.lock:
+            self.done = False
+
+
+def once(function: Callable[[], R]) -> OnceWrapper[R]:
+    return OnceWrapper(function)

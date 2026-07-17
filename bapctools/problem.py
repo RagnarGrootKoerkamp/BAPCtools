@@ -37,6 +37,7 @@ from bapctools.util import (
     is_uuid,
     log,
     math_eval,
+    once,
     PrintBar,
     ProgressBar,
     read_yaml,
@@ -105,22 +106,12 @@ class Keywords:
         return closest
 
 
-# The cached keywords.yaml.
-_keywords: Optional[Keywords] = None
-_keywords_config_lock = threading.Lock()
-
-
+@once
 def keywords() -> Keywords:
-    global _keywords, _keywords_config_lock
-    with _keywords_config_lock:
-        if _keywords is not None:
-            return _keywords
-
-        raw_keywords = read_yaml(config.RESOURCES_ROOT / "config" / "keywords.yaml")
-        if not isinstance(raw_keywords, dict):
-            fatal("could not parse keywords.yaml.")
-        _keywords = Keywords(YamlParser("keywords.yaml", raw_keywords))
-        return _keywords
+    raw_keywords = read_yaml(config.RESOURCES_ROOT / "config" / "keywords.yaml")
+    if not isinstance(raw_keywords, dict):
+        fatal("could not parse keywords.yaml.")
+    return Keywords(YamlParser("keywords.yaml", raw_keywords))
 
 
 class ProblemCredits:

@@ -1508,8 +1508,8 @@ def test(args: list[str]) -> None:
     original_directory = Path.cwd()
     config.n_warn = 0
     config.n_error = 0
-    contest._contest_yaml = None
-    contest._problems_yaml = None
+    contest.contest_yaml.reset()
+    contest.problems_yaml.reset()
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args(args), personal_config=False)
