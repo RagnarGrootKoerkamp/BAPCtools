@@ -50,7 +50,7 @@ def testcases(problem: Problem) -> set[Path]:
 def testcase_selector(root: str | Sequence[str]) -> Callable[[Problem], int]:
     if isinstance(root, str):
         root = (root,)
-    return lambda p: len({x for x in testcases(p) if x.parts[2] in root})
+    return lambda p: len([x for x in testcases(p) if x.parts[2] in root])
 
 
 def _skip_path(path: Path) -> bool:
@@ -69,41 +69,44 @@ def _skip_path(path: Path) -> bool:
     return False
 
 
-# lists all submissions, and their language
 @cache
-def submissions(problem: Problem) -> list[tuple[Path, Optional[program.Language]]]:
-    languages = program.languages()
-    result = []
-    for f in glob(problem.path, "submissions/*/*"):
-        if _skip_path(f):
-            continue
+def _submission_language(file: Path) -> Optional[program.Language]:
+    source_files = []
+    if file.is_dir():
+        source_files = list(glob(file, "*"))
+    elif file.is_file():
+        source_files = [file]
 
-        source_files = []
-        if f.is_dir():
-            source_files = list(glob(f, "*"))
-        elif f.is_file():
-            source_files = [f]
+    candidates = []
+    for lang in program.languages():
+        score, matching = lang.evaluate(source_files)
+        if matching:
+            candidates.append((score, lang, matching))
+    return max(candidates)[1] if candidates else None
 
-        candidates = []
-        for lang in languages:
-            score, matching = lang.evaluate(source_files)
-            if matching:
-                candidates.append((score, lang, matching))
-        best_lang = max(candidates)[1] if candidates else None
-        result.append((f, best_lang))
-    return result
+
+# lists all submissions
+@cache
+def submissions(problem: Problem) -> list[Path]:
+    return [f for f in glob(problem.path, "submissions/*/*") if not _skip_path(f)]
 
 
 def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[Problem], int]:
     if isinstance(languages, str):
         languages = (languages,)
-    return lambda p: len(
-        {
-            x
-            for x, lang in submissions(p)
-            if lang and lang.name.lower() in languages and x.parts[2] == root
-        }
-    )
+
+    def selector(problem: Problem) -> int:
+        selected = []
+        for file in submissions(problem):
+            language = _submission_language(file)
+            if language is None or language.name.lower() not in languages:
+                continue
+            if file.parts[2] != root:
+                continue
+            selected.append(file)
+        return len(selected)
+
+    return selector
 
 
 def glob_selector(globs: str | list[str]) -> Callable[[Problem], int | float]:
@@ -288,6 +291,8 @@ def _is_code(language: str, type: Any, text: str) -> bool:
 
 @cache
 def loc(file: Path) -> Optional[int]:
+    if file.is_dir():
+        return sum(loc(f) or 0 for f in glob(file, "*"))
     try:
         content = file.read_text()
         lexer = lexers.guess_lexer_for_filename(file, content)
@@ -376,19 +381,8 @@ def stats_all(problems: list[Problem]) -> None:
     }
 
     def get_submissions_row(
-        display_name: str, names: bool | list[str], team_submissions: bool
+        display_name: str, names: Optional[list[str]] = None, *, team_submissions: bool
     ) -> list[str | float | int]:
-        paths = []
-        if names is True:
-            paths.append("accepted/*")
-        else:
-            assert isinstance(names, list)
-            for config in program.languages():
-                if config.name.lower() in names:
-                    globs = config.files
-                    paths += [f"accepted/{glob}" for glob in globs]
-            paths = list(set(paths))
-
         lines: list[str | float | int] = []
         values = []
         for problem in problems:
@@ -397,8 +391,16 @@ def stats_all(problems: list[Problem]) -> None:
                 if team_submissions
                 else problem.path / "submissions"
             )
-            files = {file for path in paths for file in glob(directory, path)}
-            cur_lines = [loc(file) for file in files]
+            submissions = []
+            for file in glob(directory, "accepted/*"):
+                if _skip_path(file):
+                    continue
+                language = _submission_language(file)
+                if names is not None:
+                    if language is None or language.name.lower() not in names:
+                        continue
+                submissions.append(file)
+            cur_lines = [loc(submission) for submission in submissions]
             cur_lines_filtered = [x for x in cur_lines if x is not None]
             if cur_lines_filtered:
                 best = min(cur_lines_filtered)
@@ -414,10 +416,10 @@ def stats_all(problems: list[Problem]) -> None:
         return [display_name, *lines, *stats]
 
     # handle jury solutions
-    best_jury = get_submissions_row("Jury", True, False)
+    best_jury = get_submissions_row("Jury", team_submissions=False)
     eprint(format_row(*best_jury))
     for display_name, names in languages.items():
-        values = get_submissions_row(display_name, names, False)
+        values = get_submissions_row(display_name, names, team_submissions=False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
                 values[i] = format_value(values[i], Fore.CYAN)
@@ -426,10 +428,10 @@ def stats_all(problems: list[Problem]) -> None:
     # handle team submissions
     if Path("submissions").is_dir():
         eprint("-" * len(header))
-        best_team = get_submissions_row("Teams", True, True)
+        best_team = get_submissions_row("Teams", team_submissions=True)
         eprint(format_row(*best_team))
         for display_name, names in languages.items():
-            values = get_submissions_row(display_name, names, True)
+            values = get_submissions_row(display_name, names, team_submissions=True)
             for i in range(1, 1 + len(problems)):
                 leq_jury = False
                 if not isinstance(best_jury[i], (int, float)):
