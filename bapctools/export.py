@@ -413,7 +413,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             # TODO potentially, some keys also need to be renamed, but we don't use this often enough for this to matter (I hope)
 
         # add @EXPECTED_RESULTS@ to submissions in non-standard legacy directories
-        for submission in problem.submissions() or []:
+        for submission in problem.submissions():
             p = Path(submission.path)
             if p.parts[2] not in [
                 "accepted",
