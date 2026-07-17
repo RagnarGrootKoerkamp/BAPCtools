@@ -70,7 +70,7 @@ def _skip_path(path: Path) -> bool:
 
 
 @cache
-def _submission_language(file: Path) -> Optional[program.Language]:
+def _submission_language(file: Path) -> Optional[str]:
     source_files = []
     if file.is_dir():
         source_files = list(glob(file, "*"))
@@ -82,13 +82,7 @@ def _submission_language(file: Path) -> Optional[program.Language]:
         score, matching = lang.evaluate(source_files)
         if matching:
             candidates.append((score, lang, matching))
-    return max(candidates)[1] if candidates else None
-
-
-# lists all submissions
-@cache
-def submissions(problem: Problem) -> list[Path]:
-    return [f for f in glob(problem.path, "submissions/*/*") if not _skip_path(f)]
+    return max(candidates)[1].name if candidates else None
 
 
 def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[Problem], int]:
@@ -97,13 +91,15 @@ def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[
 
     def selector(problem: Problem) -> int:
         selected = []
-        for file in submissions(problem):
-            language = _submission_language(file)
-            if language is None or language.name.lower() not in languages:
+        for submission in problem.raw_submissions():
+            language = submission.expectations.language
+            if language is None:
+                language = _submission_language(submission.path)
+            if language is None or language.lower() not in languages:
                 continue
-            if file.parts[2] != root:
+            if submission.short_path.parts[0] != root:
                 continue
-            selected.append(file)
+            selected.append(submission.path)
         return len(selected)
 
     return selector
@@ -386,20 +382,28 @@ def stats_all(problems: list[Problem]) -> None:
         lines: list[str | float | int] = []
         values = []
         for problem in problems:
-            directory = (
-                Path.cwd() / "submissions" / problem.name
-                if team_submissions
-                else problem.path / "submissions"
-            )
-            submissions = []
-            for file in glob(directory, "accepted/*"):
-                if _skip_path(file):
-                    continue
-                language = _submission_language(file)
-                if names is not None:
-                    if language is None or language.name.lower() not in names:
+            submissions = list[Path]()
+            if team_submissions:
+                directory = Path.cwd() / "submissions" / problem.name / "accepted"
+                for file in glob(directory, "*"):
+                    if _skip_path(file):
                         continue
-                submissions.append(file)
+                    if names is not None:
+                        language = _submission_language(file)
+                        if language is None or language.lower() not in names:
+                            continue
+                    submissions.append(file)
+            else:
+                for submission in problem.raw_submissions():
+                    if names is not None:
+                        language = submission.expectations.language
+                        if language is None:
+                            language = _submission_language(submission.path)
+                        if language is None or language.lower() not in names:
+                            continue
+                    if submission.short_path.parts[0] != "accepted":
+                        continue
+                    submissions.append(submission.path)
             cur_lines = [loc(submission) for submission in submissions]
             cur_lines_filtered = [x for x in cur_lines if x is not None]
             if cur_lines_filtered:

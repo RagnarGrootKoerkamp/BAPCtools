@@ -512,7 +512,8 @@ class Problem:
         ]()
         self._samples: Optional[list[SampleData]] = None
         self._expectations: Optional[expectations.Expectations] = None
-        self._submissions: Optional[Sequence[run.Submission] | Literal[False]] = None
+        self._raw_submissions: Optional[Sequence[run.Submission]] = None
+        self._compiled_submissions: Optional[Sequence[run.Submission]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
         ]()
@@ -901,8 +902,6 @@ class Problem:
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
         submissions = problem.submissions()
-        if not submissions:
-            return tuple()
         if config.args.submissions:
             return submissions
         else:
@@ -914,12 +913,12 @@ class Problem:
         problem._expectations = expectations.Expectations(problem)
         return problem._expectations
 
-    def submissions(problem) -> Sequence[run.Submission] | Literal[False]:
-        if problem._submissions is not None:
-            if problem._submissions is False:
-                return False
-            else:
-                return problem._submissions
+    # Returns a list of all submissions the submissions might or might not have already
+    # been compiled depending on other calls
+    # No function except problem.submissions() should attempt to build these!
+    def raw_submissions(problem) -> Sequence[run.Submission]:
+        if problem._raw_submissions is not None:
+            return problem._raw_submissions
 
         # ensure that expectations are cached
         problem.expectations()
@@ -958,10 +957,8 @@ class Problem:
 
         if len(paths) == 0:
             error("No submissions found!")
-            problem._submissions = False
-            return False
-
-        programs = [run.Submission(problem, path) for path in paths]
+            problem._raw_submissions = tuple()
+            return problem._raw_submissions
 
         def submissions_key(x: run.Submission) -> tuple[int, str, str]:
             order = [
@@ -977,7 +974,17 @@ class Problem:
             group_key = order.index(group if group in order else None)
             return group_key, x.subdir, x.name
 
+        programs = [run.Submission(problem, path) for path in paths]
         programs.sort(key=submissions_key)
+
+        problem._raw_submissions = tuple(programs)
+        return problem._raw_submissions
+
+    def submissions(problem) -> Sequence[run.Submission]:
+        if problem._compiled_submissions is not None:
+            return problem._compiled_submissions
+
+        programs = problem.raw_submissions()
 
         bar = ProgressBar("Build submissions", items=programs)
 
@@ -991,14 +998,8 @@ class Problem:
         bar.finalize(print_done=False)
 
         # Filter out broken submissions.
-        problem._submissions = tuple(p for p in programs if p.ok)
-
-        if len(problem._submissions) == 0:
-            problem._submissions = False
-            return False
-
-        assert isinstance(problem._submissions, tuple)
-        return problem._submissions
+        problem._compiled_submissions = tuple(p for p in programs if p.ok)
+        return problem._compiled_submissions
 
     @overload
     def visualizer(
@@ -1214,7 +1215,7 @@ class Problem:
     # Note: The CLI only accepts one submission.
     def test_submissions(problem) -> bool:
         submissions = problem.submissions()
-        if submissions is False:
+        if not submissions:
             return False
 
         for submission in submissions:
