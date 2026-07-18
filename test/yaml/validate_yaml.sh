@@ -7,10 +7,13 @@ cd "$(dirname "$0")"
 # Configuration
 # ----------------------------
 
-all_valid_yaml=(../../doc ../problems ../../bapctools/resources/config problem/valid_yaml generators/valid_yaml test_group/valid_yaml languages/valid_yaml)
-all_invalid_yaml=(generators/invalid_yaml problem/invalid_yaml test_group/invalid_yaml submissions/invalid_yaml languages/invalid_yaml)
+all_valid_yaml=(../../doc ../problems ../../bapctools/resources/config generators/valid_yaml languages/valid_yaml)
+all_invalid_yaml=(generators/invalid_yaml languages/invalid_yaml)
 schemadir="../../bapctools/resources/support/schemas"
 
+# Most schemas are owned by ppf-schemas (spec-derived, not BAPCtools-specific): #Problem/#Submissions/
+# #test_group_configuration/#test_case_configuration:
+ppf_module="github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 
 # Temp directory for snippets
 SNIPPETS_DIR=$(mktemp -d)
@@ -47,6 +50,15 @@ declare -A schema_map=(
 # add more schemas here
 )
 
+# Which of the above are ppf-owned (dispatched to $ppf_module directly) vs. BAPCtools-local
+# (dispatched to $schemadir's own package):
+declare -A ppf_schemas=(
+["#Problem"]=1
+["#Submissions"]=1
+["#test_group_configuration"]=1
+["#test_case_configuration"]=1
+)
+
 schema_for_file() {
 	local file=$1
 	for pattern in "${!schema_map[@]}"; do
@@ -67,9 +79,20 @@ run_cue_vet() {
 	local parent_file=${3:-$(basename "$snippet")}
 	local expect_failure=${4:-0}
 
+	# Construct absolute path to snippet, because cue vet doesn't like relative paths when the schema is in a different module.
+	local abs_snippet
+	abs_snippet=$(cd "$(dirname "$snippet")" && pwd)/$(basename "$snippet")
+
 	echo -n "Validating $(basename "$snippet") (schema=$schema) "
 
-	output_cue=$(cue vet "$schemadir" "$snippet" -d "$schema" 2>&1)
+	local instance
+	if [[ -n "${ppf_schemas[$schema]:-}" ]]; then
+		instance="$ppf_module"
+	else
+		instance="."
+	fi
+	# Vet the snippet against the schema, capturing output and exit code
+	output_cue=$(cd "$schemadir" && cue vet --schema "$schema" "$instance" "$abs_snippet" 2>&1)
 	exit_code=$?
 
 	if [ $exit_code -eq 0 ]; then

@@ -262,6 +262,14 @@ data:
       a:
         generate: /generators/gen.py
 ---
+# Generator invocations must not have an absolute path, even with a full argument list.
+data:
+  sample: { data: [] }
+  secret:
+    data:
+      a:
+        generate: /tree/tree.py -n 3 --connected {count} --seed {seed}
+---
 # Solution must have an absolute path:
 solution: a
 data: { sample: { data: [] }, secret: { data: [] } }
