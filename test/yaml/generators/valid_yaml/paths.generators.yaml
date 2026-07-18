@@ -5,3 +5,11 @@ generators:
     - foo/g/a.b
     - foo/g
 data: { sample: { data: []}, secret: { data: [] }}
+---
+# A generator invocation may itself live in a subdirectory of generators/.
+data:
+  sample: { data: [] }
+  secret:
+    data:
+      a:
+        generate: tree/tree.py -n 3 --connected {count} --seed {seed}
