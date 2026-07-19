@@ -1,75 +1,353 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$defs": {
-        "Valid": {
-            "type": "string"
-        }
-    },
-    "type": "object",
-    "properties": {
-        "keywords": {
-            "description": "Keywords describing this problem, such as \"graph\", \"dynamic programming\", or \"greedy\".\nThese are not standardized and are only for informational purposes.\n\nKeywords describing this problem, such as \"greedy\".",
-            "allOf": [
+        "Person": {
+            "description": "A person, given either as a string with the full name, optionally followed by an email\nwrapped in <>, such as `Josiah Carberry` or `Josiah Carberry <jcarberry@brown.edu>`, or as a\nmap with the mandatory name and the optional email, orcid, and kattis fields below.",
+            "anyOf": [
                 {
-                    "description": "Keywords describing this problem, such as \"greedy\"."
+                    "type": "string"
                 },
                 {
-                    "type": "array",
-                    "description": "Keywords describing this problem, such as \"graph\", \"dynamic programming\", or \"greedy\".\nThese are not standardized and are only for informational purposes.",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "The person's email address, such as `jcarberry@brown.edu`"
+                        },
+                        "kattis": {
+                            "type": "string",
+                            "description": "The person's username on Kattis, such as `jcarberry01`"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "The person's name, such as `Josiah Carberry`"
+                        },
+                        "orcid": {
+                            "type": "string",
+                            "description": "The person's ID in the Open Researcher and Contributor ID system (ORCID), such as `0000-0002-1825-0097`."
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ]
                 }
             ]
         },
-        "license": {
-            "description": "The license under which this problem may be used.",
-            "enum": [
-                "unknown",
-                "public domain",
-                "cc0",
-                "cc by",
-                "cc by-sa",
-                "educational",
-                "permission"
+        "Persons": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Person"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/Person"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/Person"
+                        }
+                    ],
+                    "minItems": 1
+                }
             ]
         },
-        "limits": {
+        "Problem_2025_09": {
             "type": "object",
-            "additionalProperties": true
-        },
-        "name": {
-            "description": "The name of the problem."
-        },
-        "problem_format_version": {
-            "description": "The version of the problem format package used for this problem.",
-            "enum": [
-                "2025-09",
-                "legacy"
+            "additionalProperties": false,
+            "properties": {
+                "allow_file_writing": {
+                    "description": "Whether submissions may create, edit, and delete files in their working directory.\nIf false (the default), submissions may only read files.",
+                    "enum": [
+                        false,
+                        true
+                    ]
+                },
+                "constants": {
+                    "type": "object",
+                    "description": "Named constant values, substituted via {{name}} (or {{name.variant}} for a variant) tokens\nin statements, validators, included files, and example submissions -- but not in test data\nor in problem.yaml itself. A constant is either a scalar (int, float, or string), equivalent\nto {value: scalar}, or a map with the mandatory value and optional named variants giving\nalternative representations, such as {value: 5000000, tex: \"5,000,000\"}.",
+                    "additionalProperties": false,
+                    "patternProperties": {
+                        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "properties": {
+                                        "value": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "integer"
+                                                },
+                                                {
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "value"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "credits": {
+                    "description": "The persons who should get credit for this problem.",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "acknowledgements": {
+                                    "description": "Extra acknowledgements or special thanks in addition to the previously mentioned.",
+                                    "$ref": "#/$defs/Persons"
+                                },
+                                "authors": {
+                                    "description": "The people who conceptualized the problem.",
+                                    "$ref": "#/$defs/Persons"
+                                },
+                                "contributors": {
+                                    "description": "The people who developed the problem package, such as the statement, validators, and test data.",
+                                    "$ref": "#/$defs/Persons"
+                                },
+                                "packagers": {
+                                    "description": "The people who created the problem package out of an existing problem.",
+                                    "$ref": "#/$defs/Persons"
+                                },
+                                "testers": {
+                                    "description": "The people who tested the problem package, for example, by providing a solution and reviewing the statement.",
+                                    "$ref": "#/$defs/Persons"
+                                },
+                                "translators": {
+                                    "type": "object",
+                                    "description": "The people who translated the statement to other languages. Each key must be a language code.",
+                                    "additionalProperties": false,
+                                    "patternProperties": {
+                                        "^[a-z]{2,3}(-[A-Z]{2})?$": {
+                                            "$ref": "#/$defs/Persons"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "authors"
+                            ]
+                        }
+                    ]
+                },
+                "embargo_until": {
+                    "description": "The problem package should not be publicly available until this date (or date-time, in UTC).\nIf only a date is given, the time defaults to the start of that day in UTC.",
+                    "anyOf": [
+                        {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
+                },
+                "keywords": {
+                    "type": "array",
+                    "description": "Keywords describing this problem, such as [\"graph\", \"dynamic programming\", \"greedy\"].\nThese are not standardized and are only for informational purposes.",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "languages": {
+                    "description": "The programming languages that may be used to solve this problem, restricted to the values\nfrom the languages table, or \"all\" (the default) to allow any supported language.",
+                    "anyOf": [
+                        {
+                            "const": "all"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/$defs/ProgrammingLanguage"
+                            },
+                            "prefixItems": [
+                                {
+                                    "$ref": "#/$defs/ProgrammingLanguage"
+                                }
+                            ],
+                            "minItems": 1
+                        }
+                    ]
+                },
+                "license": {
+                    "description": "The license under which this problem may be used.",
+                    "enum": [
+                        "unknown",
+                        "public domain",
+                        "cc0",
+                        "cc by",
+                        "cc by-sa",
+                        "educational",
+                        "permission"
+                    ]
+                },
+                "limits": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "time_limit": {
+                            "type": "number",
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ],
+                            "exclusiveMinimum": 0
+                        },
+                        "time_multipliers": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "ac_to_time_limit": {
+                                    "type": "number"
+                                },
+                                "time_limit_to_tle": {
+                                    "type": "number"
+                                }
+                            }
+                        },
+                        "time_resolution": {
+                            "type": "number"
+                        }
+                    },
+                    "$ref": "#/$defs/ResourceLimits"
+                },
+                "name": {
+                    "description": "The name of the problem, such as \"Hello World!\". For problems with statements in multiple\nlanguages, a map from each language code to the problem's name in that language, such as\n{en: \"Hello World!\", da: \"Hej verden!\"}.",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "patternProperties": {
+                                "^[a-z]{2,3}(-[A-Z]{2})?$": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "problem_format_version": {
+                    "description": "The version of the problem format package used for this problem.",
+                    "const": "2025-09"
+                },
+                "rights_owner": {
+                    "description": "The person(s) owning the rights to this problem.",
+                    "$ref": "#/$defs/Persons"
+                },
+                "source": {
+                    "description": "The source(s) of this problem, such as `Northwestern Europe Regional Contest (NWERC) 2005`.\nMultiple sources can be given as a list, mixing string and map form freely.",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Source"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/$defs/Source"
+                            },
+                            "prefixItems": [
+                                {
+                                    "$ref": "#/$defs/Source"
+                                }
+                            ],
+                            "minItems": 1
+                        }
+                    ]
+                },
+                "type": {
+                    "description": "The type of this problem, such as \"pass-fail\" or [\"scoring\", \"interactive\"]",
+                    "anyOf": [
+                        {
+                            "const": "pass-fail"
+                        },
+                        {
+                            "$ref": "#/$defs/Type"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/$defs/Type"
+                            },
+                            "prefixItems": [
+                                {
+                                    "$ref": "#/$defs/Type"
+                                }
+                            ],
+                            "minItems": 1
+                        }
+                    ]
+                },
+                "uuid": {
+                    "description": "A universally unique identifier for this problem, such as `acde070d-8c4c-4f0d-9d8a-162843c10333`.",
+                    "$ref": "#/$defs/Valid"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "The version of this problem, as it undergoes (slight) changes possibly during development or deployment.\nThis can be used to check whether a problem uploaded to a contest system needs to be updated since it does not contain the latest fixes."
+                }
+            },
+            "required": [
+                "name",
+                "problem_format_version",
+                "uuid"
             ]
         },
-        "type": {
-            "description": "The type of this problem."
-        },
-        "uuid": {
-            "description": "A universally unique identifier for this problem, such as `acde070d-8c4c-4f0d-9d8a-162843c10333`.",
-            "$ref": "#/$defs/Valid"
-        }
-    },
-    "anyOf": [
-        true,
-        {
+        "Problem_legacy": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "author": {
                     "type": "string",
                     "description": "The person or persons credited as author(s) of this problem.  Given as a string\nseparated by \",\" or \"and \". This would typically be the people that came up with\nthe idea, wrote the problem specification and created the test data. This is sometimes\nomitted when authors choose to instead only give source credit, but both may be specified."
                 },
                 "keywords": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "A space-separated list of keywords describing this problem; keywords themselves must not\ncontain spaces. These are not standardized and are only for informational purposes."
+                },
+                "license": {
+                    "description": "The license under which this problem may be used.",
+                    "enum": [
+                        "unknown",
+                        "public domain",
+                        "cc0",
+                        "cc by",
+                        "cc by-sa",
+                        "educational",
+                        "permission"
+                    ]
                 },
                 "limits": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "time_multiplier": {
                             "type": "number"
@@ -77,43 +355,253 @@
                         "time_safety_margin": {
                             "type": "number"
                         }
-                    }
+                    },
+                    "$ref": "#/$defs/ResourceLimits"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The name of the problem."
                 },
                 "problem_format_version": {
+                    "description": "The version of the problem format package used for this problem. Absence means legacy:\na problem package without this key is always legacy.",
                     "const": "legacy"
                 },
+                "rights_owner": {
+                    "type": "string",
+                    "description": "The person(s) owning the rights to this problem. Defaults to `author` if present,\notherwise `source`; if neither is present, this remains unset."
+                },
                 "source": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The source that this problem originates from. This should typically contain the name\n(and year) of the problem set (such as a contest or a course) where the problem was\nfirst used or for which it was created."
                 },
                 "type": {
-                    "anyOf": [
-                        {
-                            "const": "pass-fail"
-                        },
-                        {
-                            "const": "scoring"
-                        }
+                    "description": "The type of this problem.",
+                    "enum": [
+                        "pass-fail",
+                        "scoring"
                     ]
+                },
+                "uuid": {
+                    "description": "A universally unique identifier for this problem, such as `acde070d-8c4c-4f0d-9d8a-162843c10333`.",
+                    "$ref": "#/$defs/Valid"
                 },
                 "validation": {
                     "type": "string",
-                    "description": "Validation is a space separated list of strings describing how validation is done.\nMust begin with one of \"default\" or \"custom\"."
+                    "description": "A space separated list of strings describing how validation is done. Must begin with one\nof \"default\" or \"custom\"; if \"custom\", may be followed by some subset of \"score\" and\n\"interactive\". Defaults to \"default\"."
                 },
                 "validator_flags": {
                     "type": "string",
-                    "description": "Validator_flags are passed directly to the output validator."
+                    "description": "Arguments passed to each of the output validators."
                 }
             },
             "required": [
                 "name"
             ]
+        },
+        "ProgrammingLanguage": {
+            "enum": [
+                "ada",
+                "algol68",
+                "apl",
+                "bash",
+                "c",
+                "cgmp",
+                "cobol",
+                "cpp",
+                "cppgmp",
+                "crystal",
+                "csharp",
+                "d",
+                "dart",
+                "elixir",
+                "erlang",
+                "forth",
+                "fortran",
+                "fsharp",
+                "gerbil",
+                "go",
+                "haskell",
+                "java",
+                "javaalgs4",
+                "javascript",
+                "julia",
+                "kotlin",
+                "lisp",
+                "lua",
+                "modula2",
+                "nim",
+                "objectivec",
+                "ocaml",
+                "octave",
+                "odin",
+                "pascal",
+                "perl",
+                "php",
+                "prolog",
+                "python2",
+                "python3",
+                "python3numpy",
+                "racket",
+                "ruby",
+                "rust",
+                "scala",
+                "simula",
+                "smalltalk",
+                "snobol",
+                "swift",
+                "typescript",
+                "visualbasic",
+                "zig"
+            ]
+        },
+        "ResourceLimits": {
+            "type": "object",
+            "description": "Resource limits common to both format versions. Explicitly specifying a limit is a hard\nrequirement that the system must honor exactly; omitting it means any reasonable system\ndefault is acceptable. (Unlike #Problem_2025_09's time_multipliers, time_resolution, and\nvalidation_passes, none of these have a format-mandated default value.)",
+            "additionalProperties": false,
+            "properties": {
+                "code": {
+                    "description": "The maximum total size of the submitted files of a submission, in KiB.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "compilation_memory": {
+                    "description": "The maximum memory allowed to compile a submission, in MiB.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "compilation_time": {
+                    "description": "The maximum time allowed to compile a submission, in seconds.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "memory": {
+                    "description": "The maximum memory a submission may use, in MiB.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "output": {
+                    "description": "The maximum total size of output a submission may produce, in MiB: the sum of standard\noutput, standard error, and (when file writing is allowed) all files it created or modified.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "validation_memory": {
+                    "description": "The maximum memory an output validator may use, in MiB.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "validation_output": {
+                    "description": "The maximum total size of output an output validator may produce, in MiB.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                },
+                "validation_time": {
+                    "description": "The maximum time an output validator may run, in seconds.",
+                    "allOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        }
+                    ]
+                }
+            }
+        },
+        "Source": {
+            "description": "A single source of this problem, given either as a string with just the name, or as a map\nwith the mandatory name and the optional url of the event's webpage.",
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name of the problem set, typically including the year, such as `NWERC 2024`."
+                        },
+                        "url": {
+                            "type": "string",
+                            "description": "A link to the event's webpage."
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ]
+                }
+            ]
+        },
+        "Type": {
+            "description": "The category of a problem and how it is judged:\n\"pass-fail\" (the default) - accepted or rejected with a specific verdict, incompatible with scoring;\n\"scoring\" - submissions receive a non-negative numeric score, incompatible with pass-fail;\n\"multi-pass\" - the submission is run multiple times against generated inputs, incompatible with submit-answer;\n\"interactive\" - the output validator runs interactively with the submission, incompatible with submit-answer;\n\"submit-answer\" - the submission contains answers rather than source code, incompatible with multi-pass and interactive.",
+            "enum": [
+                "pass-fail",
+                "scoring",
+                "multi-pass",
+                "interactive",
+                "submit-answer"
+            ]
+        },
+        "Valid": {
+            "type": "string"
         }
-    ],
-    "required": [
-        "name",
-        "problem_format_version"
+    },
+    "anyOf": [
+        {
+            "$ref": "#/$defs/Problem_legacy"
+        },
+        {
+            "$ref": "#/$defs/Problem_2025_09"
+        }
     ]
 }

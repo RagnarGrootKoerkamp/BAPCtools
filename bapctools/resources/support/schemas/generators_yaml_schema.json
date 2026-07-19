@@ -3,6 +3,7 @@
     "$defs": {
         "absolute_path": {
             "type": "string",
+            "description": "A path rooted at the package root, such as \"/data/secret/huge\" or \"/submissions/accepted/x.cpp\".",
             "$ref": "#/$defs/path",
             "pattern": "^/"
         },
@@ -34,11 +35,12 @@
         },
         "path": {
             "type": "string",
-            "description": "Paths are separated by /,  they may start with (but not end with) /.\nPaths can both refer to objects like the test group \"data/secret/huge\" or\na program file like \"/submissions/accepted/x.cpp\"",
+            "description": "Paths are /-separated sequences of names, optionally rooted at the package root (a leading\n/). #path is the general grammar; #relative_path and #absolute_path specialize it to one or\nthe other for contexts where only one is legal.",
             "pattern": "^/?([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}/)*[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$"
         },
         "relative_path": {
             "type": "string",
+            "description": "A path relative to the package root, such as \"data/secret/huge\" or \"submissions/accepted/x.cpp\".",
             "$ref": "#/$defs/path",
             "not": {
                 "pattern": "^/"
@@ -202,6 +204,20 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "hint": {
+                    "type": "string"
+                }
+            },
+            "$ref": "#/$defs/test_case_or_group_configuration"
+        },
+        "test_case_or_group_configuration": {
+            "type": "object",
+            "description": "Test data configuration",
+            "additionalProperties": false,
+            "properties": {
                 "answer_validator_args": {
                     "anyOf": [
                         {
@@ -227,14 +243,8 @@
                         "type": "string"
                     }
                 },
-                "description": {
-                    "type": "string"
-                },
                 "full_feedback": {
                     "type": "boolean"
-                },
-                "hint": {
-                    "type": "string"
                 },
                 "input_validator_args": {
                     "anyOf": [
@@ -277,7 +287,8 @@
         },
         "test_data_group": {
             "type": "string",
-            "pattern": "secret/[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$"
+            "description": "A named subdivision of `secret`, nested to any depth, such as \"secret/group1\" or\n\"secret/group1/sub\". Never bare \"secret\" itself -- secret may only depend on sample\n(via the separate \"sample\" literal in require_pass below), never on itself.",
+            "pattern": "^secret(/[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254})+$"
         },
         "test_group": {
             "type": "object",
@@ -321,61 +332,9 @@
         },
         "test_group_configuration": {
             "type": "object",
+            "description": "Configuration for test_group.yaml (2025-09 format only -- legacy uses testdata.yaml,\n#testdata_configuration, with an unrelated set of keys).",
             "additionalProperties": false,
             "properties": {
-                "answer_validator_args": {
-                    "anyOf": [
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    ]
-                },
-                "args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "full_feedback": {
-                    "type": "boolean"
-                },
-                "input_validator_args": {
-                    "anyOf": [
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    ]
-                },
-                "input_visualizer_args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "max_score": {
                     "anyOf": [
                         {
@@ -393,18 +352,6 @@
                             "const": "unbounded"
                         }
                     ]
-                },
-                "output_validator_args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "output_visualizer_args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "require_pass": {
                     "anyOf": [
@@ -454,7 +401,8 @@
                         }
                     ]
                 }
-            }
+            },
+            "$ref": "#/$defs/test_case_or_group_configuration"
         }
     },
     "type": "object",
