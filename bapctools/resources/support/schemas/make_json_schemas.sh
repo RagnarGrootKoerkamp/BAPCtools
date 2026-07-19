@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CUE="${HOME}/go/bin/cue" # or just cue, but I need the most recent build
-
+CUE="cue"
 
 export_schema() {
     local schema="$1"
