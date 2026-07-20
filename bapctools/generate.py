@@ -28,7 +28,6 @@ from bapctools.util import (
     ExecResult,
     ExecStatus,
     get_basedirs,
-    glob,
     hash_file_content,
     hash_string,
     log,
@@ -371,17 +370,21 @@ solution: /{config.args.default_solution}"""
             solution = problem.path / config.args.default_solution
     else:
         # Use one of the accepted submissions.
-        solutions = list(glob(problem.path, "submissions/accepted/*"))
+        solutions = [s for s in problem.raw_submissions() if s.expectations.is_accepted()]
         if len(solutions) == 0:
             bar.fatal("No solution specified and no accepted submissions found.")
 
         # always try to take the same solution to not mess with hashing
         if stored_solution.is_file():
             old_solution = Path(stored_solution.read_text().strip())
-            if old_solution in solutions:
+            if any(old_solution == s.path for s in solutions):
                 solution = old_solution
+
         if solution is None:
-            solution = random.choice(solutions)
+            # prefer solutions which are marked as model_solution
+            if any(s.expectations.model_solution for s in solutions):
+                solutions = [s for s in solutions if s.expectations.model_solution]
+            solution = random.choice(solutions).path
 
         solution_short_path = solution.relative_to(problem.path / "submissions")
 
@@ -405,7 +408,7 @@ solution: /{config.args.default_solution}"""
 to use a specific solution."""
             )
     assert solution
-    stored_solution.write_text(str(solution))
+    stored_solution.write_text(solution.as_posix())
     return Path("/") / solution.relative_to(problem.path)
 
 
