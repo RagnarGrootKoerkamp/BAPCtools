@@ -412,13 +412,6 @@ to use a specific solution."""
     return Path("/") / solution.relative_to(problem.path)
 
 
-KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
-    "type",
-    "solution",
-    "random_salt",
-    "retries",
-    *UNIQUE_TESTCASE_KEYS,
-)
 UNIQUE_DIRECTORY_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
 ALLOWED_LINK_KEYS: Final[Sequence[str]] = (
     "in.statement",
@@ -430,13 +423,6 @@ ALLOWED_LINK_VALUES: Final[Sequence[str]] = (
     *ALLOWED_LINK_KEYS,
     "in",
     "ans",
-)
-KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
-    "type",
-    "solution",
-    "random_salt",
-    "retries",
-    *UNIQUE_DIRECTORY_KEYS,
 )
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ("command",)
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "version")
@@ -2064,7 +2050,7 @@ class GeneratorConfig:
                 # There, process in the 'natural order'.
                 if isinstance(parent, RootDirectoryRule):
                     valid_keys: Sequence[str | None] = KNOWN_ROOT_DIRECTORIES
-                    for deprecated_key in DEPRECATED_ROOT_KEYS:
+                    for deprecated_key in DEPRECATED_ROOT_DIRECTORIES:
                         sub_parser.extract_deprecated(deprecated_key, deprecated_key[:-1])
                 else:
                     valid_keys = [
