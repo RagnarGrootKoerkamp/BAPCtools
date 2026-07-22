@@ -385,6 +385,38 @@ def build_latex_pdf(
         bar.error(f"duration {ret.duration}\n")
         return False
 
+    # analyze included files
+    fls = (builddir / tex_path.name).with_suffix(".fls")
+    pwd = None
+    inputs = set[Path]()
+    if fls.is_file():
+        for line in fls.read_text().split("\n"):
+            if line.startswith("PWD "):
+                pwd = Path(line[4:])
+                continue
+            if not line.startswith("INPUT "):
+                continue
+            path = Path(line[6:])
+            if not path.is_absolute():
+                if pwd is None:
+                    continue
+                path = pwd / path
+            inputs.add(path)
+    for path in inputs:
+        if not path.is_file():
+            continue
+        if not path.is_relative_to(dest_path.absolute().parent):
+            continue
+        rel_path = path.relative_to(dest_path.absolute().parent)
+        if path.suffix in (".svg", ".bmp"):
+            bar.warn(f"unsupported filetype {path.suffix} for {rel_path.as_posix()}")
+            continue
+        if path.suffix not in (".png", ".pdf", ".jpg", ".jpeg"):
+            continue
+        if path.stat().st_size < 256 * 1024:
+            continue
+        bar.warn(f"{rel_path} is larger than 256KiB")
+
     assert not config.args.watch
     ensure_symlink(dest_path, built_pdf, True)
 
