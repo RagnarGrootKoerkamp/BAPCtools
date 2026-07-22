@@ -142,7 +142,7 @@ BUILD_NAME: Final[str] = "build"
 BUILD: Final[Language] = Language(
     "build",
     {
-        "name": "build",
+        "name": "build+run",
         "priority": 9999,
         "files": BUILD_NAME,
         "compile": f"{{path}}{os.sep}{BUILD_NAME}",
@@ -153,7 +153,7 @@ BUILD: Final[Language] = Language(
 RUN: Final[Language] = Language(
     "run",
     {
-        "name": "manual",
+        "name": "run",
         "priority": 9998,
         "files": BINARY_NAME,
         "run": "{binary}",
@@ -164,7 +164,7 @@ RUN: Final[Language] = Language(
 CHECKTESTDATA: Final[Language] = Language(
     "checktestdata",
     {
-        "name": "checktestdata",
+        "name": "Checktestdata",
         "priority": 2,
         "files": "*.ctd",
         "run": shlex.join([sys.executable, "-m", "checktestdata", "{mainfile}"]),
@@ -187,7 +187,7 @@ COMPILED_CHECKTESTDATA: Final[Language] = Language(
 VIVA: Final[Language] = Language(
     "viva",
     {
-        "name": "viva",
+        "name": "Viva",
         "priority": 1,
         "files": "*.viva",
         "run": shlex.join(
@@ -210,12 +210,21 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
     VIVA,
 )
 
+PYTHON_CODES: Final[Sequence[str]] = (
+    "python3",
+    "python2",
+    "python3numpy",
+    # all following are out of spec
+    "python2shebang",
+    "cpython2shebang",
+    "cpython3",
+    "cpython2",
+)
 SPEC_LANGUAGE_CODES: Final[Sequence[str]] = (
     "c",
     "cpp",
     "cppgmp",
-    "python3",
-    "python3numpy",
+    *PYTHON_CODES,
     BUILD.code,
     RUN.code,
 )
@@ -263,7 +272,7 @@ def languages() -> Sequence[Language]:
 
     for lang in EXTRA_LANGUAGES:
         assert lang.ok
+        assert lang.internal
         languages.append(lang)
 
-    _languages = tuple(languages)
-    return _languages
+    return tuple(languages)

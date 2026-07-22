@@ -85,9 +85,9 @@ def _submission_language(file: Path) -> Optional[str]:
     return max(candidates)[1].code if candidates else None
 
 
-def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[Problem], int]:
-    if isinstance(languages, str):
-        languages = (languages,)
+def submission_selector(root: str, codes: str | Sequence[str]) -> Callable[[Problem], int]:
+    if isinstance(codes, str):
+        codes = (codes,)
 
     def selector(problem: Problem) -> int:
         selected = []
@@ -95,7 +95,7 @@ def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[
             language = submission.expectations.language
             if language is None:
                 language = _submission_language(submission.path)
-            if language is None or language not in languages:
+            if language is None or language not in codes:
                 continue
             if submission.short_path.parts[0] != root:
                 continue
@@ -224,7 +224,7 @@ def problem_stats(problems: list[Problem]) -> None:
         Column("  c(++)", submission_selector("accepted", ("c", "cpp", "cppgmp")), threshold=1),
         Column(
             "py",
-            submission_selector("accepted", ("python2", "python3", "python3numpy")),
+            submission_selector("accepted", languages.PYTHON_CODES),
             threshold=1,
         ),
         Column("java", submission_selector("accepted", ("java", "javaalgs4")), threshold=1),
@@ -369,9 +369,9 @@ def stats_all(problems: list[Problem]) -> None:
     def format_row(*values: Optional[str | float | int | timedelta]) -> str:
         return format_string.format(*[format_value(value) for value in values])
 
-    languages = {
+    language_columns = {
         "C(++)": ("c", "cpp", "cppgmp"),
-        "Python": ("python2", "python3", "python3numpy"),
+        "Python": languages.PYTHON_CODES,
         "Java": ("java", "javaalgs4"),
         "Kotlin": ("kotlin"),
     }
@@ -422,7 +422,7 @@ def stats_all(problems: list[Problem]) -> None:
     # handle jury solutions
     best_jury = get_submissions_row("Jury", team_submissions=False)
     eprint(format_row(*best_jury))
-    for display_name, codes in languages.items():
+    for display_name, codes in language_columns.items():
         values = get_submissions_row(display_name, codes, team_submissions=False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
@@ -434,7 +434,7 @@ def stats_all(problems: list[Problem]) -> None:
         eprint("-" * len(header))
         best_team = get_submissions_row("Teams", team_submissions=True)
         eprint(format_row(*best_team))
-        for display_name, codes in languages.items():
+        for display_name, codes in language_columns.items():
             values = get_submissions_row(display_name, codes, team_submissions=True)
             for i in range(1, 1 + len(problems)):
                 leq_jury = False

@@ -129,7 +129,7 @@ cpp:
     name: 'C++'
     priority: 1000
     files: '*.cc *.C *.cpp *.cxx *.c++'
-    compile: 'g++ -g -O2 -std=gnu++20 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
+    compile: 'g++ -g -O2 -std=gnu++23 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
     run: '{binary}'
 
 csharp:
@@ -169,7 +169,7 @@ haskell:
 
 java:
     name: 'Java'
-    priority: 850
+    priority: 851
     files: '*.java'
     compile: 'javac -encoding UTF-8 -cp {path} -sourcepath {path} -d {path} {files}'
     run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path} {mainclass}'
@@ -179,7 +179,7 @@ javascript:
     priority: 500
     files: '*.js'
     compile: 'js24 -c {files}'
-    run: 'js24 {mainfile}'
+    run: 'js24 "{mainfile}"'
 
 kotlin:
     name: 'Kotlin'
@@ -192,8 +192,8 @@ lisp:
     name: 'Common Lisp'
     priority: 200
     files: '*.lisp *.cl'
-    compile: 'sbcl --noinform --noprint --non-interactive --eval ''(if (equal (compile-file {mainfile}) NIL) (sb-ext:exit :code 43) ())'' '
-    run: 'sbcl --noinform --non-interactive --load {mainfile}'
+    compile: 'sbcl --noinform --noprint --non-interactive --eval ''(if (equal (compile-file "{mainfile}") NIL) (sb-ext:exit :code 43) ())'' '
+    run: 'sbcl --noinform --non-interactive --load "{mainfile}"'
 
 ocaml:
     name: 'OCaml'
@@ -214,15 +214,15 @@ pascal:
     name: 'Pascal'
     priority: 350
     files: '*.pas'
-    compile: 'fpc -o{mainfile}.out -O2 -XS -Xt {mainfile}'
-    run: '{mainfile}.out'
+    compile: 'fpc -o"{mainfile}.out" -O2 -XS -Xt "{mainfile}"'
+    run: '"{mainfile}.out"'
 
 php:
     name: 'PHP'
     priority: 450
     files: '*.php'
     compile: 'php -n -d display_errors=stderr -d html_errors=0 -l {files}'
-    run: 'php -n -d display_errors=stderr -d html_errors=0 -d memory_limit={memlim}m -f {mainfile}'
+    run: 'php -n -d display_errors=stderr -d html_errors=0 -d memory_limit={memlim}m -f "{mainfile}"'
 
 prolog:
     name: 'Prolog'
@@ -231,60 +231,29 @@ prolog:
     compile: 'swipl -O -q -g main -t halt -o {binary} -c {files}'
     run: '{binary}'
 
-# By default Use pypy for python.
-# .py defaults to Python 3 unless a Python 2 shebang is found.
-python2:
-    name: 'Python 2'
-    priority: 900
-    files: '*.py2'
+# Python2 with shebang comes before default python3.
+python2shebang:
+    name: 'Python 2 (w/PyPy)'
+    priority: 860
+    files: '*.py *.py2'
+    shebang: '^#!.*python2\b'
     compile: 'pypy -m py_compile {files}'
-    run: 'pypy {mainfile}'
-
-python2b:
-    name: 'Python 2'
-    priority: 902
-    files: '*.py'
-    shebang: '^#!.*(python2\b|pypy\b)'
-    compile: 'pypy -m py_compile {files}'
-    run: 'pypy {mainfile}'
+    run: 'pypy "{mainfile}"'
 
 python3:
-    name: 'Python 3'
-    priority: 901
+    name: 'Python 3 (w/PyPy3)'
+    priority: 850
     files: '*.py *.py3'
     compile: 'pypy3 -m py_compile {files}'
-    run: 'pypy3 {mainfile}'
+    run: 'pypy3 "{mainfile}"'
 
-# Fall back to cpython if pypy isn't found.
-cpython2:
-    name: 'CPython 2'
-    priority: 800
+# Python2 without shebang comes after python3.
+python2:
+    name: 'Python 2 (w/PyPy)'
+    priority: 840
     files: '*.py2'
-    compile: 'python2 -m py_compile {files}'
-    run: 'python2 {mainfile}'
-
-cpython2b:
-    name: 'CPython 2'
-    priority: 802
-    files: '*.py'
-    shebang: '^#!.*(python2\b|pypy\b)'
-    compile: 'python2 -m py_compile {files}'
-    run: 'python2 {mainfile}'
-
-cpython3:
-    name: 'CPython 3'
-    priority: 801
-    files: '*.py *.py3'
-    compile: 'python3 -m py_compile {files}'
-    run: 'python3 {mainfile}'
-
-# Use .cpy to explicitly invoke CPython 3
-cpython:
-    name: 'Python 3'
-    priority: 803
-    files: '*.cpy'
-    compile: 'python3 -m py_compile {files}'
-    run: 'python3 {mainfile}'
+    compile: 'pypy -m py_compile {files}'
+    run: 'pypy "{mainfile}"'
 
 ruby:
     name: 'Ruby'
@@ -293,8 +262,8 @@ ruby:
     # Note that this compile command only syntax-checks the main file --
     # unfortunately the ruby -c command does not provide the option to
     # syntax-check multiple files.
-    compile: 'ruby -c {mainfile}'
-    run: 'ruby {mainfile}'
+    compile: 'ruby -c "{mainfile}"'
+    run: 'ruby "{mainfile}"'
 
 rust:
     name: 'Rust'
@@ -310,16 +279,43 @@ scala:
     compile: 'scalac -encoding UTF-8 -sourcepath {path} -d {path} {files}'
     run: 'scala -J-Xmx{memlim}m -classpath {path} {mainclass}'
 
+# the following languages are BAPCtools extensions
+# ================================================
+
+# CPython2 with shebang comes before default cpython3.
+cpython2shebang:
+    name: 'Python 2'
+    priority: 859
+    files: '*.py *.py2 *.cpy'
+    shebang: '^#!.*python2\b'
+    compile: 'python2 -m py_compile {files}'
+    run: 'python2 "{mainfile}"'
+
+cpython3:
+    name: 'Python 3'
+    priority: 849
+    files: '*.py *.py3 *.cpy'
+    compile: 'python3 -m py_compile {files}'
+    run: 'python3 "{mainfile}"'
+
+# CPython2 without shebang comes after python3.
+cpython2:
+    name: 'Python 2'
+    priority: 839
+    files: '*.py2 *.cpy'
+    compile: 'python2 -m py_compile {files}'
+    run: 'python2 "{mainfile}"'
+
 # Executes any .sh file.
 shell:
     name: 'Shell'
     priority: 910
     files: '*.sh'
-    run: 'sh {mainfile}'
+    run: 'sh "{mainfile}"'
 
 # Executes any .bash file.
 bash:
     name: 'Bash'
     priority: 920
     files: '*.bash'
-    run: 'bash {mainfile}'
+    run: 'bash "{mainfile}"'
