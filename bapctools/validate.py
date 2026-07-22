@@ -96,6 +96,8 @@ class Validator(program.Program):
         languages.VIVA,
     ]
 
+    languages: Final[Sequence[str]] = languages.VALIDATOR_LANGUAGE_CODES
+
     def __repr__(self) -> str:
         return type(self).__name__ + ": " + str(self.path)
 
