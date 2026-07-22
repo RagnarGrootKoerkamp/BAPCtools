@@ -1,20 +1,17 @@
+import hashlib
 import os
-import re
 import shlex
 import shutil
-import string
 import subprocess
-import sys
-import threading
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
 from colorama import Fore
 
-from bapctools import config
+from bapctools import config, languages
 from bapctools.util import (
-    BAR_TYPE,
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
@@ -22,269 +19,35 @@ from bapctools.util import (
     exec_command,
     ExecResult,
     ExecStatus,
-    fatal,
     glob,
     has_substitute,
     hash_file,
+    once,
     PrintBar,
     ProgressBar,
     read_yaml,
     remove_path,
     strip_newline,
-    warn,
     write_yaml,
-    YamlParser,
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.problem import Problem
 
 
-class Language:
-    ID_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
-    ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
-    VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
-    # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
-    INTERNAL_PREFIX: Final[str] = "BAPCtools:"
-    # Do not warn for the same mixing executeable multiple times.
-    warn_cache: set[str] = set()
+@once
+def create_aliases() -> None:
+    h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
+    tmpdir = (Path(tempfile.gettempdir()) / ("bapctools_" + h) / ".aliases").resolve()
 
-    def __init__(self, lang_id: str, conf: dict[object, object]) -> None:
-        self.ok = True
-        self.warned_fallback = False
-        parser = YamlParser("languages.yaml", conf, lang_id)
-
-        self.id = lang_id
-        self.name = parser.extract_and_error("name", str)
-        self.priority = parser.extract_and_error("priority", int)
-        self.files = parser.extract_and_error("files", str).split()
-        self.shebang = None
-        shebang = parser.extract_optional("shebang", str)
-        if shebang is not None:
-            try:
-                self.shebang = re.compile(shebang)
-            except re.error:
-                warn(f"invalid shebang in languages.yaml for '{lang_id}'. SKIPPED.")
-        self.compile = parser.extract_optional("compile", str)
-        self.run = parser.extract_and_error("run", str)
-
-        def get_variables(command: str) -> set[str]:
-            fields = []
-            for _, field, format_spec, _ in string.Formatter().parse(command):
-                if field is None:
-                    continue
-                # cannot distinguish "{path}" from "{path:}" but better than nothing...
-                if format_spec:
-                    warn(
-                        f"found meta variable {{{field}:{format_spec}}} in languages.yaml for '{lang_id}', did you mean {{{field}}}?"
-                    )
-                fields.append(field)
-            return set(fields)
-
-        # check the language specification
-        variables = get_variables(self.run)
-        if self.compile is not None:
-            variables |= get_variables(self.compile)
-        for unknown in variables - set(Language.VARIABLES):
-            error(f"Unknown meta variable {unknown} in languages.yaml for '{lang_id}'.")
-            self.ok = False
-        entry_points = variables & set(Language.ENTRY_POINTS)
-        if len(entry_points) != 1:
-            error(f"Expected exactly one entry point in languages.yaml for '{lang_id}'.")
-            self.ok = False
-
-        def get_exe(key: str, command: str) -> Optional[str]:
-            try:
-                exe = shlex.split(command)[0]
-                if exe and exe[0] != "{":
-                    return exe
-            except (IndexError, ValueError):
-                error(f"invalid value for key '{key}' in languages.yaml for '{lang_id}'")
-                self.ok = False
-            return None
-
-        self.compile_exe = get_exe("compile", self.compile) if self.compile else None
-        self.run_exe = get_exe("run", self.run)
-
-        parser.check_unknown_keys()
-        self.ok &= parser.errors == 0
-
-    def __lt__(self, other: "Language") -> bool:
-        return self.id > other.id
-
-    # Returns true when file f matches the shebang regex.
-    def _matches_shebang(self, f: Path) -> bool:
-        if self.shebang is None:
-            return True
-        try:
-            with f.open() as o:
-                return self.shebang.search(o.readline()) is not None
-        except UnicodeDecodeError:
-            return False
-
-    # Returns true when file f matches the shebang regex and the file glob.
-    def _matches(self, f: Path) -> bool:
-        return any(f.match(glob) for glob in self.files) and self._matches_shebang(f)
-
-    def evaluate(self, files: list[Path]) -> tuple[tuple[int, int, int], list[Path]]:
-        matching = [f for f in files if self._matches(f)]
-        score = (self.priority // 1000, len(matching), self.priority)
-        return (score, matching)
-
-    def is_installed(self, bar: BAR_TYPE) -> bool:
-        # Make sure we can compile programs for this language.
-        if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
-            if self.compile_exe not in Language.warn_cache and config.args.verbose:
-                Language.warn_cache.add(self.compile_exe)
-                bar.debug(
-                    f"Compile program {self.compile_exe} not found for language {self.name}. Falling back to lower priority languages."
-                )
-            return False
-        # Make sure we can run programs for this language.
-        if self.run_exe is not None and shutil.which(self.run_exe) is None:
-            if self.run_exe not in Language.warn_cache and config.args.verbose:
-                Language.warn_cache.add(self.run_exe)
-                bar.debug(
-                    f"Run program {self.run_exe} not found for language {self.name}. Falling back to lower priority languages."
-                )
-            return False
-        return True
-
-    def warn_fallback(self, bar: BAR_TYPE) -> None:
-        if self.warned_fallback:
-            return
-        self.warned_fallback = True
-        bar.debug(f"Falling back to {self.name}.")
-
-
-BINARY_NAME: Final[str] = "run"
-BUILD_NAME: Final[str] = "build"
-
-CHECKTESTDATA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "checktestdata",
-    {
-        "name": "checktestdata",
-        "priority": 2,
-        "files": "*.ctd",
-        "run": shlex.join([sys.executable, "-m", "checktestdata", "{mainfile}"]),
-    },
-)
-COMPILED_CHECKTESTDATA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "compiledchecktestdata",
-    {
-        "name": "compiledchecktestdata",
-        "priority": 3,
-        "files": "*.ctd",
-        "compile": shlex.join(
-            [sys.executable, "-m", "checktestdata", "-c", "{mainfile}.py", "{mainfile}"]
-        ),
-        "run": "pypy3 {mainfile}.py",
-    },
-)
-VIVA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "viva",
-    {
-        "name": "viva",
-        "priority": 1,
-        "files": "*.viva",
-        "run": shlex.join(
-            [
-                "java",
-                "-jar",
-                str(config.RESOURCES_ROOT / "third_party" / "viva" / "viva.jar"),
-                "{mainfile}",
-            ]
-        ),
-    },
-)
-EXTRA_LANGUAGES: Final[Sequence[Language]] = (
-    CHECKTESTDATA,
-    COMPILED_CHECKTESTDATA,
-    VIVA,
-    Language(
-        Language.INTERNAL_PREFIX + "manual",
-        {
-            "name": "manual",
-            "priority": 9999,
-            "files": BUILD_NAME,
-            "compile": f"{{path}}{os.sep}{BUILD_NAME}",
-            "run": "{binary}",
-        },
-    ),
-    Language(
-        Language.INTERNAL_PREFIX + "manual",
-        {
-            "name": "manual",
-            "priority": 9998,
-            "files": BINARY_NAME,
-            "run": "{binary}",
-        },
-    ),
-)
-
-# The cached languages.yaml for the current contest.
-_languages: Optional[Sequence[Language]] = None
-_program_config_lock = threading.Lock()
-_alias_setup_complete = False
-
-
-def languages() -> Sequence[Language]:
-    global _languages, _program_config_lock
-    with _program_config_lock:
-        if _languages is not None:
-            return _languages
-
-        languages_path = Path("languages.yaml")
-        if languages_path.is_file():
-            raw_languages = read_yaml(languages_path)
-        else:
-            raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / "languages.yaml")
-        if not isinstance(raw_languages, dict):
-            fatal("could not parse languages.yaml.")
-
-        languages = []
-        priorities: dict[int, str] = {}
-        for lang_id, lang_conf in raw_languages.items():
-            if not isinstance(lang_id, str):
-                error("keys in languages.yaml must be strings. SKIPPED.")
-                continue
-            if not Language.ID_REGEX.match(lang_id):
-                error(f"key {lang_id} in languages.yaml is invalid. SKIPPED.")
-                continue
-            if not isinstance(lang_conf, dict):
-                error(f"invalid entry {lang_id} in languages.yaml. SKIPPED.")
-                continue
-            lang = Language(lang_id, lang_conf)
-            if not lang.ok:
-                continue
-
-            languages.append(lang)
-            if lang.priority in priorities:
-                warn(
-                    f"'{lang.id}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
-                )
-            priorities[lang.priority] = lang.id
-
-        for lang in EXTRA_LANGUAGES:
-            assert lang.ok
-            languages.append(lang)
-
-        _languages = tuple(languages)
-        return _languages
-
-
-def create_aliases(tmpdir: Path) -> None:
-    global _alias_setup_complete, _program_config_lock
-
-    tmpdir = tmpdir / "aliases"
-    langs = languages()
+    langs = languages.languages()
     bar = PrintBar()
 
-    def create_alias(name: str, alias: str, use_compile: bool) -> None:
+    def create_alias(code: str, alias: str, use_compile: bool) -> None:
         fallback = False
         exe = None
         for lang in langs:
-            if lang.name != name:
+            if lang.code != code:
                 continue
             if not lang.is_installed(bar):
                 fallback = True
@@ -296,7 +59,7 @@ def create_aliases(tmpdir: Path) -> None:
             break
 
         if language is None:
-            bar.warn(f"Did not find required language {name}")
+            bar.warn(f"Did not find required language {code}")
             return
         assert exe is not None
         exe = shutil.which(exe)
@@ -309,22 +72,19 @@ def create_aliases(tmpdir: Path) -> None:
         ensure_symlink(alias_path, Path(exe))
         bar.debug(f"Adding alias {alias}: {alias_path.as_posix()} -> {exe}")
 
-    with _program_config_lock:
-        if _alias_setup_complete:
-            return
+    remove_path(tmpdir)
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
 
-        remove_path(tmpdir)
-        tmpdir.mkdir(parents=True, exist_ok=True)
-        os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
-
-        create_alias("Python 3", "python3", use_compile=False)
-        create_alias("C", "cc", use_compile=True)
-        create_alias("C++", "c++", use_compile=True)
-        _alias_setup_complete = True
+    create_alias("python3", "python3", use_compile=False)
+    create_alias("c", "cc", use_compile=True)
+    create_alias("cpp", "c++", use_compile=True)
+    _alias_setup_complete = True
 
 
 SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
-    "c++": {"compile": "-fsanitize=undefined,address"},
+    "cpp": {"compile": "-fsanitize=undefined,address"},
+    "cppgmp": {"compile": "-fsanitize=undefined,address"},
 }
 
 
@@ -378,9 +138,8 @@ class Program:
         assert self.__class__ is not Program  # Program is abstract and may not be instantiated
 
         # read and parse languages.yaml
-        languages()
-        # we can use any problems tmpdir here
-        create_aliases(problem.tmpdir)
+        languages.languages()
+        create_aliases()
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
@@ -434,19 +193,21 @@ class Program:
             self.has_deps = False
 
         self.input_files: list[Path]  # Populated in Program.build
-        self.language: Language  # Populated in Program.build
+        self.language: languages.Language  # Populated in Program.build
 
     # checks all languages and sorts them
-    def _get_language_candidates(self, bar: ProgressBar) -> list[tuple[Language, list[Path]]]:
+    def _get_language_candidates(
+        self, bar: ProgressBar
+    ) -> list[tuple[languages.Language, list[Path]]]:
         candidates = []
-        for lang in languages():
+        for lang in languages.languages():
             score, matching = lang.evaluate(self.input_files)
             if matching:
                 candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
-        binary = self.tmpdir / BINARY_NAME
+        binary = self.tmpdir / languages.BINARY_NAME
         mainfile = None
         if not self.has_deps:
             assert files
@@ -503,7 +264,7 @@ class Program:
                 )
 
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
-        if "c++" in self.language.name.lower():
+        if self.language.code in ("cpp", "cppgmp"):
             for f in self.source_files:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
@@ -519,7 +280,7 @@ class Program:
         from bapctools.validate import Validator
 
         if isinstance(self, Generator) or isinstance(self, Validator):
-            if "c++" in self.language.name.lower():
+            if self.language.code in ("cpp", "cppgmp"):
                 for f in self.source_files:
                     try:
                         text = f.read_text()
@@ -549,7 +310,7 @@ class Program:
                             )
                     except UnicodeDecodeError:
                         pass
-            if "python" in self.language.name.lower():
+            if self.language.code in ("python2", "python3", "python3numpy"):
                 for f in self.source_files:
                     try:
                         text = f.read_text()
@@ -679,9 +440,9 @@ class Program:
         if (
             self.subdir == "submissions"
             and config.args.sanitizer
-            and self.language.name in SANITIZER_FLAGS
+            and self.language.code in SANITIZER_FLAGS
         ):
-            sanitizer = SANITIZER_FLAGS[self.language.name]
+            sanitizer = SANITIZER_FLAGS[self.language.code]
             if "compile" in sanitizer:
                 compile_command += " " + sanitizer["compile"]
             if "run" in sanitizer:
