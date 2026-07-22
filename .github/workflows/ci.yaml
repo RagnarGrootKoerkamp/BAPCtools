@@ -47,6 +47,7 @@ jobs:
                 python3-requests
                 python3-pytest
                 python3-typing-extensions
+                pypy3
                 build-essential
                 default-jre
                 default-jdk

@@ -365,8 +365,13 @@ class ProblemSettings:
                 parser.bar.warn(f"found keyword {keyword}. Did you mean {match}?")
             seen_keywords.add(keyword)
 
-        # Not implemented in BAPCtools. We always test all languages in languages.yaml.
-        self.languages: list[str] = parser.extract_optional_list("languages", str)
+        # an empty list means no restrction
+        if parser.remaining.get("languages", None) == "all":
+            parser.pop("languages")
+        self.languages: list[str] = parser.extract_optional_list(
+            "languages", str, allow_empty=False
+        )
+
         # Not implemented in BAPCtools
         self.allow_file_writing: bool = parser.extract("allow_file_writing", False)
 

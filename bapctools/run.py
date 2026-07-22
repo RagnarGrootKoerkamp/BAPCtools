@@ -14,6 +14,7 @@ from bapctools import (
     config,
     expectations,
     interactive,
+    languages,
     parallel,
     problem,
     program,
@@ -356,17 +357,17 @@ class Submission(program.Program):
     def _get_language_candidates(
         self,
         bar: ProgressBar,
-    ) -> list[tuple[program.Language, list[Path]]]:
+    ) -> list[tuple[languages.Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
         candidates = []
-        for lang in program.languages():
-            if lang.name == self.expectations.language:
+        for lang in languages.languages():
+            if lang.code == self.expectations.language:
                 score, matching = lang.evaluate(self.input_files)
                 if matching:
                     candidates.append((score, lang, matching))
         if not candidates:
-            known = {lang.name for lang in program.languages()}
+            known = {lang.code for lang in languages.languages()}
             closest = difflib.get_close_matches(self.expectations.language, known)
             if not closest:
                 msg = ""
@@ -376,6 +377,14 @@ class Submission(program.Program):
                 msg = f", did you mean one of these: {', '.join(closest)}"
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
+
+    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+        restriction = self.problem.settings.languages
+        if restriction and language.code not in restriction:
+            bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
+        elif language.internal:
+            bar.warn(f"selected language {language.code} is not permitted")
+        super()._set_language(language, bar)
 
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:

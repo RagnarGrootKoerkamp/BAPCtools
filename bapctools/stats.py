@@ -10,7 +10,7 @@ from typing import Any, cast, Literal, Optional
 from colorama import ansi, Fore, Style
 from dateutil import parser
 
-from bapctools import config, generate, latex, program, validate
+from bapctools import config, generate, languages, latex, validate
 from bapctools.problem import Problem
 from bapctools.util import drop_suffix, eprint, error, glob, log, ShellCommand
 
@@ -78,16 +78,16 @@ def _submission_language(file: Path) -> Optional[str]:
         source_files = [file]
 
     candidates = []
-    for lang in program.languages():
+    for lang in languages.languages():
         score, matching = lang.evaluate(source_files)
         if matching:
             candidates.append((score, lang, matching))
-    return max(candidates)[1].name if candidates else None
+    return max(candidates)[1].code if candidates else None
 
 
-def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[Problem], int]:
-    if isinstance(languages, str):
-        languages = (languages,)
+def submission_selector(root: str, codes: str | Sequence[str]) -> Callable[[Problem], int]:
+    if isinstance(codes, str):
+        codes = (codes,)
 
     def selector(problem: Problem) -> int:
         selected = []
@@ -95,7 +95,7 @@ def submission_selector(root: str, languages: str | Sequence[str]) -> Callable[[
             language = submission.expectations.language
             if language is None:
                 language = _submission_language(submission.path)
-            if language is None or language.lower() not in languages:
+            if language is None or language not in codes:
                 continue
             if submission.short_path.parts[0] != root:
                 continue
@@ -221,13 +221,13 @@ def problem_stats(problems: list[Problem]) -> None:
         Column(" WA", glob_selector("submissions/wrong_answer/*"), threshold=2),
         Column("TLE", glob_selector("submissions/time_limit_exceeded/*"), threshold=1),
         Column("subs", glob_selector("submissions/*/*"), threshold=6),
-        Column("  c(++)", submission_selector("accepted", ("c", "c++")), threshold=1),
+        Column("  c(++)", submission_selector("accepted", ("c", "cpp", "cppgmp")), threshold=1),
         Column(
             "py",
-            submission_selector("accepted", ("python 2", "python 3", "cpython 2", "cpython 3")),
+            submission_selector("accepted", languages.PYTHON_CODES),
             threshold=1,
         ),
-        Column("java", submission_selector("accepted", "java"), threshold=1),
+        Column("java", submission_selector("accepted", ("java", "javaalgs4")), threshold=1),
         Column("kt", submission_selector("accepted", "kotlin"), threshold=1),
         Column("   comment", comment, align="<"),
     ]
@@ -369,15 +369,15 @@ def stats_all(problems: list[Problem]) -> None:
     def format_row(*values: Optional[str | float | int | timedelta]) -> str:
         return format_string.format(*[format_value(value) for value in values])
 
-    languages = {
-        "C(++)": ["c", "c++"],
-        "Python": ["python 2", "python 3", "cpython 2", "cpython 3"],
-        "Java": ["java"],
-        "Kotlin": ["kotlin"],
+    language_columns = {
+        "C(++)": ("c", "cpp", "cppgmp"),
+        "Python": languages.PYTHON_CODES,
+        "Java": ("java", "javaalgs4"),
+        "Kotlin": ("kotlin"),
     }
 
     def get_submissions_row(
-        display_name: str, names: Optional[list[str]] = None, *, team_submissions: bool
+        display_name: str, codes: Optional[Sequence[str]] = None, *, team_submissions: bool
     ) -> list[str | float | int]:
         lines: list[str | float | int] = []
         values = []
@@ -388,18 +388,18 @@ def stats_all(problems: list[Problem]) -> None:
                 for file in glob(directory, "*"):
                     if _skip_path(file):
                         continue
-                    if names is not None:
+                    if codes is not None:
                         language = _submission_language(file)
-                        if language is None or language.lower() not in names:
+                        if language is None or language not in codes:
                             continue
                     submissions.append(file)
             else:
                 for submission in problem.raw_submissions():
-                    if names is not None:
+                    if codes is not None:
                         language = submission.expectations.language
                         if language is None:
                             language = _submission_language(submission.path)
-                        if language is None or language.lower() not in names:
+                        if language is None or language not in codes:
                             continue
                     if submission.short_path.parts[0] != "accepted":
                         continue
@@ -422,8 +422,8 @@ def stats_all(problems: list[Problem]) -> None:
     # handle jury solutions
     best_jury = get_submissions_row("Jury", team_submissions=False)
     eprint(format_row(*best_jury))
-    for display_name, names in languages.items():
-        values = get_submissions_row(display_name, names, team_submissions=False)
+    for display_name, codes in language_columns.items():
+        values = get_submissions_row(display_name, codes, team_submissions=False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
                 values[i] = format_value(values[i], Fore.CYAN)
@@ -434,8 +434,8 @@ def stats_all(problems: list[Problem]) -> None:
         eprint("-" * len(header))
         best_team = get_submissions_row("Teams", team_submissions=True)
         eprint(format_row(*best_team))
-        for display_name, names in languages.items():
-            values = get_submissions_row(display_name, names, team_submissions=True)
+        for display_name, codes in language_columns.items():
+            values = get_submissions_row(display_name, codes, team_submissions=True)
             for i in range(1, 1 + len(problems)):
                 leq_jury = False
                 if not isinstance(best_jury[i], (int, float)):
