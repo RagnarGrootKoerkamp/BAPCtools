@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import shlex
@@ -240,26 +241,46 @@ VALIDATOR_LANGUAGE_CODES: Final[Sequence[str]] = (
 @once
 def languages() -> Sequence[Language]:
     languages_path = Path("languages.yaml")
-    if languages_path.is_file():
-        raw_languages = read_yaml(languages_path)
-    else:
-        raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / "languages.yaml")
-    if not isinstance(raw_languages, dict):
+    raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / languages_path)
+    assert isinstance(raw_languages, dict)
+    raw_overrides = read_yaml(languages_path) if languages_path.is_file() else {}
+    if not isinstance(raw_overrides, dict):
         fatal("could not parse languages.yaml.")
+
+    codes = {*raw_languages, *raw_overrides}
+
+    def deepmerge(target: dict[object, object], overrides: dict[object, object]) -> None:
+        for key, value in overrides.items():
+            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
+                _target = target[key]
+                assert isinstance(_target, dict)
+                deepmerge(_target, value)
+            else:
+                target[key] = value
 
     languages = []
     priorities: dict[int, str] = {}
-    for code, lang_conf in raw_languages.items():
+    for code in codes:
         if not isinstance(code, str):
             error("keys in languages.yaml must be strings. SKIPPED.")
             continue
         if not Language.CODE_REGEX.match(code):
             error(f"key {code} in languages.yaml is invalid. SKIPPED.")
             continue
-        if not isinstance(lang_conf, dict):
+        conf = raw_languages.get(code, {})
+        assert isinstance(conf, dict)
+        overrides = raw_overrides.get(code, {})
+        if not isinstance(overrides, dict):
             error(f"invalid entry {code} in languages.yaml. SKIPPED.")
             continue
-        lang = Language(code, lang_conf)
+
+        merged = copy.deepcopy(conf)
+        deepmerge(merged, overrides)
+
+        lang = Language(code, merged)
+        if not lang.ok and conf:
+            # TODO: also use fallback if merged lang is not installed?
+            lang = Language(code, conf)
         if not lang.ok:
             continue
 
