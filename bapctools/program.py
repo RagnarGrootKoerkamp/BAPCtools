@@ -83,6 +83,7 @@ def create_aliases() -> None:
 
 
 SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
+    "c": {"compile": "-fsanitize=undefined,address"},
     "cpp": {"compile": "-fsanitize=undefined,address"},
     "cppgmp": {"compile": "-fsanitize=undefined,address"},
 }
