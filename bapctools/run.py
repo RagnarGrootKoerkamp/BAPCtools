@@ -378,6 +378,14 @@ class Submission(program.Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
+    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+        restriction = self.problem.settings.languages
+        if restriction and language.code not in restriction:
+            bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
+        elif language.internal:
+            bar.warn(f"selected language {language.code} is not permitted")
+        super()._set_language(language, bar)
+
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)
