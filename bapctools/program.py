@@ -206,6 +206,12 @@ class Program:
                 candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
+    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+        restrictions: Final[Sequence[str]] = getattr(self.__class__, "languages", tuple())
+        if restrictions and language.code not in restrictions:
+            bar.warn(f"selected language {language.code} is not permitted for this program")
+        self.language = language
+
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         binary = self.tmpdir / languages.BINARY_NAME
         mainfile = None
@@ -235,7 +241,7 @@ class Program:
             if fallback:
                 lang.warn_fallback(bar)
 
-            self.language = lang
+            self._set_language(lang, bar)
             binary, mainfile, mainclass = self._get_entry_point(files, bar)
             self.env = {
                 "path": str(self.tmpdir),

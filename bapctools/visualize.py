@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import program
+from bapctools import languages, program
 from bapctools.util import ExecResult
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -22,6 +22,8 @@ class InputVisualizer(program.Program):
     source_dir: Final[str] = "input_visualizer"
 
     args_key: Final[str] = "input_visualizer_args"
+
+    languages: Final[Sequence[str]] = languages.SPEC_LANGUAGE_CODES
 
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(
@@ -58,6 +60,8 @@ class OutputVisualizer(program.Program):
     source_dir: Final[str] = "output_visualizer"
 
     args_key: Final[str] = "output_visualizer_args"
+
+    languages: Final[Sequence[str]] = languages.SPEC_LANGUAGE_CODES
 
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(

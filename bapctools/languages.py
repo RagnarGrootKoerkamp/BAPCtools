@@ -24,13 +24,12 @@ class Language:
     CODE_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
     ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
-    # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
-    INTERNAL_PREFIX: Final[str] = "BAPCtools:"
     # Do not warn for the same mixing executeable multiple times.
     warn_cache: set[str] = set()
 
-    def __init__(self, code: str, conf: dict[object, object]) -> None:
+    def __init__(self, code: str, conf: dict[object, object], *, internal: bool = False) -> None:
         self.ok = True
+        self.internal = internal
         self.warned_fallback = False
         parser = YamlParser("languages.yaml", conf, code)
 
@@ -140,19 +139,42 @@ class Language:
 BINARY_NAME: Final[str] = "run"
 BUILD_NAME: Final[str] = "build"
 
+BUILD: Final[Language] = Language(
+    "build",
+    {
+        "name": "build",
+        "priority": 9999,
+        "files": BUILD_NAME,
+        "compile": f"{{path}}{os.sep}{BUILD_NAME}",
+        "run": "{binary}",
+    },
+    internal=True,
+)
+RUN: Final[Language] = Language(
+    "run",
+    {
+        "name": "manual",
+        "priority": 9998,
+        "files": BINARY_NAME,
+        "run": "{binary}",
+    },
+    internal=True,
+)
+
 CHECKTESTDATA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "checktestdata",
+    "checktestdata",
     {
         "name": "checktestdata",
         "priority": 2,
         "files": "*.ctd",
         "run": shlex.join([sys.executable, "-m", "checktestdata", "{mainfile}"]),
     },
+    internal=True,
 )
 COMPILED_CHECKTESTDATA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "compiledchecktestdata",
+    "checktestdata",
     {
-        "name": "compiledchecktestdata",
+        "name": "checktestdata",
         "priority": 3,
         "files": "*.ctd",
         "compile": shlex.join(
@@ -160,9 +182,10 @@ COMPILED_CHECKTESTDATA: Final[Language] = Language(
         ),
         "run": "pypy3 {mainfile}.py",
     },
+    internal=True,
 )
 VIVA: Final[Language] = Language(
-    Language.INTERNAL_PREFIX + "viva",
+    "viva",
     {
         "name": "viva",
         "priority": 1,
@@ -176,30 +199,32 @@ VIVA: Final[Language] = Language(
             ]
         ),
     },
+    internal=True,
 )
+
 EXTRA_LANGUAGES: Final[Sequence[Language]] = (
+    BUILD,
+    RUN,
     CHECKTESTDATA,
     COMPILED_CHECKTESTDATA,
     VIVA,
-    Language(
-        Language.INTERNAL_PREFIX + "manual",
-        {
-            "name": "manual",
-            "priority": 9999,
-            "files": BUILD_NAME,
-            "compile": f"{{path}}{os.sep}{BUILD_NAME}",
-            "run": "{binary}",
-        },
-    ),
-    Language(
-        Language.INTERNAL_PREFIX + "manual",
-        {
-            "name": "manual",
-            "priority": 9998,
-            "files": BINARY_NAME,
-            "run": "{binary}",
-        },
-    ),
+)
+
+SPEC_LANGUAGE_CODES: Final[Sequence[str]] = (
+    "c",
+    "cpp",
+    "cppgmp",
+    "python3",
+    "python3numpy",
+    BUILD.code,
+    RUN.code,
+)
+
+VALIDATOR_LANGUAGE_CODES: Final[Sequence[str]] = (
+    *SPEC_LANGUAGE_CODES,
+    CHECKTESTDATA.code,
+    COMPILED_CHECKTESTDATA.code,
+    VIVA.code,
 )
 
 
