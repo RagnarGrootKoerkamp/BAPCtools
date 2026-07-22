@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import config, program
+from bapctools import config, languages, program
 from bapctools.util import (
     ExecResult,
     ExecStatus,
@@ -90,10 +90,10 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[program.Language]] = [
-        program.CHECKTESTDATA,
-        program.COMPILED_CHECKTESTDATA,
-        program.VIVA,
+    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
+        languages.CHECKTESTDATA,
+        languages.COMPILED_CHECKTESTDATA,
+        languages.VIVA,
     ]
 
     def __repr__(self) -> str:
@@ -182,7 +182,7 @@ class Validator(program.Program):
         else:
             assert False  # now also catches OutputValidator
 
-        if self.language == program.COMPILED_CHECKTESTDATA:
+        if self.language == languages.COMPILED_CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
                     [*self.run_command, *args],
@@ -200,7 +200,7 @@ class Validator(program.Program):
                 return ExecStatus.TIMEOUT
             return ExecStatus.ERROR
 
-        if self.language == program.CHECKTESTDATA:
+        if self.language == languages.CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
                     [*self.run_command, *args],
@@ -209,7 +209,7 @@ class Validator(program.Program):
                     cwd=cwd,
                 )
 
-        if self.language == program.VIVA:
+        if self.language == languages.VIVA:
             # Called as `viva validator.viva testcase.in`.
             return self._exec_command(
                 [*self.run_command, main_path.absolute(), *args],
