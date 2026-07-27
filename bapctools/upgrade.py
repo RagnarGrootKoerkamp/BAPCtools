@@ -308,6 +308,17 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
 
+    def drop_type_entry(data: CommentedMap, path: str) -> bool:
+        if not generate.is_directory(data):
+            return False
+        if "type" not in data:
+            return False
+        if data["type"] != "directory":
+            return False
+        ryaml_filter(data, "type")
+        bar.log(f"removing legacy 'type: directory' in generators.yaml ({path})")
+        return True
+
     def rename_testdata_to_test_group_yaml(data: CommentedMap, path: str) -> bool:
         old, new = "testdata.yaml", "test_group.yaml"
         if old in data:
@@ -430,6 +441,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                             changed = True
         return changed
 
+    changed |= apply_recursively(drop_type_entry, yaml_data, "")
     changed |= apply_recursively(rename_testdata_to_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(upgrade_generated_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(replace_hint_desc_in_test_cases, yaml_data, "")
