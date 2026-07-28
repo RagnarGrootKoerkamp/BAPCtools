@@ -21,7 +21,7 @@ import os
 import re
 import sys
 import tempfile
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Optional
 
@@ -256,6 +256,60 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
         problems = [p for p in problems if keep_problem(p)]
 
     return problems, tmpdir
+
+
+# Check non unique uuid
+# TODO: check this even more globally?
+def check_uuid(problems: list[Problem]) -> None:
+    uuids: dict[str, Problem] = {}
+    for p in problems:
+        if p.settings.uuid in uuids:
+            warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
+        else:
+            uuids[p.settings.uuid] = p
+
+
+# try to spot typos in the contest source
+def check_source(problems: list[Problem]) -> None:
+    # find most likely name
+    names = Counter[str]()
+    for p in problems:
+        if len(p.settings.source) > 1:
+            return  # there is a problem with multiple sources => no common source exists
+        if not p.settings.source:
+            continue
+        names[p.settings.source[0].name] += 1
+    if not names:
+        return
+    source_name, frequency = names.most_common(1)[0]
+    if frequency * 2 <= len(problems) or frequency <= 3:
+        return  # no clear majority source => no common source exists
+
+    # find most likely url for source_name
+    urls = defaultdict[str, float](float)
+    for p in problems:
+        if not p.settings.source:
+            continue
+        name = p.settings.source[0].name
+        similarity = difflib.SequenceMatcher(None, source_name, name).ratio()
+        if similarity < 0.8:
+            return  # very different source name => no common source exists
+        url = p.settings.source[0].url
+        if not url:
+            continue
+        urls[url] += similarity
+    source_url = [k for k, v in urls.items() if v == max(urls.values())][0] if urls else None
+
+    for p in problems:
+        if not p.settings.source:
+            warn(f"{p.name} is likely missing source (expected: {source_name})")
+            continue
+        if p.settings.source[0].name != source_name:
+            warn(f"{p.name} might have wrong source (expected: {source_name})")
+        if not source_url:
+            continue
+        if p.settings.source[0].url != source_url:
+            warn(f"{p.name} might have wrong source url (expected: {source_url})")
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
@@ -1131,6 +1185,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
     # get problems list
     problems, tmpdir = get_problems(problem_dir)
+    check_uuid(problems)
+    check_source(problems)
 
     # Split submissions and testcases when needed.
     if action in ["run", "fuzz", "time_limit", "check_testing_tool"]:
@@ -1140,15 +1196,6 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             )
         else:
             config.args.testcases = []
-
-    # Check non unique uuid
-    # TODO: check this even more globally?
-    uuids: dict[str, Problem] = {}
-    for p in problems:
-        if p.settings.uuid in uuids:
-            warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
-        else:
-            uuids[p.settings.uuid] = p
 
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
