@@ -5,6 +5,7 @@ import re
 import shutil
 import threading
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal, NamedTuple, Optional, overload, TYPE_CHECKING
 
@@ -154,10 +155,10 @@ class ProblemCredits:
         credits.check_unknown_keys()
 
 
+@dataclass(frozen=True)
 class ProblemSource:
-    def __init__(self, name: str, url: Optional[str] = None):
-        self.name = name
-        self.url = url
+    name: str
+    url: Optional[str] = None
 
     def __repr__(self) -> str:
         return self.name + (f" ({self.url})" if self.url else "")
