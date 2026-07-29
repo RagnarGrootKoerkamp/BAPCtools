@@ -272,11 +272,13 @@ class Program:
                 )
 
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
+        from bapctools.run import Submission
+
         if self.language.code in ("cpp", "cppgmp"):
             for f in self.source_files:
                 try:
-                    if f.read_text().find("bits/stdc++.h") != -1:
-                        if f.is_relative_to(self.problem.path / "submissions"):
+                    if "bits/stdc++.h" in f.read_text():
+                        if isinstance(self, Submission):
                             bar.log("Should not depend on bits/stdc++.h")
                         else:
                             bar.error("Must not depend on bits/stdc++.h.", resume=True)
@@ -287,14 +289,14 @@ class Program:
         # Warn for known bad (non-deterministic) patterns in generators
         from bapctools.validate import Validator
 
-        if isinstance(self, Generator) or isinstance(self, Validator):
+        if isinstance(self, (Generator, Validator)):
             if self.language.code in ("cpp", "cppgmp"):
                 for f in self.source_files:
                     try:
                         text = f.read_text()
                         bad_random = set()
                         for s in [
-                            "rand\\(\\)",
+                            "rand()",
                             "uniform_int_distribution",
                             "uniform_real_distribution",
                             "normal_distribution",
@@ -321,12 +323,11 @@ class Program:
             if self.language.code in ("python2", "python3", "python3numpy"):
                 for f in self.source_files:
                     try:
-                        text = f.read_text()
-                        for s in ["list(set("]:
-                            if text.find(s) != -1:
-                                bar.warn(
-                                    "The order of sets is not fixed across implementations. Please sort the list!"
-                                )
+                        if "list(set(" in f.read_text():
+                            bar.warn(
+                                "The order of sets is not fixed across implementations. Please sort the list!"
+                            )
+                            break
                     except UnicodeDecodeError:
                         pass
 
