@@ -443,14 +443,22 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
-    if (problem_path / "problem_statement").is_dir():
-        if (problem_path / "statement").exists():
+    old_statement_dir = problem_path / "problem_statement"
+    if (old_statement_dir / "problem.tex").is_file():
+        if (old_statement_dir / "problem.en.tex").exists():
+            bar.error("can't rename 'problem.tex', 'problem.en.tex' already exists", resume=True)
+        else:
+            bar.log("renaming 'problem.tex' to 'problem.en.tex'")
+            (old_statement_dir / "problem.tex").rename(old_statement_dir / "problem.en.tex")
+
+    new_statement_dir = problem_path / "statement"
+    if (old_statement_dir).is_dir():
+        if new_statement_dir.exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
         else:
             bar.log("renaming 'problem_statement/' to 'statement/'")
-            (problem_path / "problem_statement").rename(problem_path / "statement")
+            old_statement_dir.rename(new_statement_dir)
 
-    origin = problem_path / "statement"
     move = [
         ("solution*", "solution"),
         ("problem-slide*", "problem_slide"),
@@ -461,8 +469,8 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
             bar.error(f"'{dest_name}' is not a directory", resume=True)
             continue
 
-        for f in origin.glob(glob):
-            dest = dest_path / f.relative_to(origin)
+        for f in new_statement_dir.glob(glob):
+            dest = dest_path / f.relative_to(new_statement_dir)
             if dest.exists():
                 bar.error(
                     f"can't move '{f.relative_to(problem_path)}', '{dest.relative_to(problem_path)}' already exists",
