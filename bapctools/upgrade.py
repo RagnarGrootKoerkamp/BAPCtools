@@ -13,6 +13,7 @@ from bapctools import config, generate
 from bapctools.util import (
     ensure_symlink,
     fatal,
+    glob,
     is_problem_directory,
     ProgressBar,
     read_yaml,
@@ -463,13 +464,13 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
         ("solution*", "solution"),
         ("problem-slide*", "problem_slide"),
     ]
-    for glob, dest_name in move:
+    for pattern, dest_name in move:
         dest_path = problem_path / dest_name
         if dest_path.exists() and not dest_path.is_dir():
             bar.error(f"'{dest_name}' is not a directory", resume=True)
             continue
 
-        for f in new_statement_dir.glob(glob):
+        for f in new_statement_dir.glob(pattern):
             dest = dest_path / f.relative_to(new_statement_dir)
             if dest.exists():
                 bar.error(
@@ -499,22 +500,26 @@ def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
-    if (problem_path / "output_validators").is_dir():
-        if (problem_path / OutputValidator.source_dir).exists():
+    old_path = problem_path / "output_validators"
+    new_path = problem_path / OutputValidator.source_dir
+    if old_path.is_dir():
+        if new_path.exists():
             bar.error(
-                f"can't rename 'output_validators/', '{OutputValidator.source_dir}/' already exists",
+                f"can't rename '{old_path.name}/', '{new_path.name}/' already exists",
                 resume=True,
             )
             return
-        content = [*(problem_path / "output_validators").iterdir()]
+        content = glob(old_path, "*")
         if len(content) == 1 and content[0].is_dir():
-            bar.log(
-                f"renaming 'output_validators/{content[0].name}' to '{OutputValidator.source_dir}/'"
-            )
+            bar.log(f"renaming '{old_path.name}/{content[0].name}' to '{new_path.name}/'")
             _move_dir(content[0], problem_path / OutputValidator.source_dir)
+            if any(old_path.iterdir()):
+                bar.warn(f"cannot remove '{old_path.name}/', contains unknown files")
+            else:
+                old_path.rmdir()
         else:
-            bar.log(f"renaming 'output_validators/' to '{OutputValidator.source_dir}/'")
-            (problem_path / "output_validators").rename(problem_path / OutputValidator.source_dir)
+            bar.log(f"renaming '{old_path.name}/' to '{old_path.name}/'")
+            old_path.rename(new_path)
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
