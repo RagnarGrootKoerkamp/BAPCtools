@@ -537,7 +537,7 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
-    assert (problem_path / "problem.yaml").exists()
+    assert is_problem_directory(problem_path)
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
 
     if data.get("problem_format_version") != config.SPEC_VERSION:
@@ -690,7 +690,9 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if line.startswith(";") or "=" not in line:
                 continue
             key, var = map(str.strip, line.strip().split("="))
-            if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+            if (var.startswith('"') and var.endswith('"')) or (
+                var.startswith("'") and var.endswith("'")
+            ):
                 var = var[1:-1]
             if key == "timelimit":
                 time_limit = float(var)

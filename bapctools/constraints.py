@@ -94,7 +94,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
 
         # remove outer most parenthesis if they exist
         # allows $(constraint)$ and ($constraint$)
-        if text[0] == "(" and text[-1] == ")":
+        if text.startswith("(") and text.endswith(")"):
             cur = 0
             neg = False
             for c in text[1:-1]:

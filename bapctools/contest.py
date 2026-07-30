@@ -162,8 +162,7 @@ def get_api() -> str:
         fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."
         )
-    if api.endswith("/"):
-        api = api[:-1]
+    api = api.removesuffix("/")
     if not api.endswith("/api/v4"):
         api += "/api/v4"
     return api
