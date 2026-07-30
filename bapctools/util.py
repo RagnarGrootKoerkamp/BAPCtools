@@ -734,33 +734,30 @@ def print_name(path: Path, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
-ryaml = YAML(typ="rt")
-ryaml.default_flow_style = False
-ryaml.indent(mapping=2, sequence=4, offset=2)
-ryaml.width = sys.maxsize
-ryaml.preserve_quotes = True
-
-# For some reason ryaml.load doesn't work well in parallel.
-read_ruamel_lock = threading.Lock()
+def _ryaml() -> YAML:
+    ret = YAML(typ="rt")
+    ret.default_flow_style = False
+    ret.indent(mapping=2, sequence=4, offset=2)
+    ret.width = sys.maxsize
+    ret.preserve_quotes = True
+    return ret
 
 
 def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool = False) -> object:
-    with read_ruamel_lock:
-        try:
-            ret = ryaml.load(data)
-        except DuplicateKeyError as e:
-            if suppress_errors:
-                return None
-            if path is not None:
-                fatal(f"Duplicate key in yaml file {path}!\n{e.args[0]}\n{e.args[2]}")
-            else:
-                fatal(f"Duplicate key in yaml object!\n{str(e)}")
-        except Exception as e:
-            if suppress_errors:
-                return None
-            eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
-            fatal(f"Failed to parse {path}.")
-    return ret
+    try:
+        return _ryaml().load(data)
+    except DuplicateKeyError as e:
+        if suppress_errors:
+            return None
+        if path is not None:
+            fatal(f"Duplicate key in yaml file {path}!\n{e.args[0]}\n{e.args[2]}")
+        else:
+            fatal(f"Duplicate key in yaml object!\n{str(e)}")
+    except Exception as e:
+        if suppress_errors:
+            return None
+        eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
+        fatal(f"Failed to parse {path}.")
 
 
 def read_yaml(path: Path, *, suppress_errors: bool = False) -> object:
@@ -959,39 +956,34 @@ def ryaml_replace(
         data.ca.items[new_key] = data.ca.items.pop(old_key)
 
 
-# Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
-write_yaml_lock = threading.Lock()
-
-
 # The @overload definitions are purely here for static typing reasons.
 @overload
 def write_yaml(data: object, path: None = None) -> str: ...
 @overload
 def write_yaml(data: object, path: Path) -> None: ...
 def write_yaml(data: object, path: Optional[Path] = None) -> Optional[str]:
-    with write_yaml_lock:
-        _path = StringIO() if path is None else path
-        ryaml.dump(
-            data,
-            _path,
-            # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
-            # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
-            # See also: https://stackoverflow.com/a/58773229
-            transform=(
-                (
-                    lambda yaml_str: "\n".join(
-                        line if line.strip().startswith("#") else line[2:]
-                        for line in yaml_str.split("\n")
-                    )
+    _path = StringIO() if path is None else path
+    _ryaml().dump(
+        data,
+        _path,
+        # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
+        # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
+        # See also: https://stackoverflow.com/a/58773229
+        transform=(
+            (
+                lambda yaml_str: "\n".join(
+                    line if line.strip().startswith("#") else line[2:]
+                    for line in yaml_str.split("\n")
                 )
-                if isinstance(data, list)
-                else None
-            ),
-        )
-        if isinstance(_path, StringIO):
-            string = _path.getvalue()
-            _path.close()
-            return string
+            )
+            if isinstance(data, list)
+            else None
+        ),
+    )
+    if isinstance(_path, StringIO):
+        string = _path.getvalue()
+        _path.close()
+        return string
     return None
 
 
