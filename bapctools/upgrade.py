@@ -520,6 +520,8 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
         else:
             bar.log(f"renaming '{old_path.name}/' to '{old_path.name}/'")
             old_path.rename(new_path)
+            if len(content) > 1:
+                bar.warn("There seem to be multiple output validators, this is no longer allowed")
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
