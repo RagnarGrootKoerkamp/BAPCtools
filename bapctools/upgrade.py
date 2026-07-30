@@ -540,10 +540,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     assert (problem_path / "problem.yaml").exists()
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
 
-    if (
-        "problem_format_version" not in data
-        or data["problem_format_version"] != config.SPEC_VERSION
-    ):
+    if data.get("problem_format_version") != config.SPEC_VERSION:
         bar.log("set 'problem_format_version' in problem.yaml")
         data.insert(0, "problem_format_version", config.SPEC_VERSION)
 
@@ -559,6 +556,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 type.append("interactive")
             if "multi-pass" in data["validation"]:
                 type.append("multi-pass")
+            if "score" in data["validation"]:
+                type.append("scoring")
             if not type:
                 type.append("pass-fail")
             # "type" comes before "name" in the spec
