@@ -360,7 +360,7 @@ class ProgressBar:
         if not data:
             return ""
         prefix = "  " if data.count("\n") <= 1 else "\n"
-        return prefix + Fore.YELLOW + strip_newline(crop_output(data)) + Style.RESET_ALL
+        return prefix + Fore.YELLOW + crop_output(data).removesuffix("\n") + Style.RESET_ALL
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
@@ -1063,13 +1063,6 @@ def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path
         return True
 
     return sorted(p for p in path.glob(expression) if keep(p))
-
-
-def strip_newline(s: str) -> str:
-    if s.endswith("\n"):
-        return s[:-1]
-    else:
-        return s
 
 
 # check if windows supports symlinks

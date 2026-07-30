@@ -535,9 +535,9 @@ def sanity_check(
     if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
         bar.warn(f"{name} contains unexpected characters but was accepted!")
     if strict_whitespace and len(file_bytes) > 0:
-        if file_bytes[0] in [ord(" "), ord("\n")]:
+        if file_bytes[0] in b" \n":
             bar.warn(f"{name} starts with whitespace but was accepted!")
-        if file_bytes[-1] != ord("\n"):
+        if not file_bytes.endswith(b"\n"):
             bar.warn(f"{name} does not end with a newline but was accepted!")
         if _has_consecutive_whitespaces(file_bytes):
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")

@@ -32,10 +32,7 @@ from bapctools.validate import OutputValidator
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
 def _alpha_num(string: str) -> str:
     s = re.sub(r"[^a-zA-Z0-9_.-]", "", string.lower().replace(" ", "").replace("-", ""))
-    while len(s) and s[0] in "_.-":
-        s = s[1:]
-    while len(s) and s[-1] in "_.-":
-        s = s[:-1]
+    s = s.strip("_.-")
     return s
 
 

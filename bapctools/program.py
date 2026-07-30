@@ -27,7 +27,6 @@ from bapctools.util import (
     ProgressBar,
     read_yaml,
     remove_path,
-    strip_newline,
     write_yaml,
 )
 
@@ -363,9 +362,9 @@ class Program:
         if not ret.status:
             data = ""
             if ret.err is not None:
-                data += strip_newline(ret.err) + "\n"
+                data += ret.err.removesuffix("\n") + "\n"
             if ret.out is not None:
-                data += strip_newline(ret.out) + "\n"
+                data += ret.out.removesuffix("\n") + "\n"
             self.ok = False
             bar.error("Failed", data)
             return False

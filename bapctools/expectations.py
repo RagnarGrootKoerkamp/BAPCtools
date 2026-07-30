@@ -86,8 +86,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
 
     glob = raw
     # dir/ and dir should match the same
-    if glob.endswith("/"):
-        glob = glob[:-1]
+    glob = glob.removesuffix("/")
     parts = re.split("{([^{}]*)}", glob)
     for i, part in enumerate(parts):
         if i % 2 == 0:

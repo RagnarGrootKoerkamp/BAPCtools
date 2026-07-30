@@ -709,7 +709,7 @@ class TestcaseRule(Rule):
                         raise ParseException(f"Crosslinking from {key} to {link} is not allowed.")
                     self.linked[ext] = f".{link}"
                 elif isinstance(value, str):  # 4. hardcoded
-                    if len(value) > 0 and value[-1] != "\n":
+                    if value and not value.endswith("\n"):
                         value += "\n"
                     self.hardcoded[ext] = value
                 else:

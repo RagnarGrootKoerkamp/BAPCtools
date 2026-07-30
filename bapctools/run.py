@@ -115,14 +115,12 @@ class Run:
                     # write an interaction file for samples
                     if interaction:
                         data = self.in_path.read_text()
-                        if len(data) > 0 and data[-1] == "\n":
-                            data = data[:-1]
+                        data = data.removesuffix("\n")
                         data = data.replace("\n", "\n<")
                         print("<", data, sep="", file=interaction_file)
 
                         data = self.out_path.read_text()
-                        if len(data) > 0 and data[-1] == "\n":
-                            data = data[:-1]
+                        data = data.removesuffix("\n")
                         data = data.replace("\n", "\n>")
                         print(">", data, sep="", file=interaction_file)
 
@@ -523,7 +521,7 @@ class Submission(program.Program):
                     continue
                 if not t:
                     continue
-                if len(data) > 0 and data[-1] != "\n":
+                if data and not data.endswith("\n"):
                     data += "\n"
                 data += f"{f.name}:" + localbar._format_data(t) + "\n"
 
