@@ -91,3 +91,6 @@ mypy_path = ["third_party/stubs/"]
 # unused on the other platform. Suppress the resulting unused-ignore warnings.
 module = ["bapctools.parallel", "bapctools.util", "bapctools.interactive", "bapctools.run"]
 warn_unused_ignores = false
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
