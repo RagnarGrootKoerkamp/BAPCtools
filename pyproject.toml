@@ -15,14 +15,15 @@ classifiers = [
 license = "GPL-3.0"
 license-files = ["LICENSE"]
 dependencies = [
-    "argcomplete~=3.6.3; platform_system != 'Windows'",
+    "argcomplete>=3.0; platform_system != 'Windows'",
     "checktestdata>=2026.3.15",
-    "colorama~=0.4.6",
-    "matplotlib~=3.10.7",
-    "python-dateutil~=2.9.0",
-    "questionary~=2.1.1",
-    "requests~=2.32.5",
-    "ruamel.yaml~=0.19.1",
+    "colorama>=0.4.6",
+    "matplotlib>=3.5",
+    "Pygments>=2.17",
+    "python-dateutil>=2.8.2",
+    "questionary>=2",
+    "requests>=2.25.1",
+    "ruamel.yaml>=0.17.16",
     "vermin==1.8.0", # We define our own typing stubs, better use the exact version just to be sure it doesn't break.
     "typing_extensions>=4.10.0",
 ]
@@ -36,16 +37,16 @@ Issues = "https://github.com/ragnargrootkoerkamp/bapctools/issues"
 
 [dependency-groups]
 dev = [
-    "pre-commit~=4.5.1",
-    "pytest~=9.0.1",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.1",
     {include-group = "types"},
 ]
 types = [
-    "mypy~=1.19",
-    "types-colorama~=0.4.15",
-    "types-Pygments~=2.18.0",
-    "types-python-dateutil~=2.9.0",
-    "types-requests~=2.32.0",
+    "mypy>=1.19",
+    "types-colorama>=0.4.6",
+    "types-Pygments>=2.17",
+    "types-python-dateutil>=2.8.2",
+    "types-requests>=2.25.1",
 ]
 
 [build-system]
