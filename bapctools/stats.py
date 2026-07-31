@@ -21,9 +21,9 @@ def stats(problems: list[Problem]) -> None:
         stats_all(problems)
 
 
-# lists all testcases, tries to consider generators.yaml
+# lists all test cases, tries to consider generators.yaml
 @cache
-def testcases(problem: Problem) -> set[Path]:
+def test_cases(problem: Problem) -> set[Path]:
     with config.suppress_warnings(level=2):
         with open(os.devnull, "w") as devnull:
             with contextlib.redirect_stderr(devnull):
@@ -47,10 +47,10 @@ def testcases(problem: Problem) -> set[Path]:
         return set(files)
 
 
-def testcase_selector(root: str | Sequence[str]) -> Callable[[Problem], int]:
+def test_case_selector(root: str | Sequence[str]) -> Callable[[Problem], int]:
     if isinstance(root, str):
         root = (root,)
-    return lambda p: len([x for x in testcases(p) if x.parts[2] in root])
+    return lambda p: len([x for x in test_cases(p) if x.parts[2] in root])
 
 
 def _skip_path(path: Path) -> bool:
@@ -213,10 +213,10 @@ def problem_stats(problems: list[Problem]) -> None:
             threshold=True,
             suppress=lambda p: not p.custom_output,
         ),
-        Column("  sample", testcase_selector("sample"), threshold=2, upper_bound=6),
-        Column("secret", testcase_selector("secret"), threshold=30, upper_bound=100),
-        Column("inv", testcase_selector(config.INVALID_CASE_DIRECTORIES)),
-        Column("v_o", testcase_selector("valid_output")),
+        Column("  sample", test_case_selector("sample"), threshold=2, upper_bound=6),
+        Column("secret", test_case_selector("secret"), threshold=30, upper_bound=100),
+        Column("inv", test_case_selector(config.INVALID_CASE_DIRECTORIES)),
+        Column("v_o", test_case_selector("valid_output")),
         Column("   AC", glob_selector("submissions/accepted/*"), threshold=3),
         Column(" WA", glob_selector("submissions/wrong_answer/*"), threshold=2),
         Column("TLE", glob_selector("submissions/time_limit_exceeded/*"), threshold=1),
@@ -461,9 +461,9 @@ def stats_all(problems: list[Problem]) -> None:
         return parser.parse(date) if date else None
 
     eprint("-" * len(header))
-    cases = [len(testcases(p)) for p in problems]
+    cases = [len(test_cases(p)) for p in problems]
     case_stats = get_stats(cases)
-    eprint(format_row("Testcases", *cases, *case_stats))
+    eprint(format_row("Test cases", *cases, *case_stats))
     changed: list[Optional[float | int]] = []
     for p in problems:
         times = [

@@ -29,7 +29,7 @@ from bapctools.verdicts import Verdict
 if TYPE_CHECKING:
     from bapctools.problem import Problem
     from bapctools.run import Run
-    from bapctools.testcase import Testcase
+    from bapctools.test_case import TestCase
 
 PIPE_SIZE: Optional[int] = None
 
@@ -72,7 +72,7 @@ def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
 
 
 # Return a ExecResult object amended with verdict.
-def run_interactive_testcase(
+def run_interactive_test_case(
     run: "Run",
     # False: Return as part of ExecResult
     # None: print to stdout
@@ -104,9 +104,9 @@ def run_interactive_testcase(
     validator_command = [
         *output_validator.run_command,
         run.in_path.absolute(),
-        run.testcase.ans_path.absolute(),
+        run.test_case.ans_path.absolute(),
         run.feedbackdir.absolute(),
-        *run.testcase.get_test_case_yaml(
+        *run.test_case.get_test_case_yaml(
             bar or PrintBar("Run interactive test case")
         ).output_validator_args,
     ]
@@ -581,7 +581,7 @@ def _feedback(run: "Run", err: bytes) -> str:
 
 # run the interactor without submission to see if it prints first
 def interactor_prints_unprompted(
-    problem: "Problem", testcase: "Testcase", wait: float = 0.1
+    problem: "Problem", test_case: "TestCase", wait: float = 0.1
 ) -> Optional[bool]:
     output_validators = problem.validators(validate.OutputValidator)
     if not output_validators:
@@ -596,10 +596,10 @@ def interactor_prints_unprompted(
 
     command = [
         *output_validator.run_command,
-        testcase.in_path.absolute(),
-        testcase.ans_path.absolute(),
+        test_case.in_path.absolute(),
+        test_case.ans_path.absolute(),
         feedbackdir.absolute(),
-        *testcase.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
+        *test_case.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
     ]
 
     validator_process = subprocess.Popen(

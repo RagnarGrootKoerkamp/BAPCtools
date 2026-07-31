@@ -235,10 +235,10 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                         write_yaml(data, contest_yaml_path)
                         log("Updated order")
 
-    # Filter problems by submissions/testcases, if given.
-    if config.level == "problemset" and (config.args.submissions or config.args.testcases):
+    # Filter problems by submissions/test cases, if given.
+    if config.level == "problemset" and (config.args.submissions or config.args.test_cases):
         submissions = config.args.submissions or []
-        testcases = config.args.testcases or []
+        test_cases = config.args.test_cases or []
 
         def keep_problem(problem: Problem) -> bool:
             for s in submissions:
@@ -246,7 +246,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 if x:
                     if x.is_relative_to(problem.path):
                         return True
-            for t in testcases:
+            for t in test_cases:
                 x = resolve_path_argument(problem, t, "data", suffixes=[".in"])
                 if x:
                     if x.is_relative_to(problem.path):
@@ -318,23 +318,23 @@ def print_sorted(problems: list[Problem]) -> None:
         print(f"{problem.label:<2}: {problem.path}")
 
 
-def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Path]]:
-    # We try to identify testcases by common directory names and common suffixes
+def split_submissions_and_test_cases(s: list[Path]) -> tuple[list[Path], list[Path]]:
+    # We try to identify test cases by common directory names and common suffixes
     submissions = []
-    testcases = []
+    test_cases = []
     for p in s:
-        testcase_dirs = ["data", "sample", "secret", "fuzz", "testing_tool_cases"]
+        test_case_dirs = ["data", "sample", "secret", "fuzz", "testing_tool_cases"]
         if (
-            any(part in testcase_dirs for part in p.parts)
+            any(part in test_case_dirs for part in p.parts)
             or p.suffix in config.KNOWN_DATA_EXTENSIONS
         ):
             # Strip potential suffix
             if p.suffix in config.KNOWN_DATA_EXTENSIONS:
                 p = p.with_suffix("")
-            testcases.append(p)
+            test_cases.append(p)
         else:
             submissions.append(p)
-    return (submissions, testcases)
+    return (submissions, test_cases)
 
 
 # We set argument_default=SUPPRESS in all parsers,
@@ -603,7 +603,9 @@ Run this from one of:
     validate_parser = subparsers.add_parser(
         "validate", parents=[global_parser], help="validate all data"
     )
-    validate_parser.add_argument("testcases", nargs="*", type=Path, help="The testcases to run on.")
+    validate_parser.add_argument(
+        "test_cases", nargs="*", type=Path, help="The test cases to run on."
+    )
     validate_parser.add_argument("--input", "-i", action="store_true", help="Validate input.")
     validate_parser.add_argument("--interaction", action="store_true", help="Validate interaction.")
     validate_parser.add_argument("--answer", "-a", action="store_true", help="Validate answer.")
@@ -624,14 +626,16 @@ Run this from one of:
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument(
-        "--remove", action="store_true", help="Remove failing testcases."
+        "--remove", action="store_true", help="Remove failing test cases."
     )
-    move_or_remove_group.add_argument("--move-to", help="Move failing testcases to this directory.")
+    move_or_remove_group.add_argument(
+        "--move-to", help="Move failing test cases to this directory."
+    )
 
     validate_parser.add_argument(
-        "--no-testcase-sanity-checks",
+        "--no-test-case-sanity-checks",
         action="store_true",
-        help="Skip sanity checks on testcases.",
+        help="Skip sanity checks on test cases.",
     )
     validate_parser.add_argument(
         "--timeout", "-t", type=int, help="Override the default timeout. Default: 30."
@@ -659,11 +663,11 @@ Run this from one of:
         help="Print all stats",
     )
 
-    # Generate Testcases
+    # Generate Test cases
     genparser = subparsers.add_parser(
         "generate",
         parents=[global_parser],
-        help="Generate testcases according to .gen files.",
+        help="Generate test cases according to .gen files.",
     )
     genparser.add_argument(
         "--check-deterministic",
@@ -698,10 +702,10 @@ Run this from one of:
         help="Use the solution to generate .interaction files.",
     )
     genparser.add_argument(
-        "testcases",
+        "test_cases",
         nargs="*",
         type=Path,
-        help="The testcases to generate, given as directory, .in/.ans file, or base name.",
+        help="The test cases to generate, given as directory, .in/.ans file, or base name.",
     )
     genparser.add_argument(
         "--default-solution",
@@ -728,17 +732,17 @@ Run this from one of:
         help="Skip generating graphics with the visualizer.",
     )
     genparser.add_argument(
-        "--no-testcase-sanity-checks",
+        "--no-test-case-sanity-checks",
         default=False,
         action="store_true",
-        help="Skip sanity checks on testcases.",
+        help="Skip sanity checks on test cases.",
     )
 
     # Fuzzer
     fuzzparser = subparsers.add_parser(
         "fuzz",
         parents=[global_parser],
-        help="Generate random testcases and search for inconsistencies in AC submissions.",
+        help="Generate random test cases and search for inconsistencies in AC submissions.",
     )
     fuzzparser.add_argument("--time", type=int, help="Number of seconds to run for. Default: 600")
     fuzzparser.add_argument("--time-limit", "-t", type=float, help="Time limit for submissions.")
@@ -762,7 +766,7 @@ Run this from one of:
         "submissions",
         nargs="*",
         type=Path,
-        help="optionally supply a list of programs and testcases to run",
+        help="optionally supply a list of programs and test cases to run",
     )
     runparser.add_argument("--samples", action="store_true", help="Only run on the samples.")
     runparser.add_argument(
@@ -782,7 +786,7 @@ Run this from one of:
         "-a",
         action="count",
         default=0,
-        help="Run all testcases. Use this flag twice (`-aa`) to continue even after timeouts.",
+        help="Run all test cases. Use this flag twice (`-aa`) to continue even after timeouts.",
     )
     runparser.add_argument(
         "--default-solution",
@@ -793,7 +797,7 @@ Run this from one of:
     runparser.add_argument(
         "--table",
         action="store_true",
-        help="Print a submissions x testcases table for analysis.",
+        help="Print a submissions x test cases table for analysis.",
     )
     runparser.add_argument(
         "--overview",
@@ -813,9 +817,9 @@ Run this from one of:
         "--time-limit", "-t", type=float, help="Override the default time-limit."
     )
     runparser.add_argument(
-        "--no-testcase-sanity-checks",
+        "--no-test-case-sanity-checks",
         action="store_true",
-        help="Skip sanity checks on testcases.",
+        help="Skip sanity checks on test cases.",
     )
     runparser.add_argument(
         "--sanitizer",
@@ -832,7 +836,7 @@ Run this from one of:
         "submissions",
         nargs="*",
         type=Path,
-        help="optionally supply a list of programs and testcases on which the time limit should be based.",
+        help="optionally supply a list of programs and test cases on which the time limit should be based.",
     )
     timelimitparser.add_argument(
         "--all",
@@ -862,11 +866,11 @@ Run this from one of:
     testparser.add_argument("submissions", nargs=1, type=Path, help="A single submission to run")
     testcasesgroup = testparser.add_mutually_exclusive_group()
     testcasesgroup.add_argument(
-        "testcases",
+        "test_cases",
         nargs="*",
         default=[],
         type=Path,
-        help="Optionally a list of testcases to run on.",
+        help="Optionally a list of test cases to run on.",
     )
     testcasesgroup.add_argument("--samples", action="store_true", help="Only run on the samples.")
     testcasesgroup.add_argument(
@@ -890,7 +894,7 @@ Run this from one of:
         "submissions",
         nargs="*",
         type=Path,
-        help="optionally supply a list of programs and testcases to run",
+        help="optionally supply a list of programs and test cases to run",
     )
     checktestingtool.add_argument(
         "--no-generate",
@@ -907,7 +911,7 @@ Run this from one of:
         "--all",
         "-a",
         action="store_true",
-        help="Run all testcases and don't stop on error.",
+        help="Run all test cases and don't stop on error.",
     )
 
     # Sort
@@ -923,9 +927,9 @@ Run this from one of:
     )
     allparser.add_argument("--no-time-limit", action="store_true", help="Do not print time limits.")
     allparser.add_argument(
-        "--no-testcase-sanity-checks",
+        "--no-test-case-sanity-checks",
         action="store_true",
-        help="Skip sanity checks on testcases.",
+        help="Skip sanity checks on test-cases.",
     )
     allparser.add_argument(
         "--check-deterministic",
@@ -1187,14 +1191,14 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     check_uuid(problems)
     check_source(problems)
 
-    # Split submissions and testcases when needed.
+    # Split submissions and test cases when needed.
     if action in ["run", "fuzz", "time_limit", "check_testing_tool"]:
         if config.args.submissions:
-            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
+            config.args.submissions, config.args.test_cases = split_submissions_and_test_cases(
                 config.args.submissions
             )
         else:
-            config.args.testcases = []
+            config.args.test_cases = []
 
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
@@ -1203,8 +1207,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
         if action == "skel":
             fatal("Copying skel directories only works for a single problem.")
 
-    if action != "generate" and config.args.testcases and config.args.samples:
-        fatal("--samples can not go together with an explicit list of testcases.")
+    if action != "generate" and config.args.test_cases and config.args.samples:
+        fatal("--samples can not go together with an explicit list of test_cases.")
 
     if config.args.add is not None:
         # default to 'generators/manual'
@@ -1222,17 +1226,17 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
     if config.args.reorder:
         # default to 'data/secret'
-        if not config.args.testcases:
-            config.args.testcases = [Path("data/secret")]
+        if not config.args.test_cases:
+            config.args.test_cases = [Path("data/secret")]
 
         # Paths *must* be inside data/.
         checked_paths = []
-        for path in config.args.testcases:
+        for path in config.args.test_cases:
             if path.parts[0] != "data":
                 warn(f'Path {path} does not match "data/*". Skipping.')
             else:
                 checked_paths.append(path)
-        config.args.testcases = checked_paths
+        config.args.test_cases = checked_paths
 
     # Handle one-off subcommands.
     if action == "tmp":
@@ -1409,7 +1413,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                         config.args.add = None
                         if config.args.verbose == 1:
                             config.args.verbose = 0
-                        config.args.testcases = None
+                        config.args.test_cases = None
                         config.args.force = False
                         success &= generate.generate(problem)
                 if not config.args.kattis:

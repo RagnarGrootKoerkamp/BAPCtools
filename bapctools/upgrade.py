@@ -106,7 +106,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 
     # Move test cases in 'bad' to either 'invalid_input' or 'invalid_answer', whichever applies
 
-    def rename_testcase(old_base: Path, new_dir: Path) -> None:
+    def rename_test_case(old_base: Path, new_dir: Path) -> None:
         new_dir.mkdir(parents=True, exist_ok=True)
         new_base = new_dir / old_base.name
         for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -128,9 +128,9 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     bad_dir = problem_path / "data" / "bad"
     for file in bad_dir.glob("*.in"):
         if file.with_suffix(".ans").is_file():
-            rename_testcase(file, problem_path / "data" / "invalid_answer")
+            rename_test_case(file, problem_path / "data" / "invalid_answer")
         else:
-            rename_testcase(file, problem_path / "data" / "invalid_input")
+            rename_test_case(file, problem_path / "data" / "invalid_input")
     if bad_dir.is_dir() and not any(bad_dir.iterdir()):
         bad_dir.rmdir()
 
@@ -260,7 +260,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         # this breaks comments... but that is fine
         if "bad" in data:
 
-            def move_testcase(name: str, value: Any, new_parent: str) -> None:
+            def move_test_case(name: str, value: Any, new_parent: str) -> None:
                 parent = ryaml_get_or_add(data, new_parent)
                 if "data" not in parent:
                     parent[data] = CommentedSeq
@@ -284,9 +284,9 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 for dictionary in children:
                     for child_name, child_data in sorted(dictionary.items()):
                         if "ans" in child_data:
-                            move_testcase(child_name, child_data, "invalid_answer")
+                            move_test_case(child_name, child_data, "invalid_answer")
                         else:
-                            move_testcase(child_name, child_data, "invalid_input")
+                            move_test_case(child_name, child_data, "invalid_input")
 
             ryaml_filter(data, "bad")
             changed = True

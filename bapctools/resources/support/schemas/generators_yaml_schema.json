@@ -105,7 +105,7 @@
                             ]
                         },
                         "generate": {
-                            "description": "Create this testcase by invoking a generator, like \"generate: gen_tree -n 5\"",
+                            "description": "Create this test case by invoking a generator, like \"generate: gen_tree -n 5\"",
                             "$ref": "#/$defs/command"
                         },
                         "in": {
@@ -129,7 +129,7 @@
                             "pattern": "^([<>][^\\n]*\\n|---\\n)+$"
                         },
                         "match": {
-                            "description": "Check that the generated testcase matches the given regex pattern(s).",
+                            "description": "Check that the generated test case matches the given regex pattern(s).",
                             "anyOf": [
                                 {
                                     "type": "string"

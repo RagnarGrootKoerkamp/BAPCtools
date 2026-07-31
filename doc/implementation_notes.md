@@ -9,7 +9,7 @@ This document explains some miscellaneous parts of the implementation of BAPCtoo
 Submissions with more than one allowed verdict must contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
 
 - The final verdict of the submission must be in this list.
-- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted testcase will be the final verdict.)
+- Each test case must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted test case will be the final verdict.)
 
 A submission with an `@EXPECTED_RESULTS@: ` tag should not be placed in one of the four [standard](https://icpc.io/problem-package-format/#submissions-correct-and-incorrect) submission directories, because [DOMjudge will ignore the tag](https://github.com/DOMjudge/domjudge/issues/1861) in this case. Directory names like `mixed/` or `rejected/` are typically used in this case.
 
@@ -43,17 +43,17 @@ For efficiency, BAPCtools tries to minimize the number of disk writes. This mean
 
 From here on, let `~tmp` be the root temporary directory, e.g. `/tmp/bapctools_6dhash/`.
 `~tmp` contains a directory structure that tries to mirror the directory structure of the problem archive itself.
-Each 'program' (submission/validator/generator/visualizer) gets its own directory, as do testcases and runs:
+Each 'program' (submission/validator/generator/visualizer) gets its own directory, as do test cases and runs:
 
 - `~tmp/<contestname>/`: Used for compiling the contest pdf and solution slides. See the section on building LaTeX.
 - `~tmp/<problemname>/`: Contains tex files to build the problem pdf. See the section on building LaTeX.
 - `~tmp/<problemname>/{input,output}_validators/`: contains the build artefacts for all validators.
 - `~tmp/<problemname>/submissions/<verdict>/<submission>/`: contains the build artefacts for all submissions.
 - `~tmp/<problemname>/generators/<generator>/`: contains the build artefacts for all generators.
-- `~tmp/<problemname>/data/(<group>/)*<testcase>/`: is used to generated the testcase and store metadata about it.
-- `~tmp/<problemname>/data/(<group>/)*<testcase>.feedbackdir/`: contains the result of the input/output format validators.
-- `~tmp/<problemname>/runs/<verdict>/<submission>/(<group>/)*<testcase>.out`: the output of the submission on the testcase.
-- `~tmp/<problemname>/runs/<verdict>/<submission>/(<group>/)*<testcase>.feedbackdir`: the output validator feedback when validating the corresponding `.out`.
+- `~tmp/<problemname>/data/(<group>/)*<test_case>/`: is used to generated the test case and store metadata about it.
+- `~tmp/<problemname>/data/(<group>/)*<test_case>.feedbackdir/`: contains the result of the input/output format validators.
+- `~tmp/<problemname>/runs/<verdict>/<submission>/(<group>/)*<test_case>.out`: the output of the submission on the test case.
+- `~tmp/<problemname>/runs/<verdict>/<submission>/(<group>/)*<test_case>.feedbackdir`: the output validator feedback when validating the corresponding `.out`.
 
 ## Building programs
 
@@ -66,22 +66,22 @@ Each program (submission/validator/generator/visualizer) is build in its own dir
 1. Else, run the `build` command and update `~build/meta_` with this.
 1. For compiled languages, we now (usually) have a file `~build/run` that is used as `{binary}` in the substitution of the `run` command. For interpreted languages, e.g. Python, the main file is given as `{mainfile}`.
 
-## Generating testcases
+## Generating test cases
 
-Testcases are generated inside `~tmp/<problemname>/data/(<group>/)*<testcase>/` (from now on `~testcase`).
-Testcases are only re-generated when changes were made. This is done with the following steps:
+Test cases are generated inside `~tmp/<problemname>/data/(<group>/)*<test_case>/` (from now on `~test_case`).
+Test cases are only re-generated when changes were made. This is done with the following steps:
 
-1. Check if the current data in `~testcase/meta_.yaml` is up to date.
-1. Run the given generator with current working directory `~testcase/`.
-1. For copied testcases, copy files to `~testcase/`
-1. Write hardcoded files to`~testcase/`.
-1. Validate the generated `~testcase/<testcase>.in` file.
-1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution with working directory `~testcase` to generate `~testcase/<testcase>.ans`.
-   - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
-1. Validate the generated `~testcase/<testcase>.ans` file.
-1. If provided, run the visualizer with working directory `~testcase/`.
+1. Check if the current data in `~test_case/meta_.yaml` is up to date.
+1. Run the given generator with current working directory `~test_case/`.
+1. For copied test cases, copy files to `~test_case/`
+1. Write hardcoded files to`~test_case/`.
+1. Validate the generated `~test_case/<test_case>.in` file.
+1. If `~test_case/<test_case>.ans` was not generated and a solution was provided, run the solution with working directory `~test_case` to generate `~test_case/<test_case>.ans`.
+   - For interactive problems, create an empty `~test_case/<test_case>.ans` and run the given submission to create a `~test_case/<test_case>.interaction`.
+1. Validate the generated `~test_case/<test_case>.ans` file.
+1. If provided, run the visualizer with working directory `~test_case/`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
-1. Update the `~testcase/meta_.yaml` file with the invocations of the generator,
+1. Update the `~test_case/meta_.yaml` file with the invocations of the generator,
    solution, and visualizer and hash of the `.in` file.
 
 # Building LaTeX files
@@ -218,7 +218,7 @@ a a 0 0 999 999 1 1000
 
 The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
 
-BAPCtools will accumulate these values over all testcases, and print a warning when the minimum or maximum value of a `read` statement was never reached.
+BAPCtools will accumulate these values over all test cases, and print a warning when the minimum or maximum value of a `read` statement was never reached.
 
 This system works for any validator that accepts the `--constraints_file` flag.
 This is determined by searching all sources for the string `constraints_file`.

@@ -108,12 +108,12 @@ class TestIdentityProblem:
 
     def test_run(self):
         cli.test(["run"])
-        # pass testcases
+        # pass test cases
         cli.test(["run", "data/sample"])
         cli.test(["run", "data/secret/seeding", "data/sample/1.in"])
         # pass submission
         cli.test(["run", "submissions/accepted/author.cpp"])
-        # pass submissions + testcases
+        # pass submissions + test cases
         cli.test(["run", "data/sample/1.in", "submissions/accepted/author.cpp"])
         cli.test(
             [
