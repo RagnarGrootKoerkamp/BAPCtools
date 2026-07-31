@@ -51,7 +51,7 @@ import "github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 #test_case:
 	#command |
 	{
-		// Create this testcase by invoking a generator, like "generate: gen_tree -n 5"
+		// Create this test case by invoking a generator, like "generate: gen_tree -n 5"
 		generate?: #command
 
 		// The number of test cases created by running this generator.
@@ -91,7 +91,7 @@ import "github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 		// such as "manual/samples/3".
 		copy?: problempackageformat.#relative_path
 
-		// Check that the generated testcase matches the given regex pattern(s).
+		// Check that the generated test case matches the given regex pattern(s).
 		match?: string | [...string] | {
 			in?: string | [...string]
 			ans?: string | [...string]

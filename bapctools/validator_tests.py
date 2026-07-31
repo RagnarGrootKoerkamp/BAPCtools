@@ -49,7 +49,7 @@ def _list_invalid_generators() -> list[INVALID_GENERATOR_TYPE]:
 
         return decorator
 
-    # constant testcases
+    # constant test cases
     register("latin-1")("Naïve")
     register("empty", [InputValidator, OutputValidator])("")
     register("newline")("\n")

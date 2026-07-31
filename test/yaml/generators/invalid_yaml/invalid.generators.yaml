@@ -172,7 +172,7 @@ data:
     data:
       a:
 ---
-# Testcase object must not be boolean
+# Test case object must not be boolean
 data:
   sample: { data: [] }
   secret:
@@ -233,7 +233,7 @@ data:
   secret:
     data:
       a:
-        copy: /testcase
+        copy: /test_case
 ---
 # Copied cases must not have an absolute path. TODO
 # TODO not picked up by JSON schema
@@ -285,7 +285,7 @@ data:
     generate: x
     data: []
 ---
-# Testcases may not have data:
+# Test cases may not have data:
 data:
   sample: { data: [] }
   secret:
@@ -330,7 +330,7 @@ data:
 #    data:
 #      0: a
 #---
-# Numbered cases must contain exactly one testcase
+# Numbered cases must contain exactly one test case
 data:
   sample: {}
   secret:
@@ -344,21 +344,21 @@ data:
       - a: a
         b: a
 ---
-# Numbered testcases must contain a dict
+# Numbered test cases must contain a dict
 data:
   sample: {}
   secret:
     data:
       - 1
 ---
-# Numbered testcases must contain a dict
+# Numbered test cases must contain a dict
 data:
   sample: {}
   secret:
     data:
       - foo
 ---
-# Numbered testcases must contain a dict
+# Numbered test cases must contain a dict
 data:
   sample: {}
   secret:
@@ -497,7 +497,7 @@ data:
             - "1"
             - 2
 ---
-# No test_group.yaml on testcase level
+# No test_group.yaml on test case level
 # TODO Not picked up by JSON schema
 data:
   sample: {}

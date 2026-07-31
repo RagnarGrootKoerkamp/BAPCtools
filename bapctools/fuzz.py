@@ -9,7 +9,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, generate, parallel, problem
 from bapctools.run import Run, Submission
-from bapctools.testcase import Testcase
+from bapctools.test_case import TestCase
 from bapctools.util import (
     eprint,
     error,
@@ -26,15 +26,15 @@ from bapctools.verdicts import Verdict
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
-# 2. Generate a testcase + .ans using the rule using a random seed.
-# 3. Run all submissions against the generated testcase.
-# 4. When at least one submissions fails: create a generated testcase:
+# 2. Generate a test case + .ans using the rule using a random seed.
+# 3. Run all submissions against the generated test case.
+# 4. When at least one submissions fails: create a generated test case:
 #      data/fuzz/1.in: <generator rule with hardcoded seed>
 #    by using a numbered directory data/fuzz.
 
 
 class GeneratorTask:
-    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int) -> None:
+    def __init__(self, fuzz: "Fuzz", t: generate.TestCaseRule, i: int, tmp_id: int) -> None:
         self.fuzz = fuzz
         self.rule = t
         generator = t.generator
@@ -81,11 +81,11 @@ class GeneratorTask:
             ansfile.write_text(self.rule.hardcoded[".ans"])
         localbar.done()
 
-        testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + ".in"))
+        test_case = TestCase(self.fuzz.problem, infile, short_path=dir / (name + ".in"))
 
         # Validate the generated .in.
         localbar = bar.start(f"{self.i}: validate input")
-        if not testcase.validate_format(Mode.INPUT, bar=localbar, constraints=None):
+        if not test_case.validate_format(Mode.INPUT, bar=localbar, constraints=None):
             self.fuzz.queue.ensure_alive()
             localbar.done(False)
             return False
@@ -109,7 +109,7 @@ class GeneratorTask:
 
         if ansfile.is_file():
             localbar = bar.start(f"{self.i}: validate output")
-            if not testcase.validate_format(Mode.ANSWER, bar=localbar):
+            if not test_case.validate_format(Mode.ANSWER, bar=localbar):
                 self.fuzz.queue.ensure_alive()
                 localbar.done(False)
                 return False
@@ -119,10 +119,10 @@ class GeneratorTask:
             bar.error(f"{self.i}: {ansfile.name} was not generated.")
             return False
 
-        # Run all submissions against the testcase.
+        # Run all submissions against the test case.
         with self.fuzz.queue:
             for submission in self.fuzz.submissions:
-                self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
+                self.fuzz.queue.put(SubmissionTask(self, submission, test_case, self.tmp_id))
         return True
 
     def get_command(self) -> dict[str, str] | str:
@@ -144,7 +144,7 @@ class GeneratorTask:
         # only save rule if we set self.saved to True
         if save:
             localbar = bar.start(f"{self.i}: {self.command}")
-            localbar.log("Saving testcase in generators.yaml.")
+            localbar.log("Saving test case in generators.yaml.")
             self.fuzz.save_test(self.get_command(), submission, verdict)
             self.fuzz.queue.ensure_alive()
             localbar.done()
@@ -155,12 +155,12 @@ class SubmissionTask:
         self,
         generator_task: GeneratorTask,
         submission: Submission,
-        testcase: Testcase,
+        test_case: TestCase,
         tmp_id: int,
     ) -> None:
         self.generator_task = generator_task
         self.submission = submission
-        self.testcase = testcase
+        self.test_case = test_case
         self.tmp_id = tmp_id
 
     def run(self, bar: ProgressBar) -> None:
@@ -168,7 +168,7 @@ class SubmissionTask:
         self.generator_task.fuzz.finish_task(self.tmp_id)
 
     def _run(self, bar: ProgressBar) -> None:
-        r = Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
+        r = Run(self.generator_task.fuzz.problem, self.submission, self.test_case)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
         assert result.verdict is not None
@@ -203,13 +203,13 @@ class Fuzz:
         self.added = 0
 
         # GENERATOR INVOCATIONS
-        generator_config = generate.GeneratorConfig(self.problem, config.args.testcases)
-        self.testcase_rules: list[generate.TestcaseRule] = []
+        generator_config = generate.GeneratorConfig(self.problem, config.args.test_cases)
+        self.test_case_rules: list[generate.TestCaseRule] = []
 
         # Filter to deduplicaterules
-        added_testcase_rule_data = set()
+        added_test_case_rule_data = set()
 
-        def add_testcase(t: generate.TestcaseRule) -> None:
+        def add_test_case(t: generate.TestCaseRule) -> None:
             if (
                 not t.in_is_generated
                 or t.root in config.INVALID_CASE_DIRECTORIES
@@ -219,19 +219,19 @@ class Fuzz:
             ):
                 return
 
-            testcase_rule_data = [t.generator.command_string.strip()]
+            test_case_rule_data = [t.generator.command_string.strip()]
             if not problem.settings.ans_is_output and ".ans" in t.hardcoded:
-                testcase_rule_data.append(t.hardcoded[".ans"])
-            testcase_rule_key = tuple(testcase_rule_data)
+                test_case_rule_data.append(t.hardcoded[".ans"])
+            test_case_rule_key = tuple(test_case_rule_data)
 
-            if testcase_rule_key in added_testcase_rule_data:
+            if test_case_rule_key in added_test_case_rule_data:
                 return
 
-            self.testcase_rules.append(t)
-            added_testcase_rule_data.add(testcase_rule_key)
+            self.test_case_rules.append(t)
+            added_test_case_rule_data.add(test_case_rule_key)
 
-        generator_config.root_dir.walk(add_testcase, dir_f=None)
-        if len(self.testcase_rules) == 0:
+        generator_config.root_dir.walk(add_test_case, dir_f=None)
+        if len(self.test_case_rules) == 0:
             return
 
         generator_config.build(build_visualizers=False)
@@ -243,7 +243,7 @@ class Fuzz:
         self.submissions = self.problem.selected_or_accepted_submissions()
 
     def run(self) -> bool:
-        if len(self.testcase_rules) == 0:
+        if len(self.test_case_rules) == 0:
             error("No invocations depending on {seed} found.")
             return False
 
@@ -269,7 +269,7 @@ class Fuzz:
             *[len(s.name) for s in self.submissions],
             *[
                 len(t.generator.cache_command(seed=2**32))
-                for t in self.testcase_rules
+                for t in self.test_case_rules
                 if t.generator is not None
             ],
         )
@@ -299,7 +299,7 @@ class Fuzz:
         for submission, verdicts in self.summary.items():
             msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))
             printbar.start(submission).log(msg, color="")
-        printbar.log(f"Found {self.added} testcases in total.", color="")
+        printbar.log(f"Found {self.added} test cases in total.", color="")
 
         if self.queue.aborted:
             fatal("Running interrupted")
@@ -326,7 +326,7 @@ class Fuzz:
                 if time.monotonic() - self.start_time > config.args.time:
                     return
 
-                testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
+                test_case_rule = self.test_case_rules[self.iteration % len(self.test_case_rules)]
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission
                 new_tasks = 1 + len(self.submissions)
@@ -335,7 +335,7 @@ class Fuzz:
                 self.tmp_id_count[new_tmp_id] = new_tasks
                 self.tasks += new_tasks
                 self.queue.put(
-                    GeneratorTask(self, testcase_rule, self.iteration, new_tmp_id),
+                    GeneratorTask(self, test_case_rule, self.iteration, new_tmp_id),
                     priority=1,
                 )
 

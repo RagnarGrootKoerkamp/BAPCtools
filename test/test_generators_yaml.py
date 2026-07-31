@@ -30,7 +30,7 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         self.n_test_case_error = 0
         self.n_parse_error = 0
 
-        # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
+        # A map of paths `secret/test_group/test_case` to their canonical TestCaseRule.
         # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the test case that is included.
         self.known_cases = dict()
@@ -42,14 +42,14 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         # A map from key to (is_included, list of test cases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict(lambda: [False, []])
-        # A set of testcase rules, including seeds.
+        # A set of test case rules, including seeds.
         self.rules_cache = dict()
         # The set of generated test cases keyed by hash(test_case).
         # Used to delete duplicated unlisted cases.
         self.generated_test_cases = dict()
         # Path to the trash directory for this run
         self.trash_dir = None
-        # Set of hash(.in) for all generated testcases
+        # Set of hash(.in) for all generated test cases
         self.hashed_in = set()
         # Files that should be processed
         self.restriction = restriction

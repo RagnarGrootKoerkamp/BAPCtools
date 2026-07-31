@@ -15,7 +15,7 @@ from bapctools.util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools import run, testcase
+    from bapctools import run, test_case
     from bapctools.problem import Problem
 
 
@@ -85,7 +85,7 @@ class Validator(program.Program):
 
     It returns
 
-    ExecResult: The result of running this validator on the given testcase.
+    ExecResult: The result of running this validator on the given test case.
         ExecResult.status == ExecStatus.ACCEPTED  if the validator accepted.
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
@@ -129,26 +129,26 @@ class Validator(program.Program):
     def _run_helper(
         self,
         mode: "Mode | run.Run",
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
         Return:
-            cwd: a current working directory for this testcase
+            cwd: a current working directory for this test case
             constraints_path: None or a path to the constraints file
             args: (possibly empty) list of arguments, possibly including --contraints_file
         """
         if isinstance(mode, Mode):
-            if testcase.in_path.is_relative_to(self.problem.tmpdir):
-                cwd = testcase.with_suffix(".feedbackdir")
+            if test_case.in_path.is_relative_to(self.problem.tmpdir):
+                cwd = test_case.with_suffix(".feedbackdir")
             else:
                 name = self.tmpdir.relative_to(self.problem.tmpdir)
                 cwd = (
                     self.problem.tmpdir
                     / "tool_runs"
                     / name
-                    / testcase.short_path.with_suffix(".feedbackdir")
+                    / test_case.short_path.with_suffix(".feedbackdir")
                 )
             remove_path(cwd)
             cwd.mkdir(parents=True, exist_ok=True)
@@ -172,15 +172,15 @@ class Validator(program.Program):
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
     def _run_format_validator(
-        self, testcase: "testcase.Testcase", cwd: Path, args: Sequence[str | Path]
+        self, test_case: "test_case.TestCase", cwd: Path, args: Sequence[str | Path]
     ) -> ExecResult:
         assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
         assert self.run_command is not None, "Validator should be built before running it"
 
         if isinstance(self, InputValidator):
-            main_path = testcase.in_path
+            main_path = test_case.in_path
         elif isinstance(self, AnswerValidator):
-            main_path = testcase.ans_path
+            main_path = test_case.ans_path
         else:
             assert False  # now also catches OutputValidator
 
@@ -239,7 +239,7 @@ class Validator(program.Program):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -267,7 +267,7 @@ class InputValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -288,12 +288,12 @@ class InputValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+            ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
-            with testcase.in_path.open("rb") as in_file:
+            with test_case.in_path.open("rb") as in_file:
                 ret = self._exec_helper(
                     [*self.run_command, *arglist],
                     exec_code_map=validator_exec_code_map,
@@ -328,7 +328,7 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -342,14 +342,14 @@ class AnswerValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+            ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
-            with testcase.ans_path.open("rb") as ans_file:
+            with test_case.ans_path.open("rb") as ans_file:
                 ret = self._exec_helper(
-                    [*self.run_command, testcase.in_path.absolute(), *arglist],
+                    [*self.run_command, test_case.in_path.absolute(), *arglist],
                     exec_code_map=validator_exec_code_map,
                     stdin=ans_file,
                     cwd=cwd,
@@ -380,19 +380,19 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """
-        Run this validator on the given testcase.
+        Run this validator on the given test case.
 
         Arguments
         ---------
 
         mode: either a run.Run (namely, when validating submission output) or a Mode
-            (namely, when validating a testcase)
+            (namely, when validating a test case)
 
         Returns
         -------
@@ -404,20 +404,20 @@ class OutputValidator(Validator):
         if mode == Mode.INPUT:
             raise ValueError("OutputValidator does not support Mode.INPUT")
 
-        in_path = testcase.in_path.absolute()
-        ans_path = testcase.ans_path.absolute()
+        in_path = test_case.in_path.absolute()
+        ans_path = test_case.ans_path.absolute()
         if mode == Mode.ANSWER:
             path = ans_path
         elif mode == Mode.INVALID:
-            if testcase.root != "invalid_output":
+            if test_case.root != "invalid_output":
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
-            assert testcase.out_path is not None
-            path = testcase.out_path.absolute()
+            assert test_case.out_path is not None
+            path = test_case.out_path.absolute()
         elif mode == Mode.VALID_OUTPUT:
-            assert testcase.out_path is not None
-            path = testcase.out_path.absolute()
+            assert test_case.out_path is not None
+            path = test_case.out_path.absolute()
         else:
             # mode is actually a Run
             path = mode.out_path
@@ -426,7 +426,7 @@ class OutputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         with path.open("rb") as file:
             ret = self._exec_helper(
@@ -471,13 +471,13 @@ def sanity_check(
     problem: "Problem", path: Path, bar: ProgressBar, strict_whitespace: bool = True
 ) -> None:
     """
-    Does some generic checks on input, answer, or output files of a testcase, including
+    Does some generic checks on input, answer, or output files of a test case, including
 
     - no unreadable characters
     - not too large
 
     if any of this is violated a warning is printed.
-    use --no-testcase-sanity-checks to skip this
+    use --no-test-case-sanity-checks to skip this
 
     args:
         strict_whitespace: Also check
@@ -486,7 +486,7 @@ def sanity_check(
         - no whitespace at start of file
         - ensures newline at end of file
     """
-    if config.args.no_testcase_sanity_checks:
+    if config.args.no_test_case_sanity_checks:
         return
 
     if not path.exists():
@@ -557,9 +557,9 @@ def sanity_check_interaction(
     - tries to guess if '>' and '<' have been mixed up if startswith is given
 
     if any of this is violated a warning is printed.
-    use --no-testcase-sanity-checks to skip this
+    use --no-test-case-sanity-checks to skip this
     """
-    if config.args.no_testcase_sanity_checks:
+    if config.args.no_test_case_sanity_checks:
         return
 
     if not path.exists():

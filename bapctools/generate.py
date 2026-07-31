@@ -17,7 +17,7 @@ from typing_extensions import TypeIs
 
 from bapctools import config, parallel, program, run, validate, visualize
 from bapctools.problem import Problem
-from bapctools.testcase import Testcase
+from bapctools.test_case import TestCase
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes,
@@ -334,12 +334,12 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar: ProgressBar, cwd: Path, t: "TestcaseRule") -> bool:
+    def generate_interaction(self, bar: ProgressBar, cwd: Path, t: "TestCaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
 
-        test_case = Testcase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
+        test_case = TestCase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
         assert isinstance(self.program, run.Submission)
         r = run.Run(self.problem, self.program, test_case)
 
@@ -513,7 +513,7 @@ class Rule:
         self.config: Config = Config(problem, parser, parent_config=parent.config)
 
 
-class TestcaseRule(Rule):
+class TestCaseRule(Rule):
     def __init__(
         self,
         problem: Problem,
@@ -578,7 +578,7 @@ class TestcaseRule(Rule):
 
         if name.endswith(".in"):
             name = name[:-3]
-            parser.bar.error("Testcase names should not end with '.in'")
+            parser.bar.error("Test case names should not end with '.in'")
 
         try:
             super().__init__(problem, key, name, raw_yaml, parser, parent)
@@ -595,7 +595,7 @@ class TestcaseRule(Rule):
 
             if raw_yaml is None:
                 raise ParseException(
-                    "Empty yaml entry (Testcases must be generated from entry not merely be mentioned)."
+                    "Empty yaml entry (Test cases must be generated from entry not merely be mentioned)."
                 )
 
             # checks
@@ -605,21 +605,21 @@ class TestcaseRule(Rule):
                 satisfied = satisfied or all(x[1:] in parser.remaining for x in required)
                 msg.append(" and ".join([x[1:] for x in required]))
             if not satisfied:
-                raise ParseException(f"Testcase requires at least one of: {', '.join(msg)}.")
+                raise ParseException(f"Test case requires at least one of: {', '.join(msg)}.")
             if (
                 not problem.interactive
                 and not problem.multi_pass
                 and "interaction" in parser.remaining
             ):
                 raise ParseException(
-                    "Testcase cannot have 'interaction' key for non-interactive/non-multi-pass problem."
+                    "Test case cannot have 'interaction' key for non-interactive/non-multi-pass problem."
                 )
             if not self.sample:
                 for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
                     if ext[1:] in parser.remaining:
                         raise ParseException(f"Non sample test case cannot use '{ext[1:]}")
             if "submission" in parser.remaining and "ans" in parser.remaining:
-                raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
+                raise ParseException("Test case cannot specify both 'submissions' and 'ans'.")
 
             # 1. generate
             command_string = parser.pop("generate")
@@ -780,7 +780,7 @@ class TestcaseRule(Rule):
         return False
 
     class MetaYaml:
-        def __init__(self, problem: Problem, test_case: "TestcaseRule") -> None:
+        def __init__(self, problem: Problem, test_case: "TestCaseRule") -> None:
             self._path = problem.tmpdir / "data" / test_case.hash / "meta_.yaml"
             data = read_yaml(self._path, suppress_errors=True) if self._path.is_file() else {}
             if not isinstance(data, dict):
@@ -864,8 +864,8 @@ class TestcaseRule(Rule):
     def validate_in(
         t,
         problem: Problem,
-        test_case: Testcase,
-        meta_yaml: "TestcaseRule.MetaYaml",
+        test_case: TestCase,
+        meta_yaml: "TestCaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
         assert t.process
@@ -902,8 +902,8 @@ class TestcaseRule(Rule):
     def validate_ans_and_out(
         t,
         problem: Problem,
-        test_case: Testcase,
-        meta_yaml: "TestcaseRule.MetaYaml",
+        test_case: TestCase,
+        meta_yaml: "TestCaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
         assert t.process
@@ -994,7 +994,7 @@ class TestcaseRule(Rule):
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / "testcase.in"
         ansfile = cwd / "testcase.ans"
-        meta_yaml = TestcaseRule.MetaYaml(problem, t)
+        meta_yaml = TestCaseRule.MetaYaml(problem, t)
 
         def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
             assert t.generator is not None
@@ -1091,7 +1091,7 @@ class TestcaseRule(Rule):
                 # clear all generated files
                 remove_path(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
-                meta_yaml = TestcaseRule.MetaYaml(problem, t)
+                meta_yaml = TestCaseRule.MetaYaml(problem, t)
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -1153,7 +1153,7 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def check_match(test_case: Testcase, ext: str) -> bool:
+        def check_match(test_case: TestCase, ext: str) -> bool:
             nonlocal meta_yaml
 
             updated = False
@@ -1187,7 +1187,7 @@ class TestcaseRule(Rule):
                 meta_yaml.write()
             return True
 
-        def generate_from_solution(test_case: Testcase) -> bool:
+        def generate_from_solution(test_case: TestCase) -> bool:
             nonlocal meta_yaml
 
             if test_case.root in [
@@ -1277,7 +1277,7 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_visualization(test_case: Testcase) -> bool:
+        def generate_visualization(test_case: TestCase) -> bool:
             nonlocal meta_yaml
 
             if test_case.root in config.INVALID_CASE_DIRECTORIES:
@@ -1474,7 +1474,7 @@ class TestcaseRule(Rule):
                     # both source and target do not exist
                     pass
 
-        def add_test_case_to_cache(test_case: Testcase) -> None:
+        def add_test_case_to_cache(test_case: TestCase) -> None:
             # Used to identify generated test cases
             generator_config.hashed_in.add(hash_file_content(infile))
 
@@ -1484,7 +1484,7 @@ class TestcaseRule(Rule):
                 generator_config.generated_test_cases[test_hash] = t
             else:
                 bar.warn(
-                    f"Testcase {t.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
+                    f"Test case {t.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
                 )
 
         # Step 1: handle non unique generate entry
@@ -1505,10 +1505,10 @@ class TestcaseRule(Rule):
         if not generate_from_rule():
             return
 
-        test_case: Optional[Testcase] = None
+        test_case: Optional[TestCase] = None
         if infile.is_file():
             # Step 3: check .in if needed
-            test_case = Testcase(problem, infile, short_path=t.path / t.name)
+            test_case = TestCase(problem, infile, short_path=t.path / t.name)
             if not t.validate_in(problem, test_case, meta_yaml, bar):
                 return
 
@@ -1601,17 +1601,17 @@ class DirectoryRule(Rule):
         )
         self.numbered = isinstance(parser.remaining.get("data", None), list)
 
-        # List of child TestcaseRule/DirectoryRule objects, filled by parse().
-        self.data = list[TestcaseRule | DirectoryRule]()
-        # Map of short_name => TestcaseRule, filled by parse().
-        self.includes = dict[str, TestcaseRule]()
+        # List of child TestCaseRule/DirectoryRule objects, filled by parse().
+        self.data = list[TestCaseRule | DirectoryRule]()
+        # Map of short_name => TestCaseRule, filled by parse().
+        self.includes = dict[str, TestCaseRule]()
 
     # The @overload definitions are purely here for static typing reasons.
     # This overload takes a single function as argument, which is used for both files and directories.
     @overload
     def walk(
         self,
-        test_case_f: Optional[Callable[["TestcaseRule | DirectoryRule"], object]],
+        test_case_f: Optional[Callable[["TestCaseRule | DirectoryRule"], object]],
         *,
         skip_restricted: bool = True,
     ) -> None: ...
@@ -1620,7 +1620,7 @@ class DirectoryRule(Rule):
     @overload
     def walk(
         self,
-        test_case_f: Optional[Callable[[TestcaseRule], object]],
+        test_case_f: Optional[Callable[[TestCaseRule], object]],
         dir_f: Optional[Callable[["DirectoryRule"], object]],
         *,
         skip_restricted: bool = True,
@@ -1631,12 +1631,12 @@ class DirectoryRule(Rule):
     def walk(
         self,
         test_case_f: Optional[
-            Callable[["TestcaseRule | DirectoryRule"], object] | Callable[[TestcaseRule], object]
+            Callable[["TestCaseRule | DirectoryRule"], object] | Callable[[TestCaseRule], object]
         ] = None,
         dir_f: (
             Literal[True]
             | Optional[
-                Callable[["TestcaseRule | DirectoryRule"], object]
+                Callable[["TestCaseRule | DirectoryRule"], object]
                 | Callable[["DirectoryRule"], object]
             ]
         ) = True,
@@ -1644,14 +1644,14 @@ class DirectoryRule(Rule):
         skip_restricted: bool = True,
     ) -> None:
         if dir_f is True:
-            dir_f = cast(Optional[Callable[["TestcaseRule | DirectoryRule"], object]], test_case_f)
+            dir_f = cast(Optional[Callable[["TestCaseRule | DirectoryRule"], object]], test_case_f)
         if dir_f:
             dir_f(self)
 
         for d in self.data:
             if isinstance(d, DirectoryRule):
                 d.walk(test_case_f, dir_f)
-            elif isinstance(d, TestcaseRule):
+            elif isinstance(d, TestCaseRule):
                 if not d.process and skip_restricted:
                     continue
                 if test_case_f:
@@ -1737,8 +1737,8 @@ class DirectoryRule(Rule):
                 continue
 
             # Check if the test case was already validated.
-            meta_yaml = TestcaseRule.MetaYaml(problem, t)
-            test_case = Testcase(problem, infile, short_path=new_case)
+            meta_yaml = TestCaseRule.MetaYaml(problem, t)
+            test_case = TestCase(problem, infile, short_path=new_case)
 
             # Step 1: validate .in
             if not t.validate_in(problem, test_case, meta_yaml, bar):
@@ -1781,10 +1781,10 @@ class GeneratorConfig:
         self.n_test_case_error = 0
         self.n_parse_error = 0
 
-        # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
+        # A map of paths `secret/test_group/test_case` to their canonical TestCaseRule.
         # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the test case that is included.
-        self.known_cases = dict[Path, TestcaseRule]()
+        self.known_cases = dict[Path, TestCaseRule]()
         # A map of paths `secret/test_group` to DirectoryRule.
         self.known_directories = dict[Path, DirectoryRule]()
         # Used for cleanup
@@ -1792,12 +1792,12 @@ class GeneratorConfig:
         # A map from key to (is_included, list of test cases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict[
-            str, tuple[bool, list[TestcaseRule | DirectoryRule]]
+            str, tuple[bool, list[TestCaseRule | DirectoryRule]]
         ](lambda: (False, []))
         # A set of test case rules, including seeds.
-        self.rules_cache = dict[str, TestcaseRule]()
+        self.rules_cache = dict[str, TestCaseRule]()
         # The set of generated test cases keyed by hash(test_case).
-        self.generated_test_cases = dict[str, TestcaseRule]()
+        self.generated_test_cases = dict[str, TestCaseRule]()
         # Path to the trash directory for this run
         self.trash_dir: Optional[Path] = None
         # Set of hash(.in) for all generated test cases
@@ -1903,10 +1903,10 @@ class GeneratorConfig:
         next_test_case_id = itertools.count(1)
 
         # add an explicit rule (directory or test case). Not includes!
-        def add_known(parser: YamlParser, rule: TestcaseRule | DirectoryRule) -> None:
+        def add_known(parser: YamlParser, rule: TestCaseRule | DirectoryRule) -> None:
             path = rule.path
             name = path.name
-            if isinstance(rule, TestcaseRule):
+            if isinstance(rule, TestCaseRule):
                 self.known_cases[path] = rule
             elif isinstance(rule, DirectoryRule):
                 self.known_directories[path] = rule
@@ -1923,7 +1923,7 @@ class GeneratorConfig:
             raw_yaml: object,
             bar: BAR_TYPE,
             parent: DirectoryRule,
-        ) -> list[TestcaseRule]:
+        ) -> list[TestCaseRule]:
             assert is_test_case(raw_yaml)
 
             if isinstance(raw_yaml, dict):
@@ -1942,14 +1942,14 @@ class GeneratorConfig:
             is_consecutive = max(count_list) - min(count_list) == len(count_list) - 1
             padding = max(len(str(v)) for v in count_list) if is_consecutive else 0
 
-            ts: list[TestcaseRule] = []
+            ts: list[TestCaseRule] = []
             for i, count_value in enumerate(count_list):
                 parser = YamlParser("generators.yaml", parser_yaml, bar=bar)
                 name = next(name_gen)
                 if has_count(parser.remaining):
                     name += f"-{count_value:0{padding}}"
 
-                t = TestcaseRule(
+                t = TestCaseRule(
                     self.problem, self, key, name, raw_yaml, parser, parent, count_value
                 )
                 if t.ok:
@@ -1983,7 +1983,7 @@ class GeneratorConfig:
             # => prohibits including our own children
             included_test_cases = []
 
-            def add_included_case(t: TestcaseRule) -> None:
+            def add_included_case(t: TestCaseRule) -> None:
                 included_test_cases.append(t)
 
             def add_included_dir(d: DirectoryRule) -> None:
@@ -2018,7 +2018,7 @@ class GeneratorConfig:
 
                 self.known_keys[include] = (True, cases_list)
                 rule = cases_list[0]
-                if isinstance(rule, TestcaseRule):
+                if isinstance(rule, TestCaseRule):
                     add_included_case(rule)
                 else:
                     rule.walk(add_included_case, add_included_dir, skip_restricted=False)
@@ -2164,8 +2164,8 @@ class GeneratorConfig:
         # the default solution when it's not actually needed.
         default_solution: Optional[SolutionInvocation] = None
 
-        def collect_programs(t: TestcaseRule) -> None:
-            if isinstance(t, TestcaseRule):
+        def collect_programs(t: TestCaseRule) -> None:
+            if isinstance(t, TestCaseRule):
                 if t.generator:
                     generators_used.add(t.generator.program_path)
             if config.args.no_solution:
@@ -2228,7 +2228,7 @@ class GeneratorConfig:
         self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
-        def cleanup_build_failures(t: TestcaseRule) -> None:
+        def cleanup_build_failures(t: TestCaseRule) -> None:
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
 
@@ -2236,7 +2236,7 @@ class GeneratorConfig:
 
     def run(self) -> None:
         self.update_gitignore_file()
-        self.problem.reset_testcase_hashes()
+        self.problem.reset_test_case_hashes()
 
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
@@ -2248,7 +2248,7 @@ class GeneratorConfig:
         self.root_dir.walk(None, count_dir)
         bar = ProgressBar("Generate", items=item_names)
 
-        # Testcases are generated in two steps:
+        # Test cases are generated in two steps:
         # 1. Generate directories and unique test cases listed in generators.yaml.
         # 2. Generate duplicates of known test cases. All directories should already exists
         #    Each directory is only started after previous directories have
@@ -2256,7 +2256,7 @@ class GeneratorConfig:
         #    included test cases.
 
         # 1
-        def runner(t: TestcaseRule) -> None:
+        def runner(t: TestCaseRule) -> None:
             if t.copy_of is None:
                 t.generate(self.problem, self, bar)
 
@@ -2270,7 +2270,7 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        def runner_copies(t: TestcaseRule) -> None:
+        def runner_copies(t: TestCaseRule) -> None:
             if t.copy_of is not None:
                 t.generate(self.problem, self, bar)
 
@@ -2423,8 +2423,8 @@ data/*
             return False
 
         directory_rules = set()
-        assert config.args.testcases is not None  # set in cli.py
-        for t in config.args.testcases:
+        assert config.args.test_cases is not None  # set in cli.py
+        for t in config.args.test_cases:
             path = t.relative_to("data")
             parts = path.parts
             if not parts:
@@ -2449,7 +2449,7 @@ data/*
         test_case_filter = set()
         for d in directory_rules:
             for c in d.data:
-                if isinstance(c, TestcaseRule):
+                if isinstance(c, TestCaseRule):
                     test_case_filter.add(data / c.path.parent / (c.name + ".in"))
 
         ts_pair = self.problem.prepare_run()
@@ -2493,7 +2493,7 @@ data/*
             }
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
-            class TestcaseResult:
+            class TestCaseResult:
                 def __init__(self, yaml: dict[object, object]) -> None:
                     self.yaml = yaml
                     test_case_yaml = next(iter(yaml.values()))
@@ -2535,7 +2535,7 @@ data/*
                     return weights
 
             todo = [
-                TestcaseResult(e)
+                TestCaseResult(e)
                 for e in d.yaml["data"]
                 if id(next(iter(e.values()))) in test_nodes
             ]
@@ -2544,7 +2544,7 @@ data/*
             # the submission fails on this test case. If a test case is selected the weights for each submission that it fails
             # get halved (or all other get doubled) to encourage making the remaining submissions fail. We greedily pick the
             # test case that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
-            # see class TestcaseResult.
+            # see class TestCaseResult.
             # Worstcase runtime test cases^2 * submissions
             bar = ProgressBar("Reorder", items=todo)
             done = []
@@ -2578,7 +2578,7 @@ data/*
 
         # regenerate cases
         eprint()
-        new_config = GeneratorConfig(self.problem, config.args.testcases)
+        new_config = GeneratorConfig(self.problem, config.args.test_cases)
         new_config.build(skip_double_build_warning=True)
         new_config.run()
         new_config.clean_up()
@@ -2618,7 +2618,7 @@ def generate(problem: Problem) -> bool:
         clean_data(problem, True, True)
         return True
 
-    gen_config = GeneratorConfig(problem, config.args.testcases)
+    gen_config = GeneratorConfig(problem, config.args.test_cases)
     if gen_config.n_parse_error > 0:
         return False
 

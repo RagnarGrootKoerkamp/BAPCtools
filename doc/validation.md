@@ -21,7 +21,7 @@ These are some things that hold for all types of validation mentioned below.
 - For each test case, all validators of the same type are run in lexicographic order. If one
   fails, later ones are skipped.
 - In BAPCtools, the current working directory is always a temporary
-  `<testcase>.feedbackdir` directory.
+  `<test_case>.feedbackdir` directory.
 - In BAPCtools, `/path/to/feedbackdir` is simply the path of the current
   working directory. For `output validation`, you can write e.g. files
   `judgemessage.txt`, `judgeerror.txt`, `teammessage.txt`, and `score.txt`.

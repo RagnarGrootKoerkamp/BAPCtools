@@ -1,7 +1,7 @@
 from bapctools import verdicts
 
 
-class MockTestcase:
+class MockTestCase:
     def __init__(self, name):
         self.name = name
 
@@ -9,7 +9,7 @@ class MockTestcase:
 AC = verdicts.Verdict.ACCEPTED
 WA = verdicts.Verdict.WRONG_ANSWER
 PATHS = [
-    MockTestcase(p)
+    MockTestCase(p)
     for p in [
         "sample/1",
         "sample/2",
@@ -54,7 +54,7 @@ class TestVerdicts:
         # Setting a verdict takes linear time: it checks the verdicts of all siblings to determine the parent's verdict.
         # This means that this test_efficiency() runs in quadratic time.
         size = 1000
-        many_paths = [MockTestcase(f"a/{i}") for i in range(size)]
+        many_paths = [MockTestCase(f"a/{i}") for i in range(size)]
         verds = verdicts.Verdicts(many_paths, 1)
         evens = range(0, size, 2)
         odds = range(1, size, 2)
@@ -70,7 +70,7 @@ class TestVerdicts:
         assert verds["secret/a"] == WA
         verds.set("secret/a/2", WA, 0.5)  # should not try to write 'secret/a' again
 
-    def test_slowest_testcase(self):
+    def test_slowest_test_case(self):
         verds = verdicts.Verdicts(PATHS, 3, verdicts.RunUntil.DURATION)
         verds.set("sample/1", AC, 0.5)
         verds.set("sample/2", AC, 0.5)

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from bapctools import config, problem, testcase, util, validate
+from bapctools import config, problem, test_case, util, validate
 
 RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.
@@ -76,7 +76,7 @@ class TestDefaultOutputValidator:
 
         in_path.write_text("")
 
-        t = testcase.Testcase(problem, in_path, short_path=Path("test"))
+        t = test_case.TestCase(problem, in_path, short_path=Path("test"))
         r = MockRun()
         r.in_path = in_path
         r.out_path = out_path

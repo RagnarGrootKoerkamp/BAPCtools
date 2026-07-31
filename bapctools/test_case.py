@@ -167,8 +167,7 @@ class TestGroup:
         return TestGroup(problem, filename or file, yaml_data, parent, bar)
 
 
-# TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"
-class Testcase:
+class TestCase:
     """
     A single test case. It consists of files with matching base names, typically
 
@@ -221,11 +220,11 @@ class Testcase:
         Arguments
         ---------
         path: Path
-            The path to the testcase's input file, like `data/secret/cubic/petersen.in`
+            The path to the test case's input file, like `data/secret/cubic/petersen.in`
 
         short_path: Path
-            Testcases outside problem/data must pass in the short_path explicitly.  In that case, `path`
-            is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
+            Test cases outside problem/data must pass in the short_path explicitly.  In that case, `path`
+            is the (absolute) path to the input file, and `short_path` is used as the equivalent of the test case's
             path relative to  `problem.path / 'data'`.
         """
         assert path.suffix == ".in"
@@ -236,7 +235,7 @@ class Testcase:
             try:
                 self.short_path: Path = path.relative_to(self.problem.path / "data")
             except ValueError:
-                fatal(f"Testcase {path} is not inside {self.problem.path / 'data'}.")
+                fatal(f"Test case {path} is not inside {self.problem.path / 'data'}.")
         else:
             self.short_path = short_path
 
@@ -301,9 +300,9 @@ class Testcase:
                 hashes[ext] = hash_file_content(file)
 
         # always consider args and output_validator_args
-        testcase_yaml = self.get_test_case_yaml(bar)
-        hashes["sumission_args"] = shlex.join(testcase_yaml.args)
-        hashes["output_validator_args"] = shlex.join(testcase_yaml.output_validator_args)
+        test_case_yaml = self.get_test_case_yaml(bar)
+        hashes["sumission_args"] = shlex.join(test_case_yaml.args)
+        hashes["output_validator_args"] = shlex.join(test_case_yaml.output_validator_args)
 
         return combine_hashes_dict(hashes)
 
@@ -317,7 +316,7 @@ class Testcase:
              hash =>
              - name
              - flags
-        indicating which validators will be run for this testcase.
+        indicating which validators will be run for this test case.
         """
         assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
         validators = self.problem.validators(cls)
@@ -554,7 +553,7 @@ class Testcase:
             ):
                 continue
 
-            # Move testcase to destination directory if specified.
+            # Move test case to destination directory if specified.
             if config.args.move_to:
                 infile = self.in_path
                 targetdir = self.problem.path / config.args.move_to
@@ -568,7 +567,7 @@ class Testcase:
                     ansfile.rename(anstarget)
                     bar.log("Moved to " + print_name(anstarget))
 
-            # Remove testcase if specified.
+            # Remove test case if specified.
             elif mode == validate.Mode.INPUT and config.args.remove:
                 bar.log(Fore.RED + "REMOVING TESTCASE!" + Style.RESET_ALL)
                 if self.in_path.exists():

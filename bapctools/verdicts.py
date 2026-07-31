@@ -10,7 +10,7 @@ from typing import Any, Final, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
-from bapctools import config, testcase
+from bapctools import config, test_case
 from bapctools.util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
@@ -173,10 +173,10 @@ class Verdicts:
 
     def __init__(
         self,
-        test_cases_list: Sequence[testcase.Testcase],
+        test_cases_list: Sequence[test_case.TestCase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
-        ignored: Sequence[testcase.Testcase] = [],
+        ignored: Sequence[test_case.TestCase] = [],
     ) -> None:
         test_cases: set[str] = {t.name for t in test_cases_list}
         test_groups: set[str] = {str(path) for tc in test_cases for path in Path(tc).parents}
@@ -393,7 +393,7 @@ class VerdictTable:
     def __init__(
         self,
         submissions: Sequence["run.Submission"],
-        test_cases: Sequence[testcase.Testcase],
+        test_cases: Sequence[test_case.TestCase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,
@@ -737,7 +737,7 @@ class TableProgressBar(ProgressBar):
         from bapctools.run import Run
 
         assert isinstance(item, Run)
-        self.table.add_test_case(item.testcase.name)
+        self.table.add_test_case(item.test_case.name)
         copy = super().start(item)
         assert isinstance(copy, TableProgressBar)
         return copy
