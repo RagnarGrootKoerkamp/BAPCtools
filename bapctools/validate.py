@@ -141,7 +141,7 @@ class Validator(program.Program):
         """
         if isinstance(mode, Mode):
             if testcase.in_path.is_relative_to(self.problem.tmpdir):
-                cwd = testcase.in_path.with_suffix(".feedbackdir")
+                cwd = testcase.with_suffix(".feedbackdir")
             else:
                 name = self.tmpdir.relative_to(self.problem.tmpdir)
                 cwd = (
@@ -485,7 +485,6 @@ def sanity_check(
         - no other_whitespaces (like '\t')
         - no whitespace at start of file
         - ensures newline at end of file
-
     """
     if config.args.no_testcase_sanity_checks:
         return
@@ -505,6 +504,7 @@ def sanity_check(
         # only allow empty files for interactive or multi-pass .ans
         if not (path.suffix == ".ans" and (problem.interactive or problem.multi_pass)):
             bar.warn(f"{name} is empty but was accepted!")
+        return
     else:
         # enforce empty .ans file for interactive
         if problem.interactive and path.suffix == ".ans":
@@ -534,10 +534,107 @@ def sanity_check(
     # check content
     if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
         bar.warn(f"{name} contains unexpected characters but was accepted!")
-    if strict_whitespace and len(file_bytes) > 0:
+    if strict_whitespace:
         if file_bytes[0] in b" \n":
             bar.warn(f"{name} starts with whitespace but was accepted!")
         if not file_bytes.endswith(b"\n"):
             bar.warn(f"{name} does not end with a newline but was accepted!")
         if _has_consecutive_whitespaces(file_bytes):
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
+
+
+def sanity_check_interaction(
+    problem: "Problem", path: Path, bar: ProgressBar, *, startswith: bytes = b""
+) -> None:
+    """
+    Does some generic checks on .interaction files, including
+
+    - each line starts with '>', '<' or is '---'
+    - no weird consecutive whitespaces ('  ', '\n ', ' \n')
+    - no other_whitespaces (like '\t')
+    - no whitespace at start of line (after '>' or '<')
+    - ensures newline at end of file
+    - tries to guess if '>' and '<' have been mixed up if startswith is given
+
+    if any of this is violated a warning is printed.
+    use --no-testcase-sanity-checks to skip this
+    """
+    if config.args.no_testcase_sanity_checks:
+        return
+
+    if not path.exists():
+        fatal(f"{path} not found during sanity check")
+
+    file_bytes = path.read_bytes()
+
+    if len(file_bytes) == 0:
+        bar.warn("Interaction is empty")
+        return
+
+    # generic check content
+    if _has_invalid_byte(file_bytes, other_whitespaces=False):
+        bar.warn("Interaction contains unexpected characters")
+    if file_bytes[0] in b" \n":
+        bar.warn("Interaction starts with whitespace")
+    if not file_bytes.endswith(b"\n"):
+        bar.warn("Interaction does not end with a newline")
+    if _has_consecutive_whitespaces(file_bytes):
+        bar.warn("Interaction contains consecutive whitespace characters")
+
+    # check interaction specific content
+    lines = file_bytes.removesuffix(b"\n").split(b"\n")
+    passes = []
+    current_pass: list[bytes] = []
+    for line in lines:
+        if line == b"---":
+            passes.append(current_pass)
+            current_pass = []
+        else:
+            current_pass.append(line)
+    passes.append(current_pass)
+
+    if len(passes) > 1 and not problem.multi_pass:
+        bar.warn("Interaction contains multiples passes but problem is not multi-pass")
+
+    invalid_prefix = False
+    invalid_whitespace = False
+    invalid_empty = False
+    missing_jury = False
+    missing_team = False
+    has_jury_after_team = False
+    for lines in passes:
+        has_jury = False
+        has_team = False
+        for line in lines:
+            if line.startswith(b"<"):
+                has_jury = True
+                invalid_empty |= len(line) == 1
+                invalid_whitespace |= line.startswith(b"< ")
+                has_jury_after_team |= has_team
+            elif line.startswith(b">"):
+                has_team = True
+                invalid_empty |= len(line) == 1
+                invalid_whitespace |= line.startswith(b"> ")
+            else:
+                invalid_prefix = True
+        missing_jury |= not has_jury
+        missing_team |= not has_team
+
+    if invalid_prefix:
+        bar.warn("Interaction is invalid, lines must start with '<' or '>'")
+        return
+    if invalid_empty:
+        bar.warn("Interaction has empty line")
+    if invalid_whitespace:
+        bar.warn("Interaction starts with whitespace")
+    if missing_jury:
+        bar.warn("Interaction has no team <- jury output")
+    elif not problem.interactive and has_jury_after_team:
+        bar.warn("Interaction for non interactive problem has interleaved communication")
+    if missing_team:
+        bar.warn("Interaction has no team -> jury output")
+
+    # try to check if '>' and '<' are used correctly
+    assert len(startswith) <= 1
+    if startswith and not file_bytes.startswith(startswith):
+        bar.warn("Did you mix up '>' and '<'? ('>' is team -> jury)")

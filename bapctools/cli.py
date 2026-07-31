@@ -601,20 +601,19 @@ Run this from one of:
 
     # Validation
     validate_parser = subparsers.add_parser(
-        "validate", parents=[global_parser], help="validate all grammar"
+        "validate", parents=[global_parser], help="validate all data"
     )
     validate_parser.add_argument("testcases", nargs="*", type=Path, help="The testcases to run on.")
-    validate_parser.add_argument("--input", "-i", action="store_true", help="Only validate input.")
+    validate_parser.add_argument("--input", "-i", action="store_true", help="Validate input.")
+    validate_parser.add_argument("--interaction", action="store_true", help="Validate interaction.")
+    validate_parser.add_argument("--answer", "-a", action="store_true", help="Validate answer.")
     validate_parser.add_argument(
-        "--answer", "-a", action="store_true", help="Only validate answer."
-    )
-    validate_parser.add_argument(
-        "--invalid", action="store_true", help="Only check invalid files for validity."
+        "--invalid", action="store_true", help="Check invalid files for validity."
     )
     validate_parser.add_argument(
         "--valid-output",
         action="store_true",
-        help="Only check files in 'data/valid_output' for validity.",
+        help="Check files in 'data/valid_output' for validity.",
     )
     validate_parser.add_argument(
         "--generic",
@@ -1363,6 +1362,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                     config.args.input,
                     config.args.answer,
                     config.args.valid_output,
+                    config.args.interaction,
                 ]
             )
             if action == "all" or not specified or config.args.invalid:
@@ -1379,6 +1379,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 success &= problem.validate_valid_extra_data()
             if action == "all" or not specified or config.args.input:
                 success &= problem.validate_data(validate.Mode.INPUT)
+            if action == "all" or not specified or config.args.interaction:
+                problem.validate_interaction()
             if action == "all" or not specified or config.args.answer:
                 success &= problem.validate_data(validate.Mode.ANSWER)
             if action == "all" or not specified or config.args.valid_output:

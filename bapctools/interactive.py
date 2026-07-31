@@ -22,11 +22,14 @@ from bapctools.util import (
     limit_setter,
     PrintBar,
     ProgressBar,
+    remove_path,
 )
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
+    from bapctools.problem import Problem
     from bapctools.run import Run
+    from bapctools.testcase import Testcase
 
 PIPE_SIZE: Optional[int] = None
 
@@ -97,31 +100,30 @@ def run_interactive_testcase(
     memory = run.problem.limits.memory
 
     # Validator command
-    def get_validator_command() -> Sequence[str | Path]:
-        assert output_validator.run_command, "Output validator must be built"
-        return [
-            *output_validator.run_command,
-            run.in_path.absolute(),
-            run.testcase.ans_path.absolute(),
-            run.feedbackdir.absolute(),
-            *run.testcase.get_test_case_yaml(
-                bar or PrintBar("Run interactive test case")
-            ).output_validator_args,
-        ]
+    assert output_validator.run_command, "Output validator must be built"
+    validator_command = [
+        *output_validator.run_command,
+        run.in_path.absolute(),
+        run.testcase.ans_path.absolute(),
+        run.feedbackdir.absolute(),
+        *run.testcase.get_test_case_yaml(
+            bar or PrintBar("Run interactive test case")
+        ).output_validator_args,
+    ]
 
+    # Submission command
     assert run.submission.run_command, "Submission must be built"
     submission_command = run.submission.run_command
     if submission_args:
         submission_command = [*submission_command, *submission_args]
 
-    # Both validator and submission run in their own directory.
-    validator_dir = output_validator.tmpdir
+    validator_dir = run.feedbackdir.absolute()
     submission_dir = run.submission.tmpdir
 
     nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
-        eprint("Validator:  ", *get_validator_command())
+        eprint("Validator:  ", *validator_command)
         eprint("Submission: ", *submission_command)
 
     # On Windows:
@@ -141,7 +143,6 @@ def run_interactive_testcase(
         while True:
             pass_id += 1
             # Start the validator.
-            validator_command = get_validator_command()
             validator_process = subprocess.Popen(
                 validator_command,
                 stdin=subprocess.PIPE,
@@ -299,7 +300,6 @@ while True:
             val_tee = None
             submission = None
             try:
-                validator_command = get_validator_command()
                 validator = subprocess.Popen(
                     validator_command,
                     stdin=subprocess.PIPE,
@@ -577,3 +577,38 @@ def _feedback(run: "Run", err: bytes) -> str:
     if len(res) == 0 and judgemessage.is_file():
         res = judgemessage.read_text(errors="replace")
     return res
+
+
+# run the interactor without submission to see if it prints first
+def interactor_prints_unprompted(
+    problem: "Problem", testcase: "Testcase", wait: float = 0.1
+) -> Optional[bool]:
+    output_validators = problem.validators(validate.OutputValidator)
+    if not output_validators:
+        return None
+    output_validator = output_validators[0]
+    assert output_validator.run_command
+
+    validator_dir = output_validator.tmpdir
+    feedbackdir = problem.tmpdir / "tool_runs" / "interaction_feedback"
+    remove_path(feedbackdir)
+    feedbackdir.mkdir(exist_ok=True, parents=True)
+
+    command = [
+        *output_validator.run_command,
+        testcase.in_path.absolute(),
+        testcase.ans_path.absolute(),
+        feedbackdir.absolute(),
+        *testcase.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
+    ]
+
+    validator_process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        cwd=validator_dir,
+    )
+    time.sleep(wait)
+    validator_process.kill()
+    stdout, _ = validator_process.communicate()
+    return bool(stdout)
