@@ -17,6 +17,7 @@ from bapctools import (
     check_testing_tool,
     config,
     expectations,
+    interactive,
     latex,
     parallel,
     run,
@@ -853,7 +854,9 @@ class Problem:
             # .interaction files get highest priority
             if name.with_suffix(".interaction").is_file():
                 if not p.interactive and not p.multi_pass:
-                    warn(f"Found {name}.interaction for non-interactive/non-multi-pass. IGNORED.")
+                    warn(
+                        f"Found {name}.interaction for non-interactive/non-multi-pass problem. IGNORED."
+                    )
                 else:
                     if ".in.statement" in in_found or ".ans.statement" in ans_found:
                         warn(
@@ -1626,6 +1629,45 @@ class Problem:
                     )
 
         return success
+
+    def validate_interaction(problem) -> None:
+        testcases = problem.testcases(needans=False)
+        testcases = [t for t in testcases if t.with_suffix(".interaction").is_file()]
+        if not testcases:
+            return
+
+        # used to detect mixed up of '<' and '>'
+        def guess_prefix() -> Optional[bytes]:
+            if not problem.interactive:
+                return None
+            testcases = problem.testcases()
+            if not testcases:
+                return None
+            testcase = testcases[0]
+
+            printed = interactive.interactor_prints_unprompted(problem, testcase)
+            if printed is None:
+                return None
+            return b"<" if printed else b">"
+
+        prefix = guess_prefix() or b""
+        if prefix:
+            verbose(f"guessing that interaction must start with {prefix.decode()}")
+
+        bar = ProgressBar("Interaction validation", items=[t.name for t in testcases])
+
+        if not problem.interactive and not problem.multi_pass:
+            bar.warn("Found .interaction for non-interactive/non-multi-pass problem.")
+            return
+
+        def process_testcase(testcase: testcase.Testcase) -> None:
+            localbar = bar.start(testcase.name)
+            interaction = testcase.with_suffix(".interaction")
+            validate.sanity_check_interaction(problem, interaction, localbar, startswith=prefix)
+            localbar.done()
+
+        parallel.run_tasks(process_testcase, testcases)
+        bar.finalize(print_done=True)
 
     def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()

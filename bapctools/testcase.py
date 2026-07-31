@@ -271,7 +271,7 @@ class Testcase:
         yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
         test_group_yaml = self.problem.get_test_group_yaml(yaml_path.parent, bar)
 
-        yaml_file = self.in_path.with_suffix(".yaml")
+        yaml_file = self.with_suffix(".yaml")
         if yaml_file.is_file():
             self._test_case_yaml = TestGroup.parse_yaml(
                 self.problem, yaml_file, test_group_yaml, bar, filename=yaml_path
@@ -611,10 +611,6 @@ class Testcase:
                     main_path = self.out_path
 
                 if main_path is not None:
-                    validate.sanity_check(
-                        self.problem,
-                        main_path,
-                        bar,
-                    )
+                    validate.sanity_check(self.problem, main_path, bar)
 
         return success
