@@ -8,7 +8,6 @@ from bapctools import config, languages, program
 from bapctools.util import (
     ExecResult,
     ExecStatus,
-    fatal,
     ProgressBar,
     remove_path,
     validator_exec_code_map,
@@ -489,8 +488,7 @@ def sanity_check(
     if config.args.no_test_case_sanity_checks:
         return
 
-    if not path.exists():
-        fatal(f"{path} not found during sanity check")
+    assert path.exists()
 
     name = {
         ".in": "Input",
@@ -543,9 +541,9 @@ def sanity_check(
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
 
 
-def sanity_check_interaction(
+def check_interaction(
     problem: "Problem", path: Path, bar: ProgressBar, *, startswith: bytes = b""
-) -> None:
+) -> bool:
     """
     Does some generic checks on .interaction files, including
 
@@ -559,29 +557,11 @@ def sanity_check_interaction(
     if any of this is violated a warning is printed.
     use --no-test-case-sanity-checks to skip this
     """
-    if config.args.no_test_case_sanity_checks:
-        return
-
-    if not path.exists():
-        fatal(f"{path} not found during sanity check")
+    assert path.exists()
 
     file_bytes = path.read_bytes()
 
-    if len(file_bytes) == 0:
-        bar.warn("Interaction is empty")
-        return
-
-    # generic check content
-    if _has_invalid_byte(file_bytes, other_whitespaces=False):
-        bar.warn("Interaction contains unexpected characters")
-    if file_bytes[0] in b" \n":
-        bar.warn("Interaction starts with whitespace")
-    if not file_bytes.endswith(b"\n"):
-        bar.warn("Interaction does not end with a newline")
-    if _has_consecutive_whitespaces(file_bytes):
-        bar.warn("Interaction contains consecutive whitespace characters")
-
-    # check interaction specific content
+    # parse passes
     lines = file_bytes.removesuffix(b"\n").split(b"\n")
     passes = []
     current_pass: list[bytes] = []
@@ -594,8 +574,10 @@ def sanity_check_interaction(
     passes.append(current_pass)
 
     if len(passes) > 1 and not problem.multi_pass:
-        bar.warn("Interaction contains multiples passes but problem is not multi-pass")
+        bar.error("Interaction contains multiples passes but problem is not multi-pass")
+        return False
 
+    # parse interaction
     invalid_prefix = False
     invalid_whitespace = False
     invalid_empty = False
@@ -621,8 +603,26 @@ def sanity_check_interaction(
         missing_team |= not has_team
 
     if invalid_prefix:
-        bar.warn("Interaction is invalid, lines must start with '<' or '>'")
-        return
+        bar.error("Interaction is invalid, lines must start with '<' or '>'")
+        return False
+
+    if config.args.no_test_case_sanity_checks:
+        return True
+
+    # generic check content
+    if len(file_bytes) == 0:
+        bar.warn("Interaction is empty")
+        return True
+    if _has_invalid_byte(file_bytes, other_whitespaces=False):
+        bar.warn("Interaction contains unexpected characters")
+    if file_bytes[0] in b" \n":
+        bar.warn("Interaction starts with whitespace")
+    if not file_bytes.endswith(b"\n"):
+        bar.warn("Interaction does not end with a newline")
+    if _has_consecutive_whitespaces(file_bytes):
+        bar.warn("Interaction contains consecutive whitespace characters")
+
+    # interaciton specific checks
     if invalid_empty:
         bar.warn("Interaction has empty line")
     if invalid_whitespace:
@@ -638,3 +638,4 @@ def sanity_check_interaction(
     assert len(startswith) <= 1
     if startswith and not file_bytes.startswith(startswith):
         bar.warn("Did you mix up '>' and '<'? ('>' is team -> jury)")
+    return True
