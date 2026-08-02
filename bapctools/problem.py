@@ -1630,11 +1630,11 @@ class Problem:
 
         return success
 
-    def validate_interaction(problem) -> None:
+    def validate_interaction(problem) -> bool:
         test_cases = problem.test_cases(needans=False)
         test_cases = [t for t in test_cases if t.with_suffix(".interaction").is_file()]
         if not test_cases:
-            return
+            return True
 
         # used to detect mixed up of '<' and '>'
         def guess_prefix() -> Optional[bytes]:
@@ -1654,20 +1654,26 @@ class Problem:
         if prefix:
             verbose(f"guessing that interaction must start with {prefix.decode()}")
 
+        success = True
         bar = ProgressBar("Interaction validation", items=[t.name for t in test_cases])
 
         if not problem.interactive and not problem.multi_pass:
-            bar.warn("Found .interaction for non-interactive/non-multi-pass problem.")
-            return
+            bar.warn("Found .interaction for non-interactive/non-multi-pass problem. IGNORED.")
+            return True
 
         def process_test_case(test_case: test_case.TestCase) -> None:
+            nonlocal success
+
             localbar = bar.start(test_case.name)
             interaction = test_case.with_suffix(".interaction")
-            validate.sanity_check_interaction(problem, interaction, localbar, startswith=prefix)
-            localbar.done()
+            if not validate.check_interaction(problem, interaction, localbar, startswith=prefix):
+                success = False
+            else:
+                localbar.done()
 
         parallel.run_tasks(process_test_case, test_cases)
         bar.finalize(print_done=True)
+        return True
 
     def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()

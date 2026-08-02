@@ -1249,7 +1249,8 @@ class TestCaseRule(Rule):
                         meta_yaml.interactor_hash = cast(dict[object, object], interactor_hash)
                     interaction = infile.with_suffix(".interaction")
                     if interaction.is_file():
-                        validate.sanity_check_interaction(problem, interaction, bar)
+                        if not validate.check_interaction(problem, interaction, bar):
+                            return False
                 elif infile.with_suffix(".interaction").is_file():
                     bar.warn("Found .interaction for non-interactive/non-multi-pass problem.")
             else:
