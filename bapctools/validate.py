@@ -541,7 +541,7 @@ def sanity_check(
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
 
 
-def _check_override_bytes(file_bytes: bytes, bar: ProgressBar, name: str) -> None:
+def _sanity_check_override(file_bytes: bytes, bar: ProgressBar, name: str) -> None:
     if len(file_bytes) == 0:
         return
     if _has_invalid_byte(file_bytes, other_whitespaces=False):
@@ -554,7 +554,7 @@ def _check_override_bytes(file_bytes: bytes, bar: ProgressBar, name: str) -> Non
         bar.warn(f"{name} contains consecutive whitespace characters")
 
 
-def check_override(problem: "Problem", path: Path, bar: ProgressBar, name: str) -> None:
+def sanity_check_override(problem: "Problem", path: Path, bar: ProgressBar) -> None:
     """
     Does some generic checks on override files, including
 
@@ -570,7 +570,14 @@ def check_override(problem: "Problem", path: Path, bar: ProgressBar, name: str) 
         return
 
     assert path.exists()
-    _check_override_bytes(path.read_bytes(), bar, name)
+
+    name = {
+        ".in.statement": "Statement input",
+        ".ans.statement": "Statement answer",
+        ".in.download": "Download input",
+        ".ans.download": "Download answer",
+    }["".join(path.suffixes[-2:])]
+    _sanity_check_override(path.read_bytes(), bar, name)
 
 
 def check_interaction(
@@ -646,7 +653,7 @@ def check_interaction(
 
         data = b"".join(parsed)
         name = f"Interaction pass {p}" if problem.multi_pass else "Interaction"
-        _check_override_bytes(data, bar, name)
+        _sanity_check_override(data, bar, name)
 
         if not has_jury:
             bar.warn(f"{name} has no team <- jury output")

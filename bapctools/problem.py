@@ -813,14 +813,15 @@ class Problem:
         ]
 
         files: set[Path] = set()
-        for ext in [".in", ".in.statement", ".interaction"]:
-            ext_glob = f"data/sample/**/*{ext}" if only_samples else f"data/**/*{ext}"
-            for file in glob(p.path, ext_glob):
-                if not file.is_file():
-                    continue
-                base = drop_suffix(file, [ext])
-                # add .in to make .with_suffix() work
-                files.add(base.with_name(base.name + ".in"))
+        dirs = ["sample"] if only_samples else ["sample", "secret"]
+        for prefix in dirs:
+            for ext in [".in", ".in.statement", ".interaction"]:
+                for file in glob(p.path, f"data/{prefix}/**/*{ext}"):
+                    if not file.is_file():
+                        continue
+                    base = drop_suffix(file, [ext])
+                    # add .in to make .with_suffix() work
+                    files.add(base.with_name(base.name + ".in"))
         ret = []
 
         has_raw = False
@@ -1695,7 +1696,7 @@ class Problem:
                     success = False
                     return
             else:
-                validate.check_override(problem, file, localbar, "Override")
+                validate.sanity_check_override(problem, file, localbar)
 
             localbar.done()
 
