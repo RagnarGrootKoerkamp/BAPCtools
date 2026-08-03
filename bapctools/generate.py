@@ -1393,6 +1393,22 @@ class TestCaseRule(Rule):
             return True
 
         def warn_override() -> None:
+            sample_only = [
+                ".interaction",
+                ".in.statement",
+                ".ans.statement",
+                ".in.download",
+                ".ans.download",
+            ]
+            has_sample_only = any(infile.with_suffix(ext).is_file() for ext in sample_only)
+            if t.root != "sample" and has_sample_only:
+                bar.warn("overrides should only be used for samples")
+            elif (
+                t.root not in ["sample", "invalid_output", "valid_output"]
+                and infile.with_suffix(".out").is_file()
+            ):
+                bar.warn("overrides should only be used for samples")
+
             def find_override(*exts: str) -> list[str]:
                 found = [ext for ext in exts if infile.with_suffix(ext).is_file()]
                 if len(found) > 1:
@@ -1412,6 +1428,12 @@ class TestCaseRule(Rule):
                 bar.warn(f"found {statement_ans[0]} but no override for .ans.download")
             if not statement_ans and download_ans:
                 bar.warn(f"found {download_ans[0]} but no override for .ans.statement")
+
+            for ext in [".in.statement", ".ans.statement", ".in.download", ".ans.download"]:
+                file = infile.with_suffix(ext)
+                if not file.is_file():
+                    continue
+                validate.sanity_check_override(problem, file, bar)
 
         def copy_generated() -> None:
             identical_exts = set()
