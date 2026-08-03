@@ -247,6 +247,7 @@ class ARGS:
         self.open: Optional[Literal[True] | Path] = get_optional_arg("open", Path)
         self.order: Optional[str] = get_optional_arg("order", str)
         self.order_from_ccs: bool = get_arg("order_from_ccs", False)
+        self.overrides: bool = get_arg("overrides", False)
         self.overview: bool = get_arg("overview", False)
         self.password: Optional[str] = get_optional_arg("password", str)
         self.post_freeze: bool = get_arg("post_freeze", False)

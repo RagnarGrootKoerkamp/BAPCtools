@@ -98,7 +98,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
 
         # Add samples.
-        samples = problem.samples()
+        samples = problem.overrides(only_samples=True)
         for i, sample in enumerate(samples):
             in_file, ans_file = sample.download
             base_name = outputdir / str(i + 1)
@@ -218,7 +218,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 add_file(f.relative_to(problem.path), f)
 
     # Include all sample test cases and copy all related files.
-    samples = problem.samples()
+    samples = problem.overrides(only_samples=True)
     if len(samples) == 0:
         bar.error("No samples found.")
     for sample in samples:
@@ -358,7 +358,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
         # The downloadable samples should be copied to attachments/.
         if problem.interactive or problem.multi_pass:
-            samples = problem.samples()
+            samples = problem.overrides(only_samples=True)
             for i, sample in enumerate(samples):
                 in_file, ans_file = sample.download
                 base_name = export_dir / "attachments" / str(i + 1)

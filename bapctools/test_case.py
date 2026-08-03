@@ -2,6 +2,7 @@
 
 import shlex
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
@@ -165,6 +166,14 @@ class TestGroup:
         )
         yaml_data = parse_yaml(raw, path=filename or file)
         return TestGroup(problem, filename or file, yaml_data, parent, bar)
+
+
+@dataclass(frozen=True)
+class TestCaseOverrides:
+    name: str
+    # A single path represents a .interaction file. A tuple contains (.in, .ans)
+    statement: tuple[Path, Path] | Path
+    download: tuple[Path, Path]
 
 
 class TestCase:
