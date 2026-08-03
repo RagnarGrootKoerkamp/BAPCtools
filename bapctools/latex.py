@@ -49,7 +49,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.samples()
+    samples = problem.overrides(only_samples=True)
 
     samples_file_path = builddir / "samples.tex"
 

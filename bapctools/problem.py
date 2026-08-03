@@ -7,7 +7,7 @@ import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Literal, NamedTuple, Optional, overload, TYPE_CHECKING
+from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap
@@ -485,13 +485,6 @@ class ProblemSettings:
         return " ".join(parts)
 
 
-class SampleData(NamedTuple):
-    name: Path
-    # A single path represents a .interaction file. A tuple contains (.in, .ans)
-    statement: tuple[Path, Path] | Path
-    download: tuple[Path, Path]
-
-
 # A problem.
 class Problem:
     _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
@@ -517,7 +510,7 @@ class Problem:
         self._test_cases = dict[
             tuple[Optional[validate.Mode], bool, bool, bool], Sequence[test_case.TestCase]
         ]()
-        self._samples: Optional[list[SampleData]] = None
+        self._overrides = dict[bool, Sequence[test_case.TestCaseOverrides]]()
         self._expectations: Optional[expectations.Expectations] = None
         self._raw_submissions: Optional[Sequence[run.Submission]] = None
         self._compiled_submissions: Optional[Sequence[run.Submission]] = None
@@ -795,17 +788,17 @@ class Problem:
         p._test_cases[key] = tuple(test_cases)
         return p._test_cases[key]
 
-    def samples(p) -> Sequence[SampleData]:
+    def overrides(p, *, only_samples: bool = False) -> Sequence[test_case.TestCaseOverrides]:
         """
-        Find the samples of the problem
+        Find the test case overrides of the problem
 
         Returns:
         --------
-        A list of SampleData. The SampleData contains separate data for statement and download.
+        A list of TestCaseOverrides. The TestCaseOverrides contains separate data for statement and download.
         The entries sample is represented bei either a (.in, .ans) tuple or (only for statement) a .interaction file
         """
-        if p._samples is not None:
-            return p._samples
+        if only_samples in p._overrides:
+            return p._overrides[only_samples]
 
         in_extensions = [
             ".in.statement",
@@ -819,19 +812,30 @@ class Problem:
             ".ans",
         ]
 
-        base_names: set[Path] = set()
+        files: set[Path] = set()
         for ext in [".in", ".in.statement", ".interaction"]:
-            files = list(p.path.glob(f"data/sample/**/*{ext}"))
-            base_names.update([drop_suffix(f, [ext]) for f in files if f.is_file()])
-        p._samples = []
+            ext_glob = f"data/sample/**/*{ext}" if only_samples else f"data/**/*{ext}"
+            for file in glob(p.path, ext_glob):
+                if not file.is_file():
+                    continue
+                base = drop_suffix(file, [ext])
+                # add .in to make .with_suffix() work
+                files.add(base.with_name(base.name + ".in"))
+        ret = []
 
         has_raw = False
-        for name in base_names:
-            in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
-            ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
+        for file in files:
+            name = file.with_suffix("").relative_to(p.path / "data").as_posix()
+            in_found = [ext for ext in in_extensions if file.with_suffix(ext).is_file()]
+            ans_found = [ext for ext in ans_extensions if file.with_suffix(ext).is_file()]
+            has_override = len(in_found) == 0 and len(ans_found) == 0
 
             statement: Optional[tuple[Path, Path] | tuple[Path]] = None
             download: Optional[tuple[Path, Path]] = None
+
+            # overrides are only defined for samples
+            if has_override and not file.is_relative_to(p.path / "data" / "sample"):
+                warn(f"Found override for non sample file: {name}")
 
             # check for inconsistencies
             if ".in" in in_found and ".ans" not in ans_found:
@@ -852,7 +856,7 @@ class Problem:
                 ans_found.remove(".out")
 
             # .interaction files get highest priority
-            if name.with_suffix(".interaction").is_file():
+            if file.with_suffix(".interaction").is_file():
                 if not p.interactive and not p.multi_pass:
                     warn(
                         f"Found {name}.interaction for non-interactive/non-multi-pass problem. IGNORED."
@@ -864,30 +868,30 @@ class Problem:
                         )
                     if ".out" in ans_found:
                         warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
-                statement = (name.with_suffix(".interaction"),)
+                statement = (file.with_suffix(".interaction"),)
             else:
                 statement_in = [ext for ext in in_found if not ext.endswith(".download")]
                 statement_ans = [ext for ext in ans_found if not ext.endswith(".download")]
                 if statement_in and statement_ans:
                     statement = (
-                        name.with_suffix(statement_in[0]),
-                        name.with_suffix(statement_ans[0]),
+                        file.with_suffix(statement_in[0]),
+                        file.with_suffix(statement_ans[0]),
                     )
 
             download_in = [ext for ext in in_found if not ext.endswith(".statement")]
             download_ans = [ext for ext in ans_found if not ext.endswith(".statement")]
             if download_in and download_ans:
-                download = (name.with_suffix(download_in[0]), name.with_suffix(download_ans[0]))
+                download = (file.with_suffix(download_in[0]), file.with_suffix(download_ans[0]))
 
             if not statement or not download:
                 warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
                 continue
 
             if (statement[0].suffix == ".in") != (download[0].suffix == ".in"):
-                warn("You are supposed to overwrite .in for statement and download. SKIPPED.")
+                warn("You are supposed to override .in for statement and download. SKIPPED.")
                 continue
             if (statement[-1].suffix == ".in") != (download[-1].suffix == ".in"):
-                warn("You are supposed to overwrite .ans for statement and download. SKIPPED.")
+                warn("You are supposed to override .ans for statement and download. SKIPPED.")
                 continue
 
             if statement[-1].suffix == ".ans" and statement[-1].stat().st_size > 0:
@@ -895,18 +899,21 @@ class Problem:
             if download[-1].suffix == ".ans" and download[-1].stat().st_size > 0:
                 has_raw = True
 
-            p._samples.append(
-                SampleData(name, statement if len(statement) > 1 else statement[0], download)
+            ret.append(
+                test_case.TestCaseOverrides(
+                    name, statement if len(statement) > 1 else statement[0], download
+                )
             )
 
-        if has_raw and not p.settings.ans_is_output:
+        if has_raw and not p.settings.ans_is_output and only_samples:
             warn(
-                "It is advised to overwrite .ans for samples if it does not represent a valid output."
+                "It is advised to override .ans for samples if it does not represent a valid output."
                 + "\n\tUse .ans.statement+.ans.download or .out for this."
             )
 
-        p._samples.sort(key=lambda t: t.name)
-        return p._samples
+        ret.sort(key=lambda t: t.name)
+        p._overrides[only_samples] = ret
+        return ret
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
@@ -1349,7 +1356,7 @@ class Problem:
         ]
         if not config.args.test_cases:
             sampleinputs = []
-            for sample in problem.samples():
+            for sample in problem.overrides(only_samples=True):
                 in_path = sample.download[0]
                 sampleinput = check_testing_tool.TestInput(
                     problem, in_path, in_path.relative_to(problem.path / "data")
@@ -1630,15 +1637,34 @@ class Problem:
 
         return success
 
-    def validate_interaction(problem) -> bool:
-        test_cases = problem.test_cases(needans=False)
-        test_cases = [t for t in test_cases if t.with_suffix(".interaction").is_file()]
-        if not test_cases:
+    def validate_overrides(problem) -> bool:
+        overrides = problem.overrides()
+        if not overrides:
             return True
 
-        # used to detect mixed up of '<' and '>'
+        extensions = [
+            ".interaction",
+            ".in.statement",
+            ".in.download",
+            ".ans.statement",
+            ".ans.download",
+        ]
+
+        files = []
+        for o in overrides:
+            if isinstance(o.statement, Path):
+                files.append(o.statement)
+            else:
+                files.extend(o.statement)
+            files.extend(o.download)
+        files = [f for f in files if any(f.name.endswith(ext) for ext in extensions)]
+
+        # used to detect mixed up '<' and '>'
         def guess_prefix() -> Optional[bytes]:
             if not problem.interactive:
+                return None
+            has_interaction = any(isinstance(o.statement, Path) for o in overrides)
+            if not has_interaction:
                 return None
             test_cases = problem.test_cases()
             if not test_cases:
@@ -1652,26 +1678,28 @@ class Problem:
 
         prefix = guess_prefix() or b""
         if prefix:
-            verbose(f"guessing that interaction must start with {prefix.decode()}")
+            verbose(f"guessing that interactions must start with {prefix.decode()}")
 
         success = True
-        bar = ProgressBar("Interaction validation", items=[t.name for t in test_cases])
+        data = problem.path / "data"
+        bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
 
-        if not problem.interactive and not problem.multi_pass:
-            bar.warn("Found .interaction for non-interactive/non-multi-pass problem. IGNORED.")
-            return True
-
-        def process_test_case(test_case: test_case.TestCase) -> None:
+        def process_file(file: Path) -> None:
             nonlocal success
 
-            localbar = bar.start(test_case.name)
-            interaction = test_case.with_suffix(".interaction")
-            if not validate.check_interaction(problem, interaction, localbar, startswith=prefix):
-                success = False
-            else:
-                localbar.done()
+            name = file.relative_to(data)
+            localbar = bar.start(name)
 
-        parallel.run_tasks(process_test_case, test_cases)
+            if file.name.endswith(".interaction"):
+                if not validate.check_interaction(problem, file, localbar, startswith=prefix):
+                    success = False
+                    return
+            else:
+                validate.check_override(problem, file, localbar, "Override")
+
+            localbar.done()
+
+        parallel.run_tasks(process_file, files)
         bar.finalize(print_done=True)
         return True
 
