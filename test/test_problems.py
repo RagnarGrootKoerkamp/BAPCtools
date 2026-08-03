@@ -231,7 +231,7 @@ class TestIdentityProblem:
 
     @pytest.mark.parametrize(
         "bad_submission",
-        Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*"),
+        list(Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*")),
     )
     def test_bad_submission(self, bad_submission):
         with pytest.raises(SystemExit):

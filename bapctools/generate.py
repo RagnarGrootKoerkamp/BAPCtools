@@ -1401,10 +1401,10 @@ class TestCaseRule(Rule):
                 ".ans.download",
             ]
             has_sample_only = any(infile.with_suffix(ext).is_file() for ext in sample_only)
-            if t.root != "sample" and has_sample_only:
+            if t.root not in ["sample", "fuzz"] and has_sample_only:
                 bar.warn("overrides should only be used for samples")
             elif (
-                t.root not in ["sample", "invalid_output", "valid_output"]
+                t.root not in ["sample", "fuzz", "invalid_output", "valid_output"]
                 and infile.with_suffix(".out").is_file()
             ):
                 bar.warn("overrides should only be used for samples")
