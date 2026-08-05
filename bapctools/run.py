@@ -508,7 +508,7 @@ class Submission(program.Program):
                     continue  # skip "hidden" files
                 if f.name in ["judgemessage.txt", "judgeerror.txt"]:
                     continue
-                if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
+                if f.name.startswith(("judgeimage.", "teamimage.")):
                     data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
                     ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
                     continue
