@@ -690,9 +690,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if line.startswith(";") or "=" not in line:
                 continue
             key, var = map(str.strip, line.strip().split("="))
-            if (var.startswith('"') and var.endswith('"')) or (
-                var.startswith("'") and var.endswith("'")
-            ):
+            if var.startswith(('"', "'")) and var[0] == var[-1]:
                 var = var[1:-1]
             if key == "timelimit":
                 time_limit = float(var)
