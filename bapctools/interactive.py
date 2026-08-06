@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from pathlib import Path
 from typing import IO, Literal, Optional, TYPE_CHECKING
 
@@ -358,18 +358,14 @@ while True:
                             return
                         nonlocal submission_time
                         submission_time = timeout + 1
-                        try:
+                        with suppress(ProcessLookupError):
                             os.kill(submission_pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
                         if validation_time > timeout and stop_kill_handler.wait(
                             validation_time - timeout
                         ):
                             return
-                        try:
+                        with suppress(ProcessLookupError, PermissionError):
                             os.killpg(gid, signal.SIGKILL)
-                        except (ProcessLookupError, PermissionError):
-                            pass
 
                     kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                     kill_handler.start()
@@ -378,12 +374,16 @@ while True:
                     validator_status = None
                     submission_status = None
                     first = None
+                    # mixing os.wait4 with subprocess.wait is unsafe so we store which
+                    # PIDs have been reaped by os.wait4
+                    reaped = []
 
                     # Wait for first to finish
                     left = 4 if interaction else 2
                     first_done = True
                     while left > 0:
                         pid, status, rusage = os.wait4(-gid, 0)
+                        reaped.append(pid)
 
                         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
                         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -406,10 +406,8 @@ while True:
                             # Kill the team submission and everything else in case we already know it's WA.
                             if first_done and validator_status != config.RTV_AC:
                                 stop_kill_handler.set()
-                                try:
+                                with suppress(ProcessLookupError, PermissionError):
                                     os.killpg(gid, signal.SIGKILL)
-                                except (ProcessLookupError, PermissionError):
-                                    pass
                             first_done = False
                         elif pid == submission_pid:
                             if first is None:
@@ -439,10 +437,8 @@ while True:
 
                     stop_kill_handler.set()
                 except KeyboardInterrupt:
-                    try:
+                    with suppress(ProcessLookupError, PermissionError):
                         os.killpg(gid, signal.SIGKILL)
-                    except (ProcessLookupError, PermissionError):
-                        pass
                     raise KeyboardInterrupt()
 
                 assert submission_time is not None
@@ -498,23 +494,29 @@ while True:
                     team_err = submission.stderr.read().decode("utf-8", "replace")
             finally:
                 # clean up resources
+                def kill(process: subprocess.Popen[bytes]) -> None:
+                    if process.pid not in reaped:
+                        with suppress(ProcessLookupError, PermissionError):
+                            process.kill()
+                            process.wait()
+
                 def close_io(stream: Optional[IO[bytes]]) -> None:
                     if stream:
                         stream.close()
 
                 if validator is not None:
-                    validator.wait()
+                    kill(validator)
                     close_io(validator.stdin)
                     close_io(validator.stdout)
                     close_io(validator.stderr)
                 if team_tee is not None:
-                    team_tee.wait()
+                    kill(team_tee)
                     close_io(team_tee.stdin)
                 if val_tee is not None:
-                    val_tee.wait()
+                    kill(val_tee)
                     close_io(val_tee.stdout)
                 if submission is not None:
-                    submission.wait()
+                    kill(submission)
                     close_io(submission.stderr)
 
             if verdict == Verdict.TIME_LIMIT_EXCEEDED:

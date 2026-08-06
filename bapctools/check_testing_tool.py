@@ -1,5 +1,6 @@
 import sys
 from collections.abc import Sequence
+from contextlib import suppress
 from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
@@ -80,6 +81,7 @@ class WrappedSubmission:
         script = """#!/usr/bin/env python3
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 result = subprocess.run(
@@ -93,11 +95,9 @@ returncode_file = Path(".returncode")
 write_returncode = True
 if returncode_file.is_file():
     raw = returncode_file.read_text()
-    try:
+    with suppress(ValueError):
         if int(raw) != 0:
             write_returncode = False
-    except ValueError:
-        pass
 if write_returncode:
     returncode_file.write_text(f"{result.returncode}\\n")
 sys.exit(result.returncode)
@@ -126,11 +126,9 @@ sys.exit(result.returncode)
         submission_status = None
         if returncode_file.is_file():
             raw = returncode_file.read_text()
-            try:
+            with suppress(ValueError):
                 submission_returncode = int(raw)
                 submission_status = default_exec_code_map(submission_returncode)
-            except ValueError:
-                pass
         ok = bool(result.status) and bool(submission_status)
 
         message = []
