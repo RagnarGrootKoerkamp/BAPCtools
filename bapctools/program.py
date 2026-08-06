@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
@@ -157,10 +158,8 @@ class Program:
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
         relpath = Path(path.name)
         if path.absolute().parent != problem.path.absolute():
-            try:
+            with suppress(ValueError):
                 relpath = path.absolute().relative_to(problem.path.absolute() / subdir)
-            except ValueError:
-                pass
 
         self.short_path = relpath
         self.name: str = relpath.as_posix()
@@ -275,15 +274,13 @@ class Program:
 
         if self.language.code in ("cpp", "cppgmp"):
             for f in self.source_files:
-                try:
+                with suppress(UnicodeDecodeError):
                     if "bits/stdc++.h" in f.read_text():
                         if isinstance(self, Submission):
                             bar.log("Should not depend on bits/stdc++.h")
                         else:
                             bar.error("Must not depend on bits/stdc++.h.", resume=True)
                         break
-                except UnicodeDecodeError:
-                    pass
 
         # Warn for known bad (non-deterministic) patterns in generators
         from bapctools.validate import Validator
@@ -291,7 +288,7 @@ class Program:
         if isinstance(self, (Generator, Validator)):
             if self.language.code in ("cpp", "cppgmp"):
                 for f in self.source_files:
-                    try:
+                    with suppress(UnicodeDecodeError):
                         text = f.read_text()
                         bad_random = set()
                         for s in [
@@ -317,18 +314,14 @@ class Program:
                             bar.warn(
                                 f"Calling typeid() in {f.name} is implementation dependent in C++."
                             )
-                    except UnicodeDecodeError:
-                        pass
             if self.language.code in ("python2", "python3", "python3numpy"):
                 for f in self.source_files:
-                    try:
+                    with suppress(UnicodeDecodeError):
                         if "list(set(" in f.read_text():
                             bar.warn(
                                 "The order of sets is not fixed across implementations. Please sort the list!"
                             )
                             break
-                    except UnicodeDecodeError:
-                        pass
 
     # Return True on success.
     def _compile(self, bar: ProgressBar) -> bool:

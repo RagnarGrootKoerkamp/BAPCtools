@@ -16,6 +16,7 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextlib import suppress
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -1090,7 +1091,7 @@ if is_windows():
 
 # safer function to remove a path, handles files, dirs and broken symlinks
 def remove_path(path: Path) -> None:
-    try:
+    with suppress(NotADirectoryError, FileNotFoundError):
         try:
             path.unlink()
         except OSError:
@@ -1098,8 +1099,6 @@ def remove_path(path: Path) -> None:
                 shutil.rmtree(path)
             else:
                 raise
-    except (NotADirectoryError, FileNotFoundError):
-        pass
 
 
 # When output is True, copy the file when args.cp is true.
@@ -1298,12 +1297,10 @@ def math_eval(text: str) -> Optional[int | float]:
     if any(c not in allowed for c in text):
         return None
 
-    try:
+    with suppress(Exception):
         value = eval(text, {"__builtin__": None})
         if isinstance(value, (int, float)):
             return value
-    except Exception:
-        pass
     return None
 
 
