@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import colorama
-from colorama import Style
+from colorama import Fore, Style
 
 # Local imports
 from bapctools import (
@@ -360,11 +360,27 @@ class LazyVersion(argparse.Action):
         from importlib.metadata import PackageNotFoundError, version
 
         try:
-            version_str = version("BAPCtools")
+            print("BAPCtools version", version("BAPCtools"))
         except PackageNotFoundError:
-            version_str = "<unknown>"
-        print("BAPCtools version", version_str)
-        parser.exit()
+            print(
+                Fore.YELLOW,
+                "WARNING: unknown version! Please install BAPCtools using pip(x).",
+                Style.RESET_ALL,
+                sep="",
+            )
+            parser.exit(1)
+
+        if not option_string or not option_string.startswith("--"):
+            parser.exit()
+
+        exit = 0
+        try:
+            print("- with checktestdata", version("checktestdata"))
+        except PackageNotFoundError:
+            exit = 1
+            print(Fore.YELLOW, "- missing checktestdata", Style.RESET_ALL, sep="")
+        # TODO: print additional infos
+        parser.exit(exit)
 
 
 def build_parser() -> SuppressingParser:
