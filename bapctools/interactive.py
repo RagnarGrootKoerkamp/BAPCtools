@@ -299,6 +299,9 @@ while True:
             team_tee = None
             val_tee = None
             submission = None
+            # mixing os.wait4 with subprocess.wait is unsafe so we store which
+            # PIDs have been reaped by os.wait4
+            reaped = []
             try:
                 validator = subprocess.Popen(
                     validator_command,
@@ -374,9 +377,6 @@ while True:
                     validator_status = None
                     submission_status = None
                     first = None
-                    # mixing os.wait4 with subprocess.wait is unsafe so we store which
-                    # PIDs have been reaped by os.wait4
-                    reaped = []
 
                     # Wait for first to finish
                     left = 4 if interaction else 2
@@ -439,7 +439,7 @@ while True:
                 except KeyboardInterrupt:
                     with suppress(ProcessLookupError, PermissionError):
                         os.killpg(gid, signal.SIGKILL)
-                    raise KeyboardInterrupt()
+                    raise
 
                 assert submission_time is not None
                 did_timeout = submission_time > time_limit
