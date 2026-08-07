@@ -25,9 +25,8 @@ def stats(problems: list[Problem]) -> None:
 @cache
 def test_cases(problem: Problem) -> set[Path]:
     with config.suppress_warnings(level=2):
-        with open(os.devnull, "w") as devnull:
-            with contextlib.redirect_stderr(devnull):
-                gen_config = generate.GeneratorConfig(problem)
+        with open(os.devnull, "w") as devnull, contextlib.redirect_stderr(devnull):
+            gen_config = generate.GeneratorConfig(problem)
     if gen_config.n_parse_error > 0:
         return set()
     if gen_config.has_yaml:

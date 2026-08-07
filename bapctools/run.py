@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 from typing import Optional
 
@@ -762,9 +762,6 @@ class Submission(program.Program):
             )
             bar.log("from stdin" if is_tty else "from file")
 
-            # Launch a separate thread to pass stdin to a pipe.
-            r, w = os.pipe()
-
             TEE_CODE = R"""
 import sys
 while True:
@@ -773,10 +770,13 @@ while True:
     sys.stdout.write(l)
     sys.stdout.flush()
 """
-            writer = None
+            with ExitStack() as cleanup:
+                # Launch a separate thread to pass stdin to a pipe.
+                r, w = os.pipe()
+                cleanup.callback(lambda: os.close(r))
+                cleanup.callback(lambda: os.close(w))
 
-            # Wait for first input
-            try:
+                # Wait for first input
                 read = False
                 for line in sys.stdin:
                     read = True
@@ -790,6 +790,7 @@ while True:
                     return
 
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
+                cleanup.enter_context(writer)
 
                 assert self.run_command is not None
                 result = self._exec_command(
@@ -816,12 +817,7 @@ while True:
                         f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
                 eprint()
-            finally:
-                os.close(r)
-                os.close(w)
-                if writer is not None:
-                    writer.kill()
-                    writer.wait()
+
             bar.done()
 
             if not is_tty:
