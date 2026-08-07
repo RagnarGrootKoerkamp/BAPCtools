@@ -570,6 +570,7 @@ def sanity_check_override(problem: "Problem", path: Path, bar: ProgressBar) -> N
         return
 
     assert path.exists()
+    assert any(path.name.endswith(ext) for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS)
 
     name = {
         ".in.statement": "Statement input",

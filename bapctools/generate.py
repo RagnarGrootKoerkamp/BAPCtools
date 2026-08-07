@@ -1429,7 +1429,7 @@ class TestCaseRule(Rule):
             if not statement_ans and download_ans:
                 bar.warn(f"found {download_ans[0]} but no override for .ans.statement")
 
-            for ext in [".in.statement", ".ans.statement", ".in.download", ".ans.download"]:
+            for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
                 file = infile.with_suffix(ext)
                 if not file.is_file():
                     continue
