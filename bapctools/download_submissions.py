@@ -34,8 +34,8 @@ def download_submissions() -> None:
 
     bar.start("scoreboard")
     for endpoint in ["teams", "organizations", "problems", "scoreboard", "clarifications"]:
-        with open(f"scoreboard/{endpoint}.json", "w") as f:
-            f.write(json.dumps(call_api_get_json(f"/contests/{contest_id}/{endpoint}"), indent=2))
+        data = json.dumps(call_api_get_json(f"/contests/{contest_id}/{endpoint}"), indent=2)
+        Path(f"scoreboard/{endpoint}.json").write_text(data)
     bar.done()
 
     bar.start("judgements")
@@ -79,11 +79,8 @@ def download_submissions() -> None:
         teamid = f"{s['team_id']:>0{team_digits}}" if s["team_id"].isdigit() else s["team_id"]
         submissionid = f"{i:>0{submission_digits}}"
         ext = source_code[0]["filename"].split(".")[-1]
-        with open(
-            f"submissions/{s['problem_id']}/{verdict_dir}/t{teamid}_s{submissionid}_{s['max_run_time']}s.{ext}",
-            "wb",
-        ) as f:
-            f.write(source)
+        path = f"submissions/{s['problem_id']}/{verdict_dir}/t{teamid}_s{submissionid}_{s['max_run_time']}s.{ext}"
+        Path(path).write_bytes(source)
         bar.done()
 
     # When downloading submissions, we need to wait for the server to respond, so we can use more jobs
