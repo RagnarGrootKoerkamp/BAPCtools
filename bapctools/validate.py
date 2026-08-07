@@ -4,18 +4,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import config, program
+from bapctools import config, languages, program
 from bapctools.util import (
     ExecResult,
     ExecStatus,
-    fatal,
     ProgressBar,
     remove_path,
     validator_exec_code_map,
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools import run, testcase
+    from bapctools import run, test_case
     from bapctools.problem import Problem
 
 
@@ -85,16 +84,18 @@ class Validator(program.Program):
 
     It returns
 
-    ExecResult: The result of running this validator on the given testcase.
+    ExecResult: The result of running this validator on the given test case.
         ExecResult.status == ExecStatus.ACCEPTED  if the validator accepted.
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[program.Language]] = [
-        program.CHECKTESTDATA,
-        program.COMPILED_CHECKTESTDATA,
-        program.VIVA,
+    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
+        languages.CHECKTESTDATA,
+        languages.COMPILED_CHECKTESTDATA,
+        languages.VIVA,
     ]
+
+    languages: Final[Sequence[str]] = languages.VALIDATOR_LANGUAGE_CODES
 
     def __repr__(self) -> str:
         return type(self).__name__ + ": " + str(self.path)
@@ -127,26 +128,26 @@ class Validator(program.Program):
     def _run_helper(
         self,
         mode: "Mode | run.Run",
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
         Return:
-            cwd: a current working directory for this testcase
+            cwd: a current working directory for this test case
             constraints_path: None or a path to the constraints file
             args: (possibly empty) list of arguments, possibly including --contraints_file
         """
         if isinstance(mode, Mode):
-            if testcase.in_path.is_relative_to(self.problem.tmpdir):
-                cwd = testcase.in_path.with_suffix(".feedbackdir")
+            if test_case.in_path.is_relative_to(self.problem.tmpdir):
+                cwd = test_case.with_suffix(".feedbackdir")
             else:
                 name = self.tmpdir.relative_to(self.problem.tmpdir)
                 cwd = (
                     self.problem.tmpdir
                     / "tool_runs"
                     / name
-                    / testcase.short_path.with_suffix(".feedbackdir")
+                    / test_case.short_path.with_suffix(".feedbackdir")
                 )
             remove_path(cwd)
             cwd.mkdir(parents=True, exist_ok=True)
@@ -170,19 +171,19 @@ class Validator(program.Program):
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
     def _run_format_validator(
-        self, testcase: "testcase.Testcase", cwd: Path, args: Sequence[str | Path]
+        self, test_case: "test_case.TestCase", cwd: Path, args: Sequence[str | Path]
     ) -> ExecResult:
         assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
         assert self.run_command is not None, "Validator should be built before running it"
 
         if isinstance(self, InputValidator):
-            main_path = testcase.in_path
+            main_path = test_case.in_path
         elif isinstance(self, AnswerValidator):
-            main_path = testcase.ans_path
+            main_path = test_case.ans_path
         else:
             assert False  # now also catches OutputValidator
 
-        if self.language == program.COMPILED_CHECKTESTDATA:
+        if self.language == languages.COMPILED_CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
                     [*self.run_command, *args],
@@ -200,7 +201,7 @@ class Validator(program.Program):
                 return ExecStatus.TIMEOUT
             return ExecStatus.ERROR
 
-        if self.language == program.CHECKTESTDATA:
+        if self.language == languages.CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
                     [*self.run_command, *args],
@@ -209,7 +210,7 @@ class Validator(program.Program):
                     cwd=cwd,
                 )
 
-        if self.language == program.VIVA:
+        if self.language == languages.VIVA:
             # Called as `viva validator.viva testcase.in`.
             return self._exec_command(
                 [*self.run_command, main_path.absolute(), *args],
@@ -237,7 +238,7 @@ class Validator(program.Program):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -265,7 +266,7 @@ class InputValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -286,12 +287,12 @@ class InputValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+            ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
-            with testcase.in_path.open("rb") as in_file:
+            with test_case.in_path.open("rb") as in_file:
                 ret = self._exec_helper(
                     [*self.run_command, *arglist],
                     exec_code_map=validator_exec_code_map,
@@ -326,7 +327,7 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -340,14 +341,14 @@ class AnswerValidator(Validator):
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            ret = Validator._run_format_validator(self, testcase, cwd, arglist)
+            ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
-            with testcase.ans_path.open("rb") as ans_file:
+            with test_case.ans_path.open("rb") as ans_file:
                 ret = self._exec_helper(
-                    [*self.run_command, testcase.in_path.absolute(), *arglist],
+                    [*self.run_command, test_case.in_path.absolute(), *arglist],
                     exec_code_map=validator_exec_code_map,
                     stdin=ans_file,
                     cwd=cwd,
@@ -378,19 +379,19 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        testcase: "testcase.Testcase",
+        test_case: "test_case.TestCase",
         mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """
-        Run this validator on the given testcase.
+        Run this validator on the given test case.
 
         Arguments
         ---------
 
         mode: either a run.Run (namely, when validating submission output) or a Mode
-            (namely, when validating a testcase)
+            (namely, when validating a test case)
 
         Returns
         -------
@@ -402,20 +403,20 @@ class OutputValidator(Validator):
         if mode == Mode.INPUT:
             raise ValueError("OutputValidator does not support Mode.INPUT")
 
-        in_path = testcase.in_path.absolute()
-        ans_path = testcase.ans_path.absolute()
+        in_path = test_case.in_path.absolute()
+        ans_path = test_case.ans_path.absolute()
         if mode == Mode.ANSWER:
             path = ans_path
         elif mode == Mode.INVALID:
-            if testcase.root != "invalid_output":
+            if test_case.root != "invalid_output":
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
-            assert testcase.out_path is not None
-            path = testcase.out_path.absolute()
+            assert test_case.out_path is not None
+            path = test_case.out_path.absolute()
         elif mode == Mode.VALID_OUTPUT:
-            assert testcase.out_path is not None
-            path = testcase.out_path.absolute()
+            assert test_case.out_path is not None
+            path = test_case.out_path.absolute()
         else:
             # mode is actually a Run
             path = mode.out_path
@@ -424,7 +425,7 @@ class OutputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
-        cwd, constraints_path, arglist = self._run_helper(mode, testcase, constraints, args)
+        cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
         with path.open("rb") as file:
             ret = self._exec_helper(
@@ -469,13 +470,13 @@ def sanity_check(
     problem: "Problem", path: Path, bar: ProgressBar, strict_whitespace: bool = True
 ) -> None:
     """
-    Does some generic checks on input, answer, or output files of a testcase, including
+    Does some generic checks on input, answer, or output files of a test case, including
 
     - no unreadable characters
     - not too large
 
     if any of this is violated a warning is printed.
-    use --no-testcase-sanity-checks to skip this
+    use --no-test-case-sanity-checks to skip this
 
     args:
         strict_whitespace: Also check
@@ -483,13 +484,11 @@ def sanity_check(
         - no other_whitespaces (like '\t')
         - no whitespace at start of file
         - ensures newline at end of file
-
     """
-    if config.args.no_testcase_sanity_checks:
+    if config.args.no_test_case_sanity_checks:
         return
 
-    if not path.exists():
-        fatal(f"{path} not found during sanity check")
+    assert path.exists()
 
     name = {
         ".in": "Input",
@@ -503,6 +502,7 @@ def sanity_check(
         # only allow empty files for interactive or multi-pass .ans
         if not (path.suffix == ".ans" and (problem.interactive or problem.multi_pass)):
             bar.warn(f"{name} is empty but was accepted!")
+        return
     else:
         # enforce empty .ans file for interactive
         if problem.interactive and path.suffix == ".ans":
@@ -510,7 +510,7 @@ def sanity_check(
         return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
 
     # check file size limits
-    # TODO: consider time limit?
+    # TODO: consider time limit (more time => larger file limit)?
     file_size_limit = 20  # in MiB
     inMiB = 1024**2
     assert config.ICPC_FILE_LIMIT > file_size_limit
@@ -532,10 +532,139 @@ def sanity_check(
     # check content
     if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
         bar.warn(f"{name} contains unexpected characters but was accepted!")
-    if strict_whitespace and len(file_bytes) > 0:
-        if file_bytes[0] in [ord(" "), ord("\n")]:
+    if strict_whitespace:
+        if file_bytes[0] in b" \n":
             bar.warn(f"{name} starts with whitespace but was accepted!")
-        if file_bytes[-1] != ord("\n"):
+        if not file_bytes.endswith(b"\n"):
             bar.warn(f"{name} does not end with a newline but was accepted!")
         if _has_consecutive_whitespaces(file_bytes):
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
+
+
+def _sanity_check_override(file_bytes: bytes, bar: ProgressBar, name: str) -> None:
+    if len(file_bytes) == 0:
+        return
+    if _has_invalid_byte(file_bytes, other_whitespaces=False):
+        bar.warn(f"{name} contains unexpected characters")
+    if file_bytes[0] in b" \n":
+        bar.warn(f"{name} starts with whitespace")
+    if not file_bytes.endswith(b"\n"):
+        bar.warn(f"{name} does not end with a newline")
+    if _has_consecutive_whitespaces(file_bytes):
+        bar.warn(f"{name} contains consecutive whitespace characters")
+
+
+def sanity_check_override(problem: "Problem", path: Path, bar: ProgressBar) -> None:
+    """
+    Does some generic checks on override files, including
+
+    - no unreadable characters
+    - no weird consecutive whitespaces ('  ', '\n ', ' \n')
+    - no other_whitespaces (like '\t')
+    - ensures newline at end of file
+
+    if any of this is violated a warning is printed.
+    use --no-test-case-sanity-checks to skip this
+    """
+    if config.args.no_test_case_sanity_checks:
+        return
+
+    assert path.exists()
+    assert any(path.name.endswith(ext) for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS)
+
+    name = {
+        ".in.statement": "Statement input",
+        ".ans.statement": "Statement answer",
+        ".in.download": "Download input",
+        ".ans.download": "Download answer",
+    }["".join(path.suffixes[-2:])]
+    _sanity_check_override(path.read_bytes(), bar, name)
+
+
+def check_interaction(
+    problem: "Problem", path: Path, bar: ProgressBar, *, startswith: bytes = b""
+) -> bool:
+    """
+    Checks the override as well as some specific checks for .interaction files, including
+
+    - each line starts with '>', '<' or is '---'
+    - tries to guess if '>' and '<' have been mixed up if startswith is given
+
+    if any of this is violated a warning is printed.
+    use --no-test-case-sanity-checks to skip all optional checks
+    """
+    assert path.exists()
+
+    file_bytes = path.read_bytes()
+
+    # split into passes
+    lines = file_bytes.splitlines(keepends=True)
+    passes = []
+    current_pass: list[bytes] = []
+    whitespace_issue = False
+    for line in lines:
+        if line.startswith(b"---"):
+            passes.append(current_pass)
+            current_pass = []
+            if line == b"---\n":
+                pass
+            elif line[3:].isspace():
+                whitespace_issue = True
+            else:
+                bar.error("Interaction separator is followed by unexpected characters")
+                return False
+        else:
+            current_pass.append(line)
+    passes.append(current_pass)
+
+    if len(passes) > 1 and not problem.multi_pass:
+        bar.error("Interaction contains multiples passes but problem is not multi-pass")
+        return False
+
+    for line in sum(passes, []):
+        if line.startswith(b"<"):
+            continue
+        if line.startswith(b">"):
+            continue
+        bar.error("Interaction is invalid, lines must start with '<' or '>'")
+        return False
+
+    if config.args.no_test_case_sanity_checks:
+        return True
+
+    # detected earlier
+    if whitespace_issue:
+        bar.warn("Interaction separator is followed by unexpected whitespace characters")
+
+    # parse interaction for each pass
+    for p, lines in enumerate(passes, start=1):
+        has_jury = False
+        has_team = False
+        has_jury_after_team = False
+
+        parsed = []
+        for line in lines:
+            if line.startswith(b"<"):
+                has_jury = True
+                has_jury_after_team |= has_team
+            else:
+                assert line.startswith(b">")
+                has_team = True
+            parsed.append(line[1:])
+
+        data = b"".join(parsed)
+        name = f"Interaction pass {p}" if problem.multi_pass else "Interaction"
+        _sanity_check_override(data, bar, name)
+
+        if not has_jury:
+            bar.warn(f"{name} has no team <- jury output")
+        elif not problem.interactive and has_jury_after_team:
+            bar.warn(f"{name} for non interactive problem has interleaved communication")
+        if not has_team:
+            bar.warn(f"{name} has no team -> jury output")
+
+    # try to check if '>' and '<' are used correctly
+    assert len(startswith) <= 1
+    if startswith and not file_bytes.startswith(startswith):
+        bar.warn("Did you mix up '>' and '<'? ('>' is team -> jury)")
+    return True

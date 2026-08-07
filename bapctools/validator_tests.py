@@ -1,13 +1,7 @@
 from collections.abc import Callable, Sequence
-from typing import Final, Optional, TypeVar
+from typing import Final, Optional, TypeAlias, TypeVar
 
 from bapctools.validate import AnswerValidator, AnyValidator, InputValidator, OutputValidator
-
-
-# helper function
-def end_newline(x: str) -> bool:
-    return len(x) > 0 and x[-1] == "\n"
-
 
 ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
     AnswerValidator,
@@ -15,15 +9,22 @@ ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
     OutputValidator,
 ]
 IN_ANS_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [InputValidator, AnswerValidator]
+INVALID_GENERATOR_TYPE: TypeAlias = tuple[
+    str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]
+]
+VALID_GENERATOR_TYPE: TypeAlias = tuple[str, str | Callable[[str], Optional[str]], bool, bool]
 
 
-def _list_invalid_generators() -> list[
-    tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]
-]:
+# helper function
+def _append_before_newline(text: str, token: str) -> Optional[str]:
+    if not text.endswith("\n"):
+        return None
+    return f"{text[:-1]}{token}\n"
+
+
+def _list_invalid_generators() -> list[INVALID_GENERATOR_TYPE]:
     generator_names: set[str] = set()
-    generators: list[
-        tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]
-    ] = []
+    generators: list[INVALID_GENERATOR_TYPE] = []
 
     T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
 
@@ -48,7 +49,7 @@ def _list_invalid_generators() -> list[
 
         return decorator
 
-    # constant testcases
+    # constant test cases
     register("latin-1")("Naïve")
     register("empty", [InputValidator, OutputValidator])("")
     register("newline")("\n")
@@ -65,28 +66,13 @@ def _list_invalid_generators() -> list[
     register("trailing_token_int")(lambda x: f"{x}42\n")
     register("trailing_token_str")(lambda x: f"{x}hello\n")
     register("trailing_newline", IN_ANS_VALIDATORS)(lambda x: f"{x}\n")
-
-    @register()
-    def append_token_str(x: str) -> Optional[str]:
-        if not end_newline(x):
-            return None
-        return f"{x[:-1]} hello\n"
-
-    @register()
-    def append_token_int(x: str) -> Optional[str]:
-        if not end_newline(x):
-            return None
-        return f"{x[:-1]} 42\n"
-
-    @register(supported_cls=IN_ANS_VALIDATORS)
-    def append_space(x: str) -> Optional[str]:
-        if not end_newline(x):
-            return None
-        return f"{x[:-1]} \n"
+    register("append_token_str")(lambda x: _append_before_newline(x, " hello"))
+    register("append_token_int")(lambda x: _append_before_newline(x, " 42"))
+    register("append_space", IN_ANS_VALIDATORS)(lambda x: _append_before_newline(x, " "))
 
     @register(supported_cls=IN_ANS_VALIDATORS)
     def drop_newline(x: str) -> Optional[str]:
-        if not end_newline(x):
+        if not x.endswith("\n"):
             return None
         return x[:-1]
 
@@ -105,14 +91,13 @@ def _list_invalid_generators() -> list[
     return generators
 
 
-INVALID_GENERATORS: Final[
-    Sequence[tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]]
-] = _list_invalid_generators()
+INVALID_GENERATORS: Final[Sequence[INVALID_GENERATOR_TYPE]] = _list_invalid_generators()
+del _list_invalid_generators
 
 
-def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], bool, bool]]:
+def _list_valid_generators() -> list[VALID_GENERATOR_TYPE]:
     generator_names: set[str] = set()
-    generators: list[tuple[str, str | Callable[[str], Optional[str]], bool, bool]] = []
+    generators: list[VALID_GENERATOR_TYPE] = []
 
     T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
 
@@ -136,6 +121,7 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
     # simple generators
     register("leading_space", space_change=True)(lambda x: f" {x}")
     register("trailing_newline", space_change=True)(lambda x: f"{x}\n")
+    register("append_space", space_change=True)(lambda x: _append_before_newline(x, " "))
 
     @register(space_change=True)
     def all_newline(x: str) -> Optional[str]:
@@ -150,14 +136,8 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
         return x.replace("\n", " ")
 
     @register(space_change=True)
-    def append_space(x: str) -> Optional[str]:
-        if not end_newline(x):
-            return None
-        return f"{x[:-1]} \n"
-
-    @register(space_change=True)
     def drop_newline(x: str) -> Optional[str]:
-        if not end_newline(x):
+        if not x.endswith("\n"):
             return None
         return x[:-1]
 
@@ -175,6 +155,5 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
     return generators
 
 
-VALID_GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]], bool, bool]]] = (
-    _list_valid_generators()
-)
+VALID_GENERATORS: Final[Sequence[VALID_GENERATOR_TYPE]] = _list_valid_generators()
+del _list_valid_generators

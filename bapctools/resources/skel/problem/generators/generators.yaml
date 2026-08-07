@@ -68,7 +68,7 @@ data:
       #- large: generator {seed} -n 999
       #- large: generator {seed} -n 1000
 
-      # Many testcases with the same parameter can be generated like this:
+      # Many test cases with the same parameter can be generated like this:
       #- large:
       #    generate: generator {seed:1} -n 1000
       #    count: 10

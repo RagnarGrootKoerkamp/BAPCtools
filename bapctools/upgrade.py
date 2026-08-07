@@ -106,7 +106,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 
     # Move test cases in 'bad' to either 'invalid_input' or 'invalid_answer', whichever applies
 
-    def rename_testcase(old_base: Path, new_dir: Path) -> None:
+    def rename_test_case(old_base: Path, new_dir: Path) -> None:
         new_dir.mkdir(parents=True, exist_ok=True)
         new_base = new_dir / old_base.name
         for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -128,9 +128,9 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     bad_dir = problem_path / "data" / "bad"
     for file in bad_dir.glob("*.in"):
         if file.with_suffix(".ans").is_file():
-            rename_testcase(file, problem_path / "data" / "invalid_answer")
+            rename_test_case(file, problem_path / "data" / "invalid_answer")
         else:
-            rename_testcase(file, problem_path / "data" / "invalid_input")
+            rename_test_case(file, problem_path / "data" / "invalid_input")
     if bad_dir.is_dir() and not any(bad_dir.iterdir()):
         bad_dir.rmdir()
 
@@ -260,7 +260,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         # this breaks comments... but that is fine
         if "bad" in data:
 
-            def move_testcase(name: str, value: Any, new_parent: str) -> None:
+            def move_test_case(name: str, value: Any, new_parent: str) -> None:
                 parent = ryaml_get_or_add(data, new_parent)
                 if "data" not in parent:
                     parent[data] = CommentedSeq
@@ -284,9 +284,9 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 for dictionary in children:
                     for child_name, child_data in sorted(dictionary.items()):
                         if "ans" in child_data:
-                            move_testcase(child_name, child_data, "invalid_answer")
+                            move_test_case(child_name, child_data, "invalid_answer")
                         else:
-                            move_testcase(child_name, child_data, "invalid_input")
+                            move_test_case(child_name, child_data, "invalid_input")
 
             ryaml_filter(data, "bad")
             changed = True
@@ -307,6 +307,17 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         assert isinstance(child_data, CommentedMap)
                         changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
+
+    def drop_type_entry(data: CommentedMap, path: str) -> bool:
+        if not generate.is_directory(data):
+            return False
+        if "type" not in data:
+            return False
+        if data["type"] != "directory":
+            return False
+        ryaml_filter(data, "type")
+        bar.log(f"removing legacy 'type: directory' in generators.yaml ({path})")
+        return True
 
     def rename_testdata_to_test_group_yaml(data: CommentedMap, path: str) -> bool:
         old, new = "testdata.yaml", "test_group.yaml"
@@ -430,6 +441,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                             changed = True
         return changed
 
+    changed |= apply_recursively(drop_type_entry, yaml_data, "")
     changed |= apply_recursively(rename_testdata_to_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(upgrade_generated_test_group_yaml, yaml_data, "")
     changed |= apply_recursively(replace_hint_desc_in_test_cases, yaml_data, "")
@@ -525,13 +537,10 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
-    assert (problem_path / "problem.yaml").exists()
+    assert is_problem_directory(problem_path)
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
 
-    if (
-        "problem_format_version" not in data
-        or data["problem_format_version"] != config.SPEC_VERSION
-    ):
+    if data.get("problem_format_version") != config.SPEC_VERSION:
         bar.log("set 'problem_format_version' in problem.yaml")
         data.insert(0, "problem_format_version", config.SPEC_VERSION)
 
@@ -547,6 +556,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 type.append("interactive")
             if "multi-pass" in data["validation"]:
                 type.append("multi-pass")
+            if "score" in data["validation"]:
+                type.append("scoring")
             if not type:
                 type.append("pass-fail")
             # "type" comes before "name" in the spec
@@ -679,7 +690,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if line.startswith(";") or "=" not in line:
                 continue
             key, var = map(str.strip, line.strip().split("="))
-            if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+            if var.startswith(('"', "'")) and var[0] == var[-1]:
                 var = var[1:-1]
             if key == "timelimit":
                 time_limit = float(var)

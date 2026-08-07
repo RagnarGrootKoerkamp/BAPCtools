@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
 from bapctools import config
-from bapctools.testcase import Testcase
+from bapctools.test_case import TestCase
 from bapctools.util import BAR_TYPE, error, fatal, read_yaml, warn, YamlParser
 from bapctools.verdicts import Verdict
 
@@ -86,8 +86,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
 
     glob = raw
     # dir/ and dir should match the same
-    if glob.endswith("/"):
-        glob = glob[:-1]
+    glob = glob.removesuffix("/")
     parts = re.split("{([^{}]*)}", glob)
     for i, part in enumerate(parts):
         if i % 2 == 0:
@@ -112,8 +111,8 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
     return re.compile(glob)
 
 
-# Represents a submissions.yaml entry of a testcase glob
-class TestcaseExpectation:
+# Represents a submissions.yaml entry of a test case glob
+class TestCaseExpectation:
     def __init__(self, parser: Optional[YamlParser] = None, test_case_glob: Optional[str] = None):
         if parser is None:
             parser = YamlParser("internal", {})
@@ -170,14 +169,14 @@ class TestcaseExpectation:
         if self.lower_time_limit and self.upper_time_limit:
             parser.bar.error(f"`{parser.parent_path}` is used for upper and lower time limit!")
 
-    def matches(self, testcase: Testcase) -> bool:
+    def matches(self, test_case: TestCase) -> bool:
         if self.test_case_regex is None:
             return True
-        return self.test_case_regex.match(testcase.name) is not None
+        return self.test_case_regex.match(test_case.name) is not None
 
 
 # Represents a submissions.yaml entry of a submission glob
-# This stores all testcase globs
+# This stores all test case globs
 class SubmissionExpectation:
     def __init__(
         self, submission_glob: str, yaml_data: Optional[dict[object, object]] = None
@@ -192,9 +191,9 @@ class SubmissionExpectation:
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
-        self.expectations: list[TestcaseExpectation] = []
+        self.expectations: list[TestCaseExpectation] = []
         if yaml_data is not None:
-            self.expectations.append(TestcaseExpectation(parser))
+            self.expectations.append(TestCaseExpectation(parser))
             for key in list(parser.remaining):
                 if not isinstance(key, str):
                     continue
@@ -206,31 +205,31 @@ class SubmissionExpectation:
                     parser.bar.warn(
                         f"test case glob `{key}` does not start with `sample`, `secret`, or `*`"
                     )
-                self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
+                self.expectations.append(TestCaseExpectation(parser.extract_parser(key), key))
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
         return self.submission_regex.match(submission.name) is not None
 
-    def all_matches(self, testcase: Optional[Testcase] = None) -> list[TestcaseExpectation]:
-        if testcase is None:
+    def all_matches(self, test_case: Optional[TestCase] = None) -> list[TestCaseExpectation]:
+        if test_case is None:
             return self.expectations
-        matching = [e for e in self.expectations if e.matches(testcase)]
+        matching = [e for e in self.expectations if e.matches(test_case)]
         assert matching
         return matching
 
-    def all_permitted(self, testcase: Optional[Testcase] = None) -> set[Verdict]:
+    def all_permitted(self, test_case: Optional[TestCase] = None) -> set[Verdict]:
         permitted = set(EXPECTATION_VERDICTS)
-        for e in self.all_matches(testcase):
+        for e in self.all_matches(test_case):
             permitted &= e.permitted
         return permitted
 
-    def root_expectations(self) -> list[TestcaseExpectation]:
+    def root_expectations(self) -> list[TestCaseExpectation]:
         return [e for e in self.expectations if e.test_case_glob is None]
 
     def is_accepted(self) -> bool:
         """
-        A submission is considered accepted if its root TestcaseExpectation only permits AC
+        A submission is considered accepted if its root TestCaseExpectation only permits AC
         """
         return any(e.permitted == {Verdict.ACCEPTED} for e in self.root_expectations())
 

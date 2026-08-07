@@ -6,9 +6,9 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
-from typing import IO, Literal, Optional, TYPE_CHECKING
+from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
@@ -22,12 +22,17 @@ from bapctools.util import (
     limit_setter,
     PrintBar,
     ProgressBar,
+    remove_path,
 )
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
+    from bapctools.problem import Problem
     from bapctools.run import Run
+    from bapctools.test_case import TestCase
 
+
+MAX_PIPE_SIZE: Final[int] = 10 * 1024**2
 PIPE_SIZE: Optional[int] = None
 
 
@@ -41,35 +46,40 @@ def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
     if is_windows() or is_bsd():
         return -1
 
-    with open("/proc/sys/fs/pipe-max-size") as f:
-        PIPE_SIZE = int(f.read())  # Defaults to 1 MiB on most systems.
+    # Defaults to 1 MiB on most systems, we limit it to 10MiB
+    PIPE_SIZE = int(Path("/proc/sys/fs/pipe-max-size").read_text())
+    PIPE_SIZE = min(PIPE_SIZE, MAX_PIPE_SIZE)
 
     # Try to set the pipe size in the same way as subprocess.Popen does:
     # https://github.com/python/cpython/blob/v3.14.4/Lib/subprocess.py#L1737
     pipe_read, pipe_write = -1, -1
     try:
-        pipe_read, pipe_write = os.pipe()
-        if hasattr(fcntl, "F_SETPIPE_SZ"):
-            fcntl.fcntl(pipe_write, fcntl.F_SETPIPE_SZ, PIPE_SIZE)
+        with ExitStack() as cleanup:
+            pipe_read, pipe_write = os.pipe()
+            cleanup.callback(lambda: os.close(pipe_read))
+            cleanup.callback(lambda: os.close(pipe_write))
+            if hasattr(fcntl, "F_SETPIPE_SZ"):
+                fcntl.fcntl(pipe_write, fcntl.F_SETPIPE_SZ, PIPE_SIZE)
     except PermissionError:
         (bar or PrintBar("Run interactive test case")).warn(
             "Permission error when setting pipe size. Running with default pipe size."
         )
         PIPE_SIZE = -1
-    finally:
-        if pipe_read != -1:
-            os.close(pipe_read)
-        if pipe_write != -1:
-            os.close(pipe_write)
 
-    if config.args.verbose >= 3:
+    if config.args.verbose >= 2:
         eprint("Pipe size:  ", PIPE_SIZE)
 
     return PIPE_SIZE
 
 
+def _close(pipe: Optional[IO[bytes]]) -> None:
+    if pipe:
+        with suppress(OSError):
+            pipe.close()
+
+
 # Return a ExecResult object amended with verdict.
-def run_interactive_testcase(
+def run_interactive_test_case(
     run: "Run",
     # False: Return as part of ExecResult
     # None: print to stdout
@@ -97,31 +107,30 @@ def run_interactive_testcase(
     memory = run.problem.limits.memory
 
     # Validator command
-    def get_validator_command() -> Sequence[str | Path]:
-        assert output_validator.run_command, "Output validator must be built"
-        return [
-            *output_validator.run_command,
-            run.in_path.absolute(),
-            run.testcase.ans_path.absolute(),
-            run.feedbackdir.absolute(),
-            *run.testcase.get_test_case_yaml(
-                bar or PrintBar("Run interactive test case")
-            ).output_validator_args,
-        ]
+    assert output_validator.run_command, "Output validator must be built"
+    validator_command = [
+        *output_validator.run_command,
+        run.in_path.absolute(),
+        run.test_case.ans_path.absolute(),
+        run.feedbackdir.absolute(),
+        *run.test_case.get_test_case_yaml(
+            bar or PrintBar("Run interactive test case")
+        ).output_validator_args,
+    ]
 
+    # Submission command
     assert run.submission.run_command, "Submission must be built"
     submission_command = run.submission.run_command
     if submission_args:
         submission_command = [*submission_command, *submission_args]
 
-    # Both validator and submission run in their own directory.
-    validator_dir = output_validator.tmpdir
+    validator_dir = run.feedbackdir.absolute()
     submission_dir = run.submission.tmpdir
 
     nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
-        eprint("Validator:  ", *get_validator_command())
+        eprint("Validator:  ", *validator_command)
         eprint("Submission: ", *submission_command)
 
     # On Windows:
@@ -129,7 +138,7 @@ def run_interactive_testcase(
     # - Start the submission
     # - Wait for the submission to complete or timeout
     # - Wait for the validator to complete.
-    # This cannot handle cases where the validator reports WA and the submission timeout
+    # This cannot handle cases where the validator reports WA/RTE and the submission timeout
     # afterwards.
     if is_windows():
         if isinstance(interaction, Path):
@@ -141,7 +150,6 @@ def run_interactive_testcase(
         while True:
             pass_id += 1
             # Start the validator.
-            validator_command = get_validator_command()
             validator_process = subprocess.Popen(
                 validator_command,
                 stdin=subprocess.PIPE,
@@ -174,9 +182,6 @@ def run_interactive_testcase(
                 validator_process.kill()
                 (validator_out, validator_err) = validator_process.communicate()
             tend = time.monotonic()
-
-            if validator_process.stdin:
-                validator_process.stdin.close()
 
             duration = tend - tstart
             if duration >= timeout:
@@ -294,12 +299,21 @@ while True:
         tle_result = None
         while True:
             pass_id += 1
-            validator = None
-            team_tee = None
-            val_tee = None
-            submission = None
-            try:
-                validator_command = get_validator_command()
+
+            # mixing os.wait4 with subprocess.wait is unsafe so we store which
+            # PIDs have been reaped by os.wait4
+            reaped = []
+
+            def kill_process(process: subprocess.Popen[bytes]) -> None:
+                if process.pid not in reaped:
+                    with suppress(ProcessLookupError, PermissionError):
+                        process.kill()
+                        process.wait()
+                _close(process.stdin)
+                _close(process.stdout)
+                _close(process.stderr)
+
+            with ExitStack() as cleanup:
                 validator = subprocess.Popen(
                     validator_command,
                     stdin=subprocess.PIPE,
@@ -312,6 +326,7 @@ while True:
                         validator_command, validation_time, validation_memory, 0
                     ),
                 )
+                cleanup.callback(lambda: kill_process(validator))
                 validator_pid = validator.pid
                 # add all programs to the same group (for simplicity we take the pid of the validator)
                 # then we can wait for all program ins the same group
@@ -319,6 +334,8 @@ while True:
 
                 assert validator.stdin and validator.stdout
                 try:
+                    team_tee = None
+                    val_tee = None
                     if interaction:
                         team_tee = subprocess.Popen(
                             [sys.executable, "-c", TEE_CODE, ">"],
@@ -328,7 +345,9 @@ while True:
                             pipesize=get_pipe_size(bar),
                             preexec_fn=limit_setter(None, None, None, gid),
                         )
+                        cleanup.callback(lambda: kill_process(team_tee))
                         team_tee_pid = team_tee.pid
+
                         val_tee = subprocess.Popen(
                             [sys.executable, "-c", TEE_CODE, "<"],
                             stdin=validator.stdout,
@@ -337,6 +356,7 @@ while True:
                             pipesize=get_pipe_size(bar),
                             preexec_fn=limit_setter(None, None, None, gid),
                         )
+                        cleanup.callback(lambda: kill_process(val_tee))
                         val_tee_pid = val_tee.pid
 
                     submission = subprocess.Popen(
@@ -348,6 +368,7 @@ while True:
                         pipesize=get_pipe_size(bar),
                         preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                     )
+                    cleanup.callback(lambda: kill_process(submission))
                     submission_pid = submission.pid
 
                     stop_kill_handler = threading.Event()
@@ -358,18 +379,15 @@ while True:
                             return
                         nonlocal submission_time
                         submission_time = timeout + 1
-                        try:
-                            os.kill(submission_pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
+                        with suppress(ProcessLookupError):
+                            if submission.pid not in reaped:
+                                submission.kill()
                         if validation_time > timeout and stop_kill_handler.wait(
                             validation_time - timeout
                         ):
                             return
-                        try:
+                        with suppress(ProcessLookupError, PermissionError):
                             os.killpg(gid, signal.SIGKILL)
-                        except (ProcessLookupError, PermissionError):
-                            pass
 
                     kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                     kill_handler.start()
@@ -384,6 +402,7 @@ while True:
                     first_done = True
                     while left > 0:
                         pid, status, rusage = os.wait4(-gid, 0)
+                        reaped.append(pid)
 
                         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
                         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -398,18 +417,15 @@ while True:
                             validator_status = status
 
                             # Close the output stream.
-                            validator.stdout.close()
-                            if interaction:
-                                assert val_tee and val_tee.stdout
-                                val_tee.stdout.close()
+                            _close(validator.stdout)
+                            if val_tee:
+                                _close(val_tee.stdout)
 
                             # Kill the team submission and everything else in case we already know it's WA.
                             if first_done and validator_status != config.RTV_AC:
                                 stop_kill_handler.set()
-                                try:
+                                with suppress(ProcessLookupError, PermissionError):
                                     os.killpg(gid, signal.SIGKILL)
-                                except (ProcessLookupError, PermissionError):
-                                    pass
                             first_done = False
                         elif pid == submission_pid:
                             if first is None:
@@ -417,10 +433,9 @@ while True:
                             submission_status = status
 
                             # Close the output stream.
-                            validator.stdin.close()
-                            if interaction:
-                                assert team_tee and team_tee.stdin
-                                team_tee.stdin.close()
+                            _close(validator.stdin)
+                            if team_tee:
+                                _close(team_tee.stdin)
 
                             # Possibly already written by the alarm.
                             if submission_time is None:
@@ -428,10 +443,7 @@ while True:
 
                             first_done = False
                         elif interaction:
-                            if pid == team_tee_pid or pid == val_tee_pid:
-                                pass
-                            else:
-                                assert False
+                            assert pid in [team_tee_pid, val_tee_pid]
                         else:
                             assert False
 
@@ -439,11 +451,9 @@ while True:
 
                     stop_kill_handler.set()
                 except KeyboardInterrupt:
-                    try:
+                    with suppress(ProcessLookupError, PermissionError):
                         os.killpg(gid, signal.SIGKILL)
-                    except (ProcessLookupError, PermissionError):
-                        pass
-                    raise KeyboardInterrupt()
+                    raise
 
                 assert submission_time is not None
                 did_timeout = submission_time > time_limit
@@ -496,26 +506,6 @@ while True:
                 if team_error is False:
                     assert submission.stderr
                     team_err = submission.stderr.read().decode("utf-8", "replace")
-            finally:
-                # clean up resources
-                def close_io(stream: Optional[IO[bytes]]) -> None:
-                    if stream:
-                        stream.close()
-
-                if validator is not None:
-                    validator.wait()
-                    close_io(validator.stdin)
-                    close_io(validator.stdout)
-                    close_io(validator.stderr)
-                if team_tee is not None:
-                    team_tee.wait()
-                    close_io(team_tee.stdin)
-                if val_tee is not None:
-                    val_tee.wait()
-                    close_io(val_tee.stdout)
-                if submission is not None:
-                    submission.wait()
-                    close_io(submission.stderr)
 
             if verdict == Verdict.TIME_LIMIT_EXCEEDED:
                 if tle_result is None:
@@ -577,3 +567,38 @@ def _feedback(run: "Run", err: bytes) -> str:
     if len(res) == 0 and judgemessage.is_file():
         res = judgemessage.read_text(errors="replace")
     return res
+
+
+# run the interactor without submission to see if it prints first
+def interactor_prints_unprompted(
+    problem: "Problem", test_case: "TestCase", wait: float = 0.1
+) -> Optional[bool]:
+    output_validators = problem.validators(validate.OutputValidator)
+    if not output_validators:
+        return None
+    output_validator = output_validators[0]
+    assert output_validator.run_command
+
+    validator_dir = output_validator.tmpdir
+    feedbackdir = problem.tmpdir / "tool_runs" / "interaction_feedback"
+    remove_path(feedbackdir)
+    feedbackdir.mkdir(exist_ok=True, parents=True)
+
+    command = [
+        *output_validator.run_command,
+        test_case.in_path.absolute(),
+        test_case.ans_path.absolute(),
+        feedbackdir.absolute(),
+        *test_case.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
+    ]
+
+    validator_process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        cwd=validator_dir,
+    )
+    time.sleep(wait)
+    validator_process.kill()
+    stdout, _ = validator_process.communicate()
+    return bool(stdout)

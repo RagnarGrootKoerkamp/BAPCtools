@@ -12,21 +12,21 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 - Problem development:
-  - [`bt run [-v] [-t TIME_LIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-  - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt time_limit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#time_limit)
-  - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [testcases [testcases ...]]`](#generate)
+  - [`bt run [-v] [-t TIME_LIMIT] [submissions [submissions ...]] [test_cases [test_cases ...]]`](#run)
+  - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [test_cases [test_cases ...]]]`](#test)
+  - [`bt time_limit [-a] [-w] [submissions [submissions ...]] [test_cases [test_cases ...]]`](#time_limit)
+  - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [test_cases [test_cases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [-w] [-o PROGRAM] [--no-time-limit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [-w] [-o PROGRAM] [--order ORDER]`](#solutions)
   - [`bt problem_slides [-v] [--cp] [-w] [-o PROGRAM]`](#problem_slides)
   - [`bt stats`](#stats)
-  - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
+  - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [test_cases [test_cases ...]]`](#fuzz)
 - Problem validation
-  - [`bt input [-v] [testcases [testcases ...]]`](#input)
-  - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--input | --answer | --invalid | --valid-output | --generic [TYPE]] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt input [-v] [test_cases [test_cases ...]]`](#input)
+  - [`bt output [-v] [test_cases [test_cases ...]]`](#output)
+  - [`bt validate [-v] [--input | --answer | --invalid | --valid-output | --generic [TYPE]] [--remove | --move-to DIR] [test_cases [test_cases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
-  - [`bt check_testing_tool [submissions [submissions ...]] [testcases [testcases ...]`](#check_testing_tool)
+  - [`bt check_testing_tool [submissions [submissions ...]] [test_cases [test_cases ...]`](#check_testing_tool)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
   - [`bt new_problem [problemname] [--author AUTHOR] [--type {pass-fail,float,custom,interactive,...}] [--defaults] [--skel SKEL]`](#new_problem)
@@ -65,26 +65,26 @@ The flags below work for any subcommand:
 
 ## `run`
 
-The `run` command is used to run some or all submissions against some or all testcases.
+The `run` command is used to run some or all submissions against some or all test cases.
 The syntax is:
 
 ```
-bt run [<submissions and/or testcases>]
+bt run [<submissions and/or test cases>]
 ```
 
-This first makes sure all generated testcases are up to date and then runs the given submissions (or all submissions by default) against the given testcases (or all testcases by default).
+This first makes sure all generated test cases are up to date and then runs the given submissions (or all submissions by default) against the given test cases (or all test cases by default).
 
-By default, this prints one summary line per submission containing the slowest testcase.
-If the submission failed, it also prints the testcases for which it failed.
-Use `bt run -v` to show results for all testcases.
+By default, this prints one summary line per submission containing the slowest test case.
+If the submission failed, it also prints the test cases for which it failed.
+Use `bt run -v` to show results for all test cases.
 
 **Flags**
 
-- `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
+- `[<submissions and/or test cases>]`: Submissions and test cases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as test cases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
 
-  Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
+  Test cases and submissions should be passed as a relative or absolute path to the test case/submission.
 
-  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret}` respectively.
+  When submissions or test cases is not specified, they default to all submissions in `submissions/` and all test cases under `data/{sample,secret}` respectively.
 
   **Submission** paths can take a few forms:
 
@@ -95,24 +95,24 @@ Use `bt run -v` to show results for all testcases.
 
   Duplicate submissions will deduplicated.
 
-  **Testcases** may be referred to in a few ways:
+  **Test cases** may be referred to in a few ways:
 
   - The path of the `.in` file: `data/secret/1.in`
   - The path of the `.ans` file: `data/secret/1.ans` (any other extension also works, even if the file doesn't exist)
-  - The base name of the testcase: `data/secret/1`
+  - The base name of the test case: `data/secret/1`
   - A directory: `data/secret`. In this case, all `.in` files that are (nested) in this directory will be used.
 
-  Testcases must always be inside the `data` directory. Anything outside `data/` will raise an error.
+  Test cases must always be inside the `data` directory. Anything outside `data/` will raise an error.
 
-  Duplicate testcases will deduplicated. Hence, you may pass `data/secret/*` and `1.in` and `1.ans` will not trigger the testcase twice.
+  Duplicate test cases will deduplicated. Hence, you may pass `data/secret/*` and `1.in` and `1.ans` will not trigger the test case twice.
 
-- `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
-- `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
+- `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in test cases directly.
+- `--no-generate`/`-G`: Do not generate test cases before running the submissions. This usually won't be needed since checking that generated test cases are up to date is fast.
 - `--time-limit <second>`/`-t <second>`: The time limit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
-- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same submissions.
-- `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
-- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--table`: Print a table of which test cases were solved by which submissions. May be used to deduplicate test cases that fail the same submissions.
+- `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and test cases. If combined with `--no-bar` only the final table is printed.
+- `--no-test-case-sanity-checks`: when passed, all sanity checks on the test cases are skipped. You might want to set this in `.bapctools.yaml`.
 - `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.
 - `--visualizer`: when passed, run the output visualizer.
 
@@ -121,10 +121,10 @@ Use `bt run -v` to show results for all testcases.
 `bt test` only works for a single problem, and must be called as
 
 ```
-bt test <submission> [<testcases>].
+bt test <submission> [<test_cases>].
 ```
 
-It runs the given submission against the specified testcases (or all testcases if not set) and prints the submission `stdout` and `stderr` to the terminal. The submission output is not validated or checked for correctness. However, time limits and timeouts will be reported. For interactive problems, the interaction is shown.
+It runs the given submission against the specified test cases (or all test cases if not set) and prints the submission `stdout` and `stderr` to the terminal. The submission output is not validated or checked for correctness. However, time limits and timeouts will be reported. For interactive problems, the interaction is shown.
 
 This is useful for running submissions without having to compile them manually. Also, it doesn't give away whether the submission is ACCEPTED or WRONG_ANSWER, which may be useful when trying to solve a problem before looking at the solutions.
 
@@ -133,7 +133,7 @@ This is useful for running submissions without having to compile them manually. 
 - `<submission>`: The path to the submission to run. See `run <submissions>` for more.
 - `--interactive`/`-i`: Use terminal input as test data. `stdin` is forwarded directly to the submission. This rebuilds and reruns the submission until either the end of the input (`control-D`) or till BAPCtools is terminated (`control-C`).
 
-  It is also possible to pipe in testcases using e.g.
+  It is also possible to pipe in test cases using e.g.
 
   ```
   bt test submissions/accepted/author.py --interactive < data/samples/1.in
@@ -147,8 +147,8 @@ This is useful for running submissions without having to compile them manually. 
 
   in this case, the submission is only run once instead of repeatedly.
 
-- `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
-- `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
+- `[<test_cases>]`: The test cases to run the submission on. See `run <test_cases>` for more. Can not be used together with `--samples`.
+- `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed test cases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
 
 ## `time_limit`
@@ -157,38 +157,38 @@ The `time_limit` command is used determine a time limit based on the `time_multi
 The syntax is:
 
 ```
-bt time_limit [<submissions and/or testcases>]
+bt time_limit [<submissions and/or test cases>]
 ```
 
 **Flags**
 - `--write`/`-w`: write the determined time limit to `problem.yaml`
 - `--all`/`-a`: run all submissions not only AC and TLE submissions.
 - `<submissions>`: The path to the submission to use to determine the time limit. See `run <submissions>` for more.
-- `<testcases>`: The path to the testcases to use determine the time limit. See `run <testcases>` for more.
+- `<test_cases>`: The path to the test cases to use determine the time limit. See `run <test_cases>` for more.
 
 ## `generate`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described in [generators.md](generators.md) and [generators.yaml](generators.yaml) is an example.
+Use the `generate` command to generate the test cases specified in `generators/generators.yaml`. The syntax of this file is described in [generators.md](generators.md) and [generators.yaml](generators.yaml) is an example.
 
-This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
+This command tries to be smart about not regenerating test cases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 
 Any files in `data/` that are not tracked in `generators.yaml` will be removed.
 
-Pass a list of testcases or directories to only generate a subset of data. See [run](#run) for possible ways to pass in testcases.
+Pass a list of test cases or directories to only generate a subset of data. See [run](#run) for possible ways to pass in test cases.
 
 **Flags**
 
 - `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
-- `--add [<testcases>, <directories>]`: Add the testcases (inside the directories) as `copy` entries in the `generator.yaml`
+- `--add [<test_cases>, <directories>]`: Add the test cases (inside the directories) as `copy` entries in the `generator.yaml`
 - `--clean`: Delete all cached files.
-- `--reorder`: Runs all submissions that should fail and reorders the testcases in the given directories by difficulty.
-- `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
+- `--reorder`: Runs all submissions that should fail and reorders the test cases in the given directories by difficulty.
+- `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating test cases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*time_limit+1`).
 - `--no-validators`: Ignore the results of input and output validators.
   (They are still run.)
 - `--no-solution`: Skip generating .ans or .interaction files with the solution.
 - `--no-visualizer`: Skip generating graphics with the visualiser.
-- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--no-test-case-sanity-checks`: when passed, all sanity checks on the test cases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `pdf`
 
@@ -244,7 +244,7 @@ This table contains:
 - Whether `problem.yaml` and `domjudge.ini` are found.
 - Whether `statement/problem.en.tex` and `solution/solution.en.tex` are found.
 - Whether the problem has any `input_validators` and `output_validators`.
-- The number of `sample` and `secret` testcases.
+- The number of `sample` and `secret` test cases.
 - The number of `accepted`, `wrong_answer`, and `time_limit_exceeded` solutions.
 - The number of C(++), Python 3, Java, and Kotlin solutions.
 - An optional comment, as specified by the `comment:` field in `problem.yaml`.
@@ -257,7 +257,7 @@ problem               time yaml tex sol   val: I A O    sample secret bad    AC 
 A appealtotheaudience  1.0    Y   Y   N        Y Y           2     30   0     4   4   2   10     2  1    1  0
 ```
 
-`bt stats --all` additionally prints statistics about submissions, testcases, and git usage.
+`bt stats --all` additionally prints statistics about submissions, test cases, and git usage.
 
 ## `fuzz`
 
@@ -265,12 +265,12 @@ Use the `fuzz` command to test all accepted submissions against random test
 data. Test data is generated by randomizing the `{seed}` in `generators.yaml`
 rules which depend on it.
 
-When a solution fails on a generated testcase, a generator invocation for the test is
+When a solution fails on a generated test case, a generator invocation for the test is
 stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 **Flags**
 
-- `[<testcases>]`: The generator invocations to use for generating random test data. Accepts directories (`data/secret`), test case names (`data/secret/1`), or test case files (`data/secret/1.in`).
+- `[<test_cases>]`: The generator invocations to use for generating random test data. Accepts directories (`data/secret`), test case names (`data/secret/1`), or test case files (`data/secret/1.in`).
 - `--time <seconds>`/`-t <seconds>`: For how long to run the fuzzer.
 - `--timeout <seconds>`: Override the default timeout for generators (`30s`).
 
@@ -278,15 +278,15 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 ## `validate`
 
-Use `bt validate --input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
+Use `bt validate --input [<test_cases>]` to validate the `.in` files for the given test cases, or all test cases when not specified.
 
-See `run <testcases>` for a description of how to pass testcases.
+See `run <test_cases>` for a description of how to pass test cases.
 
-`bt validate --answer <testcases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
+`bt validate --answer <test_cases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
 
-`bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
+`bt validate --invalid <invalid_test_cases>` checks invalid test cases in `data/invalid_*`.
 
-`bt validate --valid-output <valid_testcases>` checks valid test cases in `data/valid_output`.
+`bt validate --valid-output <valid_test_cases>` checks valid test cases in `data/valid_output`.
 
 `bt validate --generic <type>` automatically generates generic (in)valid test cases (like those in `data/valid_output` or `data/invalid_*`) and checks them. `dir` must be one of `valid_input`, `valid_answer`, `valid_output`, or `valid_output`
 
@@ -294,24 +294,24 @@ See `run <testcases>` for a description of how to pass testcases.
 
 It supports the following flags when run for a single problem:
 
-- `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
-- `--remove`: when passed, all invalid testcases are deleted.
-- `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
-- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `[test_cases]`: a list of test cases and/or directories to validate. See `run <test_cases>` for allowed formats. When not set, all test cases are validated.
+- `--remove`: when passed, all invalid test cases are deleted.
+- `--move-to <directory>`: when passed, all invalid test cases are moved to the given directory.
+- `--no-test-case-sanity-checks`: when passed, all sanity checks on the test cases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `constraints`
 
 `bt constraints` has two purposes:
 
-1. Verify that the bounds in the input/output validators match the bounds in the testcases.
+1. Verify that the bounds in the input/output validators match the bounds in the test cases.
 2. Verify that the bounds in the problem statement match the bounds in the input/output validators.
 
 See the [implementation notes](implementation_notes.md#constraints-checking) for more info.
 
-**Verify testcase**
+**Verify test case**
 
-Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the test data. A warning is raised when this is not the case.
-E.g. when an `input_validator` based on [headers/validation.h](../headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all testcases is `999`, the following warning will be raised:
+Validators that accept the `--constraints_file <path>` option are run on all test cases to check whether the bounds specified in the validator are actually reached by the test data. A warning is raised when this is not the case.
+E.g. when an `input_validator` based on [headers/validation.h](../headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all test cases is `999`, the following warning will be raised:
 
 ```
 WARNING: BOUND NOT REACHED: The value at input_validator.cpp:7 was never equal to the upper bound of 1000. Max value found: 999
@@ -350,8 +350,8 @@ However, this tool has many caveats and should never replace a carefull manual r
 **Flags**
 
 - `--timeout <seconds>`: Override the default timeout.
-- `--all`/`-a`: run all testcases and don't stop after first error
-- `--no-generate`/`-G`: Do not generate testcases before running. This usually won't be needed since checking that generated testcases are up to date is fast.
+- `--all`/`-a`: run all test cases and don't stop after first error
+- `--no-generate`/`-G`: Do not generate test cases before running. This usually won't be needed since checking that generated test cases are up to date is fast.
 
 # Creating a new contest/problem
 
@@ -588,7 +588,7 @@ When run for a contest:
 
 - `--skip`: Do not rebuild problem zips when building a contest zip.
 - `--force`/`-f`: Skip validating input and output. This is useful to speed up regenerating the zip with only minimal changes.
-- `--no-generate`/`-G`: Skip generation of testcases. This usually won't be needed since checking that generated testcases are up to date is fast.
+- `--no-generate`/`-G`: Skip generation of test cases. This usually won't be needed since checking that generated test cases are up to date is fast.
 - `--no-solutions`: Do not build solution slides for the contest zip.
 - `--kattis`: Differences for Kattis export are:
   - Problems zips are written to `<shortname>.zip` instead of `<problemlabel>.zip`.
@@ -614,12 +614,12 @@ When run for a single problem, `contest.yaml` and `problems.yaml` are uploaded f
 This is a convenience command (mostly for use in CI) that runs the following subcommands in sequence for the current problem or each problem in the current contest:
 
 - Build the problem pdf.
-- Generate testcases, and check they are generated deterministically
+- Generate test cases, and check they are generated deterministically
 - Validate input
 - Validate output
 - Run all submissions
 
-This supports the `--cp` and `--no-time-limit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
+This supports the `--cp` and `--no-time-limit` flags which are described under the `pdf` subcommand and the `--no-test-case-sanity-checks` flag from `validate`.
 
 ## `solve_stats`
 

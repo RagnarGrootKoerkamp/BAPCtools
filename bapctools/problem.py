@@ -5,8 +5,9 @@ import re
 import shutil
 import threading
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Literal, NamedTuple, Optional, overload, TYPE_CHECKING
+from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap
@@ -16,10 +17,11 @@ from bapctools import (
     check_testing_tool,
     config,
     expectations,
+    interactive,
     latex,
     parallel,
     run,
-    testcase,
+    test_case,
     validate,
     validator_tests,
     verdicts,
@@ -154,10 +156,10 @@ class ProblemCredits:
         credits.check_unknown_keys()
 
 
+@dataclass(frozen=True)
 class ProblemSource:
-    def __init__(self, name: str, url: Optional[str] = None):
-        self.name = name
-        self.url = url
+    name: str
+    url: Optional[str] = None
 
     def __repr__(self) -> str:
         return self.name + (f" ({self.url})" if self.url else "")
@@ -365,8 +367,13 @@ class ProblemSettings:
                 parser.bar.warn(f"found keyword {keyword}. Did you mean {match}?")
             seen_keywords.add(keyword)
 
-        # Not implemented in BAPCtools. We always test all languages in languages.yaml.
-        self.languages: list[str] = parser.extract_optional_list("languages", str)
+        # an empty list means no restrction
+        if parser.remaining.get("languages", None) == "all":
+            parser.pop("languages")
+        self.languages: list[str] = parser.extract_optional_list(
+            "languages", str, allow_empty=False
+        )
+
         # Not implemented in BAPCtools
         self.allow_file_writing: bool = parser.extract("allow_file_writing", False)
 
@@ -478,13 +485,6 @@ class ProblemSettings:
         return " ".join(parts)
 
 
-class SampleData(NamedTuple):
-    name: Path
-    # A single path represents a .interaction file. A tuple contains (.in, .ans)
-    statement: tuple[Path, Path] | Path
-    download: tuple[Path, Path]
-
-
 # A problem.
 class Problem:
     _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
@@ -507,10 +507,10 @@ class Problem:
         self._read_settings(bar)
 
         # Some caches.
-        self._testcases = dict[
-            tuple[Optional[validate.Mode], bool, bool, bool], Sequence[testcase.Testcase]
+        self._test_cases = dict[
+            tuple[Optional[validate.Mode], bool, bool, bool], Sequence[test_case.TestCase]
         ]()
-        self._samples: Optional[list[SampleData]] = None
+        self._overrides = dict[bool, Sequence[test_case.TestCaseOverrides]]()
         self._expectations: Optional[expectations.Expectations] = None
         self._raw_submissions: Optional[Sequence[run.Submission]] = None
         self._compiled_submissions: Optional[Sequence[run.Submission]] = None
@@ -524,10 +524,10 @@ class Problem:
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        self._root_test_group_yaml: Optional[testcase.TestGroup] = None
-        self._test_group_yamls = dict[Path, testcase.TestGroup]()
+        self._root_test_group_yaml: Optional[test_case.TestGroup] = None
+        self._test_group_yamls = dict[Path, test_case.TestGroup]()
         self._test_group_lock = threading.Lock()
-        # Because Problem.testcases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
+        # Because Problem.test_cases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
         # this cache makes sure that some warnings (like malformed test case names) only appear once.
         self._warned_for_test_case = set[str]()
 
@@ -619,7 +619,7 @@ class Problem:
         p,
         path: Path,
         bar: BAR_TYPE,
-    ) -> testcase.TestGroup:
+    ) -> test_case.TestGroup:
         """
         Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
@@ -632,7 +632,7 @@ class Problem:
 
         Returns:
         --------
-        A testcase.TestGroup object
+        A test_case.TestGroup object
         """
         assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
 
@@ -646,11 +646,11 @@ class Problem:
                 break
             paths.append(f)
 
-        # create a root testcase.TestGroup object
+        # create a root test_case.TestGroup object
         if p._root_test_group_yaml is None:
             with p._test_group_lock:
                 if p._root_test_group_yaml is None:
-                    p._root_test_group_yaml = testcase.TestGroup(p, None, {}, None, bar)
+                    p._root_test_group_yaml = test_case.TestGroup(p, None, {}, None, bar)
 
         test_group_yaml = p._root_test_group_yaml
         for f in reversed(paths):
@@ -661,7 +661,7 @@ class Problem:
                 with p._test_group_lock:
                     # handle race conditions
                     if f not in p._test_group_yamls:
-                        p._test_group_yamls[f] = testcase.TestGroup.parse_yaml(
+                        p._test_group_yamls[f] = test_case.TestGroup.parse_yaml(
                             p, f, test_group_yaml, bar
                         )
             assert f in p._test_group_yamls
@@ -682,29 +682,29 @@ class Problem:
                 return False
         return True
 
-    def testcases(
+    def test_cases(
         p,
         *,
         mode: Optional[validate.Mode] = None,
         needans: bool = True,
         only_samples: bool = False,
         testing_tool_test: bool = False,
-    ) -> Sequence[testcase.Testcase]:
+    ) -> Sequence[test_case.TestCase]:
         only_samples = config.args.samples or only_samples
 
         key = (mode, needans, only_samples, testing_tool_test)
-        if key in p._testcases is not None:
-            return p._testcases[key]
+        if key in p._test_cases is not None:
+            return p._test_cases[key]
 
         in_paths = None
-        if config.args.testcases:
+        if config.args.test_cases:
             assert not only_samples
-            # Deduplicate testcases with both .in and .ans.
+            # Deduplicate test cases with both .in and .ans.
             in_paths = []
-            for path in config.args.testcases:
+            for path in config.args.test_cases:
                 res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
                 if res_path:
-                    # When running from contest level, the testcase must be inside the problem.
+                    # When running from contest level, the test case must be inside the problem.
                     if config.level != "problemset" or res_path.is_relative_to(p.path):
                         if res_path.is_dir():
                             in_paths += glob(res_path, "**/*.in")
@@ -731,9 +731,9 @@ class Problem:
             if not only_samples:
                 in_paths += list(glob(p.path, "data/secret/**/*.in"))
 
-        testcases = []
+        test_cases = []
         for f in in_paths:
-            t = testcase.Testcase(p, f)
+            t = test_case.TestCase(p, f)
             if not p._valid_test_group(t.short_path):
                 continue
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
@@ -770,10 +770,10 @@ class Problem:
                 if not t.out_path.is_file():
                     warn(f"Found input file {f} without a .out file. Skipping.")
                     continue
-            testcases.append(t)
-        testcases.sort(key=lambda t: t.name)
+            test_cases.append(t)
+        test_cases.sort(key=lambda t: t.name)
 
-        if len(testcases) == 0 and not testing_tool_test:
+        if len(test_cases) == 0 and not testing_tool_test:
             ans = (
                 " with answer"
                 if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -782,23 +782,23 @@ class Problem:
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
             (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT] else warn)(
-                f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
+                f"Didn't find any test cases{ans}{val} in problem {p.name}. Skipping."
             )
 
-        p._testcases[key] = tuple(testcases)
-        return p._testcases[key]
+        p._test_cases[key] = tuple(test_cases)
+        return p._test_cases[key]
 
-    def samples(p) -> Sequence[SampleData]:
+    def overrides(p, *, only_samples: bool = False) -> Sequence[test_case.TestCaseOverrides]:
         """
-        Find the samples of the problem
+        Find the test case overrides of the problem
 
         Returns:
         --------
-        A list of SampleData. The SampleData contains separate data for statement and download.
+        A list of TestCaseOverrides. The TestCaseOverrides contains separate data for statement and download.
         The entries sample is represented bei either a (.in, .ans) tuple or (only for statement) a .interaction file
         """
-        if p._samples is not None:
-            return p._samples
+        if only_samples in p._overrides:
+            return p._overrides[only_samples]
 
         in_extensions = [
             ".in.statement",
@@ -812,19 +812,31 @@ class Problem:
             ".ans",
         ]
 
-        base_names: set[Path] = set()
-        for ext in [".in", ".in.statement", ".interaction"]:
-            files = list(p.path.glob(f"data/sample/**/*{ext}"))
-            base_names.update([drop_suffix(f, [ext]) for f in files if f.is_file()])
-        p._samples = []
+        files: set[Path] = set()
+        dirs = ["sample"] if only_samples else ["sample", "secret"]
+        for prefix in dirs:
+            for ext in [".in", ".in.statement", ".interaction"]:
+                for file in glob(p.path, f"data/{prefix}/**/*{ext}"):
+                    if not file.is_file():
+                        continue
+                    base = drop_suffix(file, [ext])
+                    # add .in to make .with_suffix() work
+                    files.add(base.with_name(base.name + ".in"))
+        ret = []
 
         has_raw = False
-        for name in base_names:
-            in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
-            ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
+        for file in files:
+            name = file.with_suffix("").relative_to(p.path / "data").as_posix()
+            in_found = [ext for ext in in_extensions if file.with_suffix(ext).is_file()]
+            ans_found = [ext for ext in ans_extensions if file.with_suffix(ext).is_file()]
+            has_override = len(in_found) == 0 and len(ans_found) == 0
 
             statement: Optional[tuple[Path, Path] | tuple[Path]] = None
             download: Optional[tuple[Path, Path]] = None
+
+            # overrides are only defined for samples
+            if has_override and not file.is_relative_to(p.path / "data" / "sample"):
+                warn(f"Found override for non sample file: {name}")
 
             # check for inconsistencies
             if ".in" in in_found and ".ans" not in ans_found:
@@ -845,9 +857,11 @@ class Problem:
                 ans_found.remove(".out")
 
             # .interaction files get highest priority
-            if name.with_suffix(".interaction").is_file():
+            if file.with_suffix(".interaction").is_file():
                 if not p.interactive and not p.multi_pass:
-                    warn(f"Found {name}.interaction for non-interactive/non-multi-pass. IGNORED.")
+                    warn(
+                        f"Found {name}.interaction for non-interactive/non-multi-pass problem. IGNORED."
+                    )
                 else:
                     if ".in.statement" in in_found or ".ans.statement" in ans_found:
                         warn(
@@ -855,30 +869,30 @@ class Problem:
                         )
                     if ".out" in ans_found:
                         warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
-                statement = (name.with_suffix(".interaction"),)
+                statement = (file.with_suffix(".interaction"),)
             else:
                 statement_in = [ext for ext in in_found if not ext.endswith(".download")]
                 statement_ans = [ext for ext in ans_found if not ext.endswith(".download")]
                 if statement_in and statement_ans:
                     statement = (
-                        name.with_suffix(statement_in[0]),
-                        name.with_suffix(statement_ans[0]),
+                        file.with_suffix(statement_in[0]),
+                        file.with_suffix(statement_ans[0]),
                     )
 
             download_in = [ext for ext in in_found if not ext.endswith(".statement")]
             download_ans = [ext for ext in ans_found if not ext.endswith(".statement")]
             if download_in and download_ans:
-                download = (name.with_suffix(download_in[0]), name.with_suffix(download_ans[0]))
+                download = (file.with_suffix(download_in[0]), file.with_suffix(download_ans[0]))
 
             if not statement or not download:
                 warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
                 continue
 
             if (statement[0].suffix == ".in") != (download[0].suffix == ".in"):
-                warn("You are supposed to overwrite .in for statement and download. SKIPPED.")
+                warn("You are supposed to override .in for statement and download. SKIPPED.")
                 continue
             if (statement[-1].suffix == ".in") != (download[-1].suffix == ".in"):
-                warn("You are supposed to overwrite .ans for statement and download. SKIPPED.")
+                warn("You are supposed to override .ans for statement and download. SKIPPED.")
                 continue
 
             if statement[-1].suffix == ".ans" and statement[-1].stat().st_size > 0:
@@ -886,18 +900,21 @@ class Problem:
             if download[-1].suffix == ".ans" and download[-1].stat().st_size > 0:
                 has_raw = True
 
-            p._samples.append(
-                SampleData(name, statement if len(statement) > 1 else statement[0], download)
+            ret.append(
+                test_case.TestCaseOverrides(
+                    name, statement if len(statement) > 1 else statement[0], download
+                )
             )
 
-        if has_raw and not p.settings.ans_is_output:
+        if has_raw and not p.settings.ans_is_output and only_samples:
             warn(
-                "It is advised to overwrite .ans for samples if it does not represent a valid output."
+                "It is advised to override .ans for samples if it does not represent a valid output."
                 + "\n\tUse .ans.statement+.ans.download or .out for this."
             )
 
-        p._samples.sort(key=lambda t: t.name)
-        return p._samples
+        ret.sort(key=lambda t: t.name)
+        p._overrides[only_samples] = ret
+        return ret
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
@@ -1132,12 +1149,12 @@ class Problem:
         problem._validators_cache[key] = validators
         return validators
 
-    # get all testcases and submissions and prepare the output validator and visualizer
+    # get all test cases and submissions and prepare the output validator and visualizer
     def prepare_run(
         problem,
-    ) -> Literal[False] | tuple[Sequence[testcase.Testcase], Sequence[run.Submission]]:
-        testcases = problem.testcases()
-        if not testcases:
+    ) -> Literal[False] | tuple[Sequence[test_case.TestCase], Sequence[run.Submission]]:
+        test_cases = problem.test_cases()
+        if not test_cases:
             return False
 
         # Pre build the output validator to prevent nested ProgressBars.
@@ -1152,25 +1169,25 @@ class Problem:
         if not submissions:
             return False
 
-        return testcases, submissions
+        return test_cases, submissions
 
     @staticmethod
     def run_some(
-        testcases: Sequence[testcase.Testcase],
+        test_cases: Sequence[test_case.TestCase],
         submissions: Sequence[run.Submission],
-        skip_test_case: Callable[[run.Submission, testcase.Testcase], bool] = lambda s, t: False,
+        skip_test_case: Callable[[run.Submission, test_case.TestCase], bool] = lambda s, t: False,
     ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
-        verdict_table = verdicts.VerdictTable(submissions, testcases)
+        verdict_table = verdicts.VerdictTable(submissions, test_cases)
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for submission in submissions:
-            submission_ok, printed_newline = submission.run_testcases(
+            submission_ok, printed_newline = submission.run_test_cases(
                 max_submission_len,
                 verdict_table,
-                testcases,
+                test_cases,
                 skip_test_case,
                 needs_leading_newline=needs_leading_newline,
             )
@@ -1194,7 +1211,7 @@ class Problem:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
-        testcases, submissions = ts_pair
+        test_cases, submissions = ts_pair
 
         msg = (
             "localy adjusted "
@@ -1204,10 +1221,10 @@ class Problem:
         bar = PrintBar("Run")
         bar.log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
 
-        ok, verdict_table = Problem.run_some(testcases, submissions)
+        ok, verdict_table = Problem.run_some(test_cases, submissions)
 
         if (
-            len(testcases) * len(submissions) > 1
+            len(test_cases) * len(submissions) > 1
             and not config.args.verbose
             and not config.args.no_visualizer
             and problem.visualizer(visualize.OutputVisualizer)
@@ -1231,11 +1248,11 @@ class Problem:
                 )
 
         if config.args.table:
-            Problem._print_table(verdict_table.results, testcases)
+            Problem._print_table(verdict_table.results, test_cases)
 
         return ok
 
-    # Takes a list of submissions and runs them against the chosen testcases.
+    # Takes a list of submissions and runs them against the chosen test cases.
     # Instead of validating the output, this function just prints all output to the
     # terminal.
     # Note: The CLI only accepts one submission.
@@ -1253,22 +1270,22 @@ class Problem:
 
     @staticmethod
     def _print_table(
-        verdict_table: Sequence[verdicts.Verdicts], testcases: Sequence[testcase.Testcase]
+        verdict_table: Sequence[verdicts.Verdicts], test_cases: Sequence[test_case.TestCase]
     ) -> None:
-        # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-        def single_verdict(row: verdicts.Verdicts, testcase: testcase.Testcase) -> str:
-            assert row[testcase.name] is not None
-            if row[testcase.name] is not False:
-                return verdicts.to_char(row[testcase.name])
+        # Begin by aggregating bitstrings for all test cases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
+        def single_verdict(row: verdicts.Verdicts, test_case: test_case.TestCase) -> str:
+            assert row[test_case.name] is not None
+            if row[test_case.name] is not False:
+                return verdicts.to_char(row[test_case.name])
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        def make_verdict(tc: testcase.Testcase) -> str:
+        def make_verdict(tc: test_case.TestCase) -> str:
             return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
 
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
         special_id = 0
-        for case in testcases:
+        for case in test_cases:
             resultant = make_verdict(case)
             if resultant not in resultant_count:
                 resultant_count[resultant] = 0
@@ -1278,14 +1295,14 @@ class Problem:
                 resultant_id[resultant] = special_id
 
         scores = dict[str, float]()
-        for t in testcases:
+        for t in test_cases:
             scores[t.name] = 0
         for dct in verdict_table:
             failures = 0
-            for t in testcases:
+            for t in test_cases:
                 if dct[t.name] != verdicts.Verdict.ACCEPTED:
                     failures += 1
-            for t in testcases:
+            for t in test_cases:
                 if dct[t.name] != verdicts.Verdict.ACCEPTED:
                     scores[t.name] += 1.0 / failures
         scores_list = sorted(scores.values())
@@ -1299,13 +1316,13 @@ class Problem:
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        eprint(f"{fail}: submission fails testcase")
-        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n")
+        eprint(f"{fail}: submission fails test case")
+        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes test case\n")
 
-        name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
+        name_col_width = min(50, max([len(test_case.name) for test_case in test_cases]))
 
-        for case in testcases:
-            # Skip all AC testcases
+        for case in test_cases:
+            # Skip all AC test cases
             if all(
                 map(
                     lambda row: row[case.name] == verdicts.Verdict.ACCEPTED,
@@ -1334,13 +1351,13 @@ class Problem:
 
     # called by bt check_testing_tool
     def check_testing_tool(problem) -> bool:
-        testcases = problem.testcases(needans=False, testing_tool_test=True)
+        test_cases = problem.test_cases(needans=False, testing_tool_test=True)
         testinputs = [
-            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
+            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in test_cases
         ]
-        if not config.args.testcases:
+        if not config.args.test_cases:
             sampleinputs = []
-            for sample in problem.samples():
+            for sample in problem.overrides(only_samples=True):
                 in_path = sample.download[0]
                 sampleinput = check_testing_tool.TestInput(
                     problem, in_path, in_path.relative_to(problem.path / "data")
@@ -1350,7 +1367,7 @@ class Problem:
             testinputs = sampleinputs + testinputs
         if not testinputs:
             warn(
-                f"Didn't find any testcases to run the testing tool in problem {problem.name}. Skipping."
+                f"Didn't find any test cases to run the testing tool in problem {problem.name}. Skipping."
             )
             return False
         submissions = problem.selected_or_accepted_submissions()
@@ -1358,17 +1375,17 @@ class Problem:
             return False
         return check_testing_tool.run(problem, testinputs, submissions)
 
-    def reset_testcase_hashes(self) -> None:
-        self._testcase_hashes: dict[str, testcase.Testcase] = {}
+    def reset_test_case_hashes(self) -> None:
+        self._test_case_hashes: dict[str, test_case.TestCase] = {}
 
-    # Returns None for new testcases or the Testcase object it equals.
-    def matches_existing_testcase(
-        self, t: testcase.Testcase, bar: BAR_TYPE
-    ) -> Optional[testcase.Testcase]:
+    # Returns None for new test_cases or the TestCase object it equals.
+    def matches_existing_test_case(
+        self, t: test_case.TestCase, bar: BAR_TYPE
+    ) -> Optional[test_case.TestCase]:
         h = t.core_hash(bar)
-        if h in self._testcase_hashes:
-            return self._testcase_hashes[h]
-        self._testcase_hashes[h] = t
+        if h in self._test_case_hashes:
+            return self._test_case_hashes[h]
+        self._test_case_hashes[h] = t
         return None
 
     def validate_data(
@@ -1395,14 +1412,14 @@ class Problem:
         else:
             action = f"{str(mode).capitalize()} validation"
 
-        testcases = problem.testcases(mode=mode)
-        return problem._validate_data(mode, constraints, action, testcases)
+        test_cases = problem.test_cases(mode=mode)
+        return problem._validate_data(mode, constraints, action, test_cases)
 
     def validate_invalid_extra_data(p) -> bool:
         assert config.args.generic is not None
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
-        # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
+        # also add a dummy entry to always run generators that don't read or copy anything from a valid test case
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3] + [None]
 
         # validator, dir, read, write, copy
@@ -1418,7 +1435,7 @@ class Problem:
             ),
         ]
 
-        testcases: list[testcase.Testcase] = []
+        test_cases: list[test_case.TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
             for cls, directory, read, write, copy in validators:
@@ -1466,16 +1483,16 @@ class Problem:
                     full_path.with_suffix(write).write_text(content)
 
                     verbose(f"Generating {short_path}")
-                    testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+                    test_cases.append(test_case.TestCase(p, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
-                log(f"Generated invalid testcases based on: {sample_name}")
-        if testcases:
-            verbose(f"writing generated invalid testcases to: {base_path}")
+                log(f"Generated invalid test cases based on: {sample_name}")
+        if test_cases:
+            verbose(f"writing generated invalid test cases to: {base_path}")
 
         return p._validate_data(
-            validate.Mode.INVALID, None, "Generic Invalidation", testcases, True
+            validate.Mode.INVALID, None, "Generic Invalidation", test_cases, True
         )
 
     def validate_valid_extra_data(p) -> bool:
@@ -1499,7 +1516,7 @@ class Problem:
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3]
         samples = [p for p in samples if p.with_suffix(".ans").exists()]
 
-        testcases: list[testcase.Testcase] = []
+        test_cases: list[test_case.TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
             for name, data, space_change, case_change in validator_tests.VALID_GENERATORS:
@@ -1527,16 +1544,16 @@ class Problem:
                 full_path.with_suffix(".out").write_text(content)
 
                 verbose(f"Generating {short_path}")
-                testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+                test_cases.append(test_case.TestCase(p, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
-                log(f"Generated valid testcases based on: {sample_name}")
-        if testcases:
-            verbose(f"writing generated valid testcases to: {base_path}")
+                log(f"Generated valid test cases based on: {sample_name}")
+        if test_cases:
+            verbose(f"writing generated valid test cases to: {base_path}")
 
         return p._validate_data(
-            validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", testcases, True
+            validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", test_cases, True
         )
 
     def _validate_data(
@@ -1544,18 +1561,18 @@ class Problem:
         mode: validate.Mode,
         constraints: validate.ConstraintsDict | Literal[True] | None,
         action: str,
-        testcases: Sequence[testcase.Testcase],
+        test_cases: Sequence[test_case.TestCase],
         extra: bool = False,
     ) -> bool:
-        # If there are no testcases, validation succeeds
-        if not testcases:
+        # If there are no test cases, validation succeeds
+        if not test_cases:
             return True
 
         constraints_dict = {} if constraints is True else constraints
         check_constraints = constraints_dict is not None
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
-        # Also, pick the relevant testcases
+        # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
@@ -1574,32 +1591,32 @@ class Problem:
 
         success = True
 
-        problem.reset_testcase_hashes()
+        problem.reset_test_case_hashes()
 
-        # validate the testcases
-        bar = ProgressBar(action, items=[t.name for t in testcases])
+        # validate the test cases
+        bar = ProgressBar(action, items=[t.name for t in test_cases])
 
-        def process_testcase(testcase: testcase.Testcase) -> None:
+        def process_test_case(test_case: test_case.TestCase) -> None:
             nonlocal success
 
-            localbar = bar.start(testcase.name)
+            localbar = bar.start(test_case.name)
 
-            if mode == validate.Mode.INPUT and not testcase.in_path.is_symlink() and not extra:
-                t2 = problem.matches_existing_testcase(testcase, localbar)
+            if mode == validate.Mode.INPUT and not test_case.in_path.is_symlink() and not extra:
+                t2 = problem.matches_existing_test_case(test_case, localbar)
                 if t2 is not None:
                     localbar.warn(
-                        f"Duplicate testcase: identical to {t2.name}. If this is intentional use symlinks/count/includes."
+                        f"Duplicate test case: identical to {t2.name}. If this is intentional use symlinks/count/includes."
                     )
                     localbar.done()
                     return
 
-            ok = testcase.validate_format(
+            ok = test_case.validate_format(
                 mode, bar=localbar, constraints=constraints_dict, warn_instead_of_error=extra
             )
             success &= ok
             localbar.done(ok)
 
-        parallel.run_tasks(process_testcase, testcases)
+        parallel.run_tasks(process_test_case, test_cases)
 
         bar.finalize(print_done=True)
 
@@ -1621,11 +1638,77 @@ class Problem:
 
         return success
 
+    def validate_overrides(problem) -> bool:
+        overrides = problem.overrides()
+        if not overrides:
+            return True
+
+        extensions = [
+            ".interaction",
+            ".in.statement",
+            ".in.download",
+            ".ans.statement",
+            ".ans.download",
+        ]
+
+        files = []
+        for o in overrides:
+            if isinstance(o.statement, Path):
+                files.append(o.statement)
+            else:
+                files.extend(o.statement)
+            files.extend(o.download)
+        files = [f for f in files if any(f.name.endswith(ext) for ext in extensions)]
+
+        # used to detect mixed up '<' and '>'
+        def guess_prefix() -> Optional[bytes]:
+            if not problem.interactive:
+                return None
+            has_interaction = any(isinstance(o.statement, Path) for o in overrides)
+            if not has_interaction:
+                return None
+            test_cases = problem.test_cases()
+            if not test_cases:
+                return None
+            test_case = test_cases[0]
+
+            printed = interactive.interactor_prints_unprompted(problem, test_case)
+            if printed is None:
+                return None
+            return b"<" if printed else b">"
+
+        prefix = guess_prefix() or b""
+        if prefix:
+            verbose(f"guessing that interactions must start with {prefix.decode()}")
+
+        success = True
+        data = problem.path / "data"
+        bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
+
+        def process_file(file: Path) -> None:
+            nonlocal success
+
+            name = file.relative_to(data)
+            localbar = bar.start(name)
+
+            if file.name.endswith(".interaction"):
+                if not validate.check_interaction(problem, file, localbar, startswith=prefix):
+                    success = False
+                    return
+            else:
+                validate.sanity_check_override(problem, file, localbar)
+
+            localbar.done()
+
+        parallel.run_tasks(process_file, files)
+        bar.finalize(print_done=True)
+        return True
+
     def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
-        testcases, submissions = ts_pair
+        test_cases, submissions = ts_pair
 
         problem.limits.time_limit = config.args.timeout or 60
         problem.limits.time_limit_is_default = False
@@ -1634,20 +1717,20 @@ class Problem:
         ok = True
 
         def run_all(
-            skip_test_case: Callable[[run.Submission, testcase.Testcase], bool],
+            skip_test_case: Callable[[run.Submission, test_case.TestCase], bool],
             select_duration: Callable[[Sequence[float]], float],
         ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
             def skip_submission(s: run.Submission) -> bool:
-                return all(skip_test_case(s, t) for t in testcases)
+                return all(skip_test_case(s, t) for t in test_cases)
 
             cur_submissions = [s for s in submissions if not skip_submission(s)]
 
             if len(cur_submissions) == 0:
                 return None, None, None
 
-            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions, skip_test_case)
+            cur_ok, verdict_table = Problem.run_some(test_cases, cur_submissions, skip_test_case)
             if not cur_ok:
                 ok = False
 
@@ -1658,8 +1741,8 @@ class Problem:
 
             durations = [get_slowest(result)[1] for result in verdict_table.results]
             selected = durations.index(select_duration(durations))
-            testcase, duration = get_slowest(verdict_table.results[selected])
-            return verdict_table.submissions[selected], testcase, duration
+            test_case, duration = get_slowest(verdict_table.results[selected])
+            return verdict_table.submissions[selected], test_case, duration
 
         # determine lower bound for time limit
         submission, slowest, duration = run_all(

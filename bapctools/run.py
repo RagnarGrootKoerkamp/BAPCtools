@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 from typing import Optional
 
@@ -14,13 +14,14 @@ from bapctools import (
     config,
     expectations,
     interactive,
+    languages,
     parallel,
     problem,
     program,
     validate,
     visualize,
 )
-from bapctools.testcase import Testcase
+from bapctools.test_case import TestCase
 from bapctools.util import (
     BAR_TYPE,
     crop_line,
@@ -46,19 +47,19 @@ from bapctools.verdicts import (
 
 class Run:
     def __init__(
-        self, problem: "problem.Problem", submission: "Submission", testcase: Testcase
+        self, problem: "problem.Problem", submission: "Submission", test_case: TestCase
     ) -> None:
         self.problem = problem
         self.submission = submission
-        self.testcase = testcase
-        self.name: str = self.testcase.name
+        self.test_case = test_case
+        self.name: str = self.test_case.name
         self.result = None
 
         self.tmpdir: Path = (
             self.problem.tmpdir
             / "runs"
             / self.submission.short_path
-            / self.testcase.short_path.with_suffix("")
+            / self.test_case.short_path.with_suffix("")
         )
 
         self.in_path: Path = self.tmpdir / "testcase.in"
@@ -67,7 +68,7 @@ class Run:
 
         remove_path(self.tmpdir)
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
-        ensure_symlink(self.in_path, self.testcase.in_path)
+        ensure_symlink(self.in_path, self.test_case.in_path)
 
     # Return an ExecResult object amended with verdict.
     def run(
@@ -76,14 +77,14 @@ class Run:
         *,
         interaction: Optional[bool | Path] = None,
     ) -> ExecResult:
-        submission_args = self.testcase.get_test_case_yaml(bar).args
+        submission_args = self.test_case.get_test_case_yaml(bar).args
         if self.problem.interactive:
-            result = interactive.run_interactive_testcase(
+            result = interactive.run_interactive_test_case(
                 self, interaction=interaction, submission_args=submission_args, bar=bar
             )
             if result is None:
                 bar.error(
-                    f"No output validator found for testcase {self.testcase.name}",
+                    f"No output validator found for test case {self.test_case.name}",
                     resume=True,
                 )
                 result = ExecResult(
@@ -114,14 +115,12 @@ class Run:
                     # write an interaction file for samples
                     if interaction:
                         data = self.in_path.read_text()
-                        if len(data) > 0 and data[-1] == "\n":
-                            data = data[:-1]
+                        data = data.removesuffix("\n")
                         data = data.replace("\n", "\n<")
                         print("<", data, sep="", file=interaction_file)
 
                         data = self.out_path.read_text()
-                        if len(data) > 0 and data[-1] == "\n":
-                            data = data[:-1]
+                        data = data.removesuffix("\n")
                         data = data.replace("\n", "\n>")
                         print(">", data, sep="", file=interaction_file)
 
@@ -146,7 +145,7 @@ class Run:
                     result = self._validate_output(bar)
                     if result is None:
                         bar.error(
-                            f"No output validator found for testcase {self.testcase.name}",
+                            f"No output validator found for test case {self.test_case.name}",
                             resume=True,
                         )
                         result = ExecResult(
@@ -248,9 +247,9 @@ class Run:
         output_validator = output_validators[0]
         assert isinstance(output_validator, validate.OutputValidator)
         return output_validator.run(
-            self.testcase,
+            self.test_case,
             self,
-            args=self.testcase.get_test_case_yaml(bar).output_validator_args,
+            args=self.test_case.get_test_case_yaml(bar).output_validator_args,
         )
 
     def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
@@ -260,11 +259,11 @@ class Run:
         if output_visualizer is None:
             return None
         return output_visualizer.run(
-            self.testcase.in_path,
-            self.testcase.ans_path.absolute(),
+            self.test_case.in_path,
+            self.test_case.ans_path.absolute(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
-            args=self.testcase.get_test_case_yaml(bar).output_visualizer_args,
+            args=self.test_case.get_test_case_yaml(bar).output_visualizer_args,
         )
 
 
@@ -356,17 +355,17 @@ class Submission(program.Program):
     def _get_language_candidates(
         self,
         bar: ProgressBar,
-    ) -> list[tuple[program.Language, list[Path]]]:
+    ) -> list[tuple[languages.Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
         candidates = []
-        for lang in program.languages():
-            if lang.name == self.expectations.language:
+        for lang in languages.languages():
+            if lang.code == self.expectations.language:
                 score, matching = lang.evaluate(self.input_files)
                 if matching:
                     candidates.append((score, lang, matching))
         if not candidates:
-            known = {lang.name for lang in program.languages()}
+            known = {lang.code for lang in languages.languages()}
             closest = difflib.get_close_matches(self.expectations.language, known)
             if not closest:
                 msg = ""
@@ -376,6 +375,14 @@ class Submission(program.Program):
                 msg = f", did you mean one of these: {', '.join(closest)}"
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
+
+    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+        restriction = self.problem.settings.languages
+        if restriction and language.code not in restriction:
+            bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
+        elif language.internal:
+            bar.warn(f"selected language {language.code} is not permitted")
+        super()._set_language(language, bar)
 
     def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
@@ -388,7 +395,7 @@ class Submission(program.Program):
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
     # The `generator_timeout` argument is used when a submission is run as a solution when
-    # generating testcases.
+    # generating test_cases.
     def run(
         self,
         in_path: Path,
@@ -419,36 +426,39 @@ class Submission(program.Program):
             )
         return result
 
-    # Run this submission on all testcases that are given.
+    # Run this submission on all test_cases that are given.
     # Returns (OK verdict, printed newline)
-    def run_testcases(
+    def run_test_cases(
         self,
         max_submission_name_len: int,
         verdict_table: VerdictTable,
-        testcases: Sequence[Testcase],
-        skip_test_case: Callable[["Submission", Testcase], bool] = lambda s, t: False,
+        test_cases: Sequence[TestCase],
+        skip_test_case: Callable[["Submission", TestCase], bool] = lambda s, t: False,
         *,
         needs_leading_newline: bool,
     ) -> tuple[bool, bool]:
-        runs = [Run(self.problem, self, testcase) for testcase in testcases]
-        max_testcase_len = max(len(run.name) for run in runs)
+        runs = [Run(self.problem, self, test_case) for test_case in test_cases]
+        max_test_case_len = max(len(run.name) for run in runs)
         max_pass_len = 0
         if self.problem.multi_pass:
             max_pass_len = len(str(self.problem.limits.validation_passes))
-            max_testcase_len += max_pass_len + len(f":{Fore.CYAN}{Style.RESET_ALL}")
-        max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
+            max_test_case_len += max_pass_len + len(f":{Fore.CYAN}{Style.RESET_ALL}")
+        max_item_len = max_test_case_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
         run_until = self.problem.run_until()
 
-        run_testcase: list[Testcase] = []
-        skip_testcase: list[Testcase] = []
-        for testcase in testcases:
-            (skip_testcase if skip_test_case(self, testcase) else run_testcase).append(testcase)
+        run_test_case: list[TestCase] = []
+        skipped_test_case: list[TestCase] = []
+        for test_case in test_cases:
+            if skip_test_case(self, test_case):
+                skipped_test_case.append(test_case)
+            else:
+                run_test_case.append(test_case)
         verdicts = Verdicts(
-            run_testcase,
+            run_test_case,
             self.problem.limits.timeout,
             run_until,
-            skip_testcase,
+            skipped_test_case,
         )
 
         verdict_table.next_submission(verdicts)
@@ -498,7 +508,7 @@ class Submission(program.Program):
                     continue  # skip "hidden" files
                 if f.name in ["judgemessage.txt", "judgeerror.txt"]:
                     continue
-                if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
+                if f.name.startswith(("judgeimage.", "teamimage.")):
                     data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
                     ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
                     continue
@@ -514,11 +524,11 @@ class Submission(program.Program):
                     continue
                 if not t:
                     continue
-                if len(data) > 0 and data[-1] != "\n":
+                if data and not data.endswith("\n"):
                     data += "\n"
                 data += f"{f.name}:" + localbar._format_data(t) + "\n"
 
-            permitted = self.expectations.all_permitted(run.testcase)
+            permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
             if not got_permitted:
                 permittedmsg = f"permitted: [{','.join([v.short() for v in permitted])}]"
@@ -545,16 +555,16 @@ class Submission(program.Program):
                 if self.problem.multi_pass
                 else ""
             )
-            testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
+            test_case = f"{run.name}{Style.RESET_ALL}{passmsg}"
             style_len = len(f"{Style.RESET_ALL}")
-            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len + style_len}}"
+            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {test_case:{max_test_case_len + style_len}}"
 
-            # Update padding since we already print the testcase name after the verdict.
+            # Update padding since we already print the test case name after the verdict.
             localbar.item_width = padding_len
             localbar.done(got_permitted, message, data, print_item=False)
 
         parallel.run_tasks(process_run, runs, pin=True)
-        bar.item_width -= max_testcase_len + 1
+        bar.item_width -= max_test_case_len + 1
 
         # We already printed a message if permitted is not satisfied
         passed_permitted = True
@@ -564,10 +574,10 @@ class Submission(program.Program):
             message = expectation.message
             got = set()
             for run in runs:
-                testcase = run.testcase
-                if not expectation.matches(testcase):
+                test_case = run.test_case
+                if not expectation.matches(test_case):
                     continue
-                verdict = verdicts[testcase.name]
+                verdict = verdicts[test_case.name]
                 if isinstance(verdict, Verdict):
                     got.add(verdict)
                     passed_permitted &= verdict in expectation.permitted
@@ -600,7 +610,7 @@ class Submission(program.Program):
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
         self.verdict = verdict
 
-        (salient_testcase, salient_duration) = verdicts.salient_test_case()
+        (salient_test_case, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
         salient_tle = salient_print_verdict == Verdict.TIME_LIMIT_EXCEEDED
 
@@ -621,7 +631,7 @@ class Submission(program.Program):
         if bar.logged:
             color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
-        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
+        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_test_case:{max_test_case_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_test_case()
@@ -629,21 +639,21 @@ class Submission(program.Program):
             (slowest_name, slowest_duration) = slowest_pair
             slowest_verdict = verdicts[slowest_name]
             assert isinstance(slowest_verdict, Verdict), (
-                "Verdict of slowest testcase must not be empty"
+                "Verdict of slowest test case must not be empty"
             )
-            slowest_testcase = next(t for t in testcases if t.name == slowest_name)
+            slowest_test_case = next(t for t in test_cases if t.name == slowest_name)
 
             slowest_color = Fore.GREEN
             if time_sensitive_lower < slowest_duration < time_sensitive_upper:
                 slowest_color = Fore.YELLOW
-            if slowest_verdict not in self.expectations.all_permitted(slowest_testcase):
+            if slowest_verdict not in self.expectations.all_permitted(slowest_test_case):
                 slowest_color = Fore.RED
 
             slowest_duration_style = (
                 Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
             )
 
-            message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
+            message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
         printed_newline = bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
@@ -657,18 +667,18 @@ class Submission(program.Program):
     def test(self) -> None:
         eprint(ProgressBar.action("Running", str(self.name)))
 
-        testcases = self.problem.testcases(needans=False)
+        test_cases = self.problem.test_cases(needans=False)
 
         if not self.problem.validators(validate.OutputValidator):
             return
 
-        for testcase in testcases:
-            header = ProgressBar.action("Running " + str(self.name), testcase.name)
+        for test_case in test_cases:
+            header = ProgressBar.action("Running " + str(self.name), test_case.name)
             eprint(header)
 
             if not self.problem.interactive:
                 assert self.run_command is not None
-                with testcase.in_path.open("rb") as inf:
+                with test_case.in_path.open("rb") as inf:
                     result = self._exec_command(
                         self.run_command,
                         crop=False,
@@ -704,14 +714,14 @@ class Submission(program.Program):
 
             else:
                 # Interactive problem.
-                run = Run(self.problem, self, testcase)
-                optional_result = interactive.run_interactive_testcase(
+                run = Run(self.problem, self, test_case)
+                optional_result = interactive.run_interactive_test_case(
                     run, interaction=True, validator_error=None, team_error=None
                 )
                 if optional_result is None:
                     config.n_error += 1
                     eprint(
-                        f"{Fore.RED}No output validator found for testcase {testcase.name}{Style.RESET_ALL}"
+                        f"{Fore.RED}No output validator found for test case {test_case.name}{Style.RESET_ALL}"
                     )
                     continue
                 result = optional_result
@@ -752,9 +762,6 @@ class Submission(program.Program):
             )
             bar.log("from stdin" if is_tty else "from file")
 
-            # Launch a separate thread to pass stdin to a pipe.
-            r, w = os.pipe()
-
             TEE_CODE = R"""
 import sys
 while True:
@@ -763,10 +770,13 @@ while True:
     sys.stdout.write(l)
     sys.stdout.flush()
 """
-            writer = None
+            with ExitStack() as cleanup:
+                # Launch a separate thread to pass stdin to a pipe.
+                r, w = os.pipe()
+                cleanup.callback(lambda: os.close(r))
+                cleanup.callback(lambda: os.close(w))
 
-            # Wait for first input
-            try:
+                # Wait for first input
                 read = False
                 for line in sys.stdin:
                     read = True
@@ -780,6 +790,7 @@ while True:
                     return
 
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
+                cleanup.enter_context(writer)
 
                 assert self.run_command is not None
                 result = self._exec_command(
@@ -806,12 +817,7 @@ while True:
                         f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
                 eprint()
-            finally:
-                os.close(r)
-                os.close(w)
-                if writer is not None:
-                    writer.kill()
-                    writer.wait()
+
             bar.done()
 
             if not is_tty:

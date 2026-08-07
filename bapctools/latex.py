@@ -3,6 +3,7 @@
 import os
 import re
 import shutil
+from contextlib import suppress
 from enum import Enum
 from pathlib import Path
 from typing import Final, Optional, TextIO, TYPE_CHECKING
@@ -49,7 +50,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.samples()
+    samples = problem.overrides(only_samples=True)
 
     samples_file_path = builddir / "samples.tex"
 
@@ -254,15 +255,13 @@ def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
     if command is None and tex_path.is_file():
         # try to guess the right tex command from a magic comment
         # https://tex.stackexchange.com/tags/magic-comment/info
-        try:
+        with suppress(UnicodeDecodeError):
             with tex_path.open() as f:
                 for line in f:
                     match = TEX_MAGIC_REGEX.match(line)
                     if match:
                         command = match.group(1).strip()
                         break
-        except UnicodeDecodeError:
-            pass
     if command is None:
         command = "pdflatex"
 

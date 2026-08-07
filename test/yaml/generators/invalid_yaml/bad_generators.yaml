@@ -146,7 +146,7 @@ data:
     data:
       ab: ''
 ---
-# Testcase object must be command string or contain generate.
+# Test case object must be command string or contain generate.
 data:
   sample:
     data:
@@ -238,7 +238,7 @@ data:
     generate: x
     data:
 ---
-# Testcases may not have data:.
+# Test cases may not have data:.
 data:
   sample:
     generate: abc
@@ -293,7 +293,7 @@ data:
         y
         z
 ---
-# Numbered cases must contain exactly one testcase
+# Numbered cases must contain exactly one test case
 data:
   sample:
     data:
@@ -305,7 +305,7 @@ data:
       - a:
         b:
 ---
-# Numbered testcases must contain a dict
+# Numbered test cases must contain a dict
 data:
   sample:
     data:

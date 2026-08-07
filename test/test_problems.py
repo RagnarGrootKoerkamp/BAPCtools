@@ -108,12 +108,12 @@ class TestIdentityProblem:
 
     def test_run(self):
         cli.test(["run"])
-        # pass testcases
+        # pass test cases
         cli.test(["run", "data/sample"])
         cli.test(["run", "data/secret/seeding", "data/sample/1.in"])
         # pass submission
         cli.test(["run", "submissions/accepted/author.cpp"])
-        # pass submissions + testcases
+        # pass submissions + test cases
         cli.test(["run", "data/sample/1.in", "submissions/accepted/author.cpp"])
         cli.test(
             [
@@ -231,7 +231,7 @@ class TestIdentityProblem:
 
     @pytest.mark.parametrize(
         "bad_submission",
-        Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*"),
+        list(Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*")),
     )
     def test_bad_submission(self, bad_submission):
         with pytest.raises(SystemExit):
