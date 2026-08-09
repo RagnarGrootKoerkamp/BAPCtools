@@ -12,8 +12,8 @@ from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
+    BAR_TYPE,
     eprint,
-    error,
     exec_command,
     ExecResult,
     ExecStatus,
@@ -21,7 +21,6 @@ from bapctools.util import (
     is_windows,
     limit_setter,
     PrintBar,
-    ProgressBar,
     remove_path,
 )
 from bapctools.verdicts import Verdict
@@ -37,7 +36,7 @@ PIPE_SIZE: Optional[int] = None
 
 
 # This function can only be used on Linux.
-def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
+def get_pipe_size(bar: BAR_TYPE) -> int:
     global PIPE_SIZE
     if PIPE_SIZE is not None:
         return PIPE_SIZE
@@ -61,21 +60,18 @@ def get_pipe_size(bar: Optional[ProgressBar] = None) -> int:
             if hasattr(fcntl, "F_SETPIPE_SZ"):
                 fcntl.fcntl(pipe_write, fcntl.F_SETPIPE_SZ, PIPE_SIZE)
     except PermissionError:
-        (bar or PrintBar("Run interactive test case")).warn(
-            "Permission error when setting pipe size. Running with default pipe size."
-        )
+        bar.warn("Permission error when setting pipe size. Running with default pipe size.")
         PIPE_SIZE = -1
 
     if config.args.verbose >= 2:
-        eprint("Pipe size:  ", PIPE_SIZE)
+        bar.log(f"Pipe size: {PIPE_SIZE}")
 
     return PIPE_SIZE
 
 
 def _close(pipe: Optional[IO[bytes]]) -> None:
     if pipe:
-        with suppress(OSError):
-            pipe.close()
+        pipe.close()
 
 
 # Return a ExecResult object amended with verdict.
@@ -91,7 +87,7 @@ def run_interactive_test_case(
     # else: path
     interaction: Optional[bool | Path] = False,
     submission_args: Optional[Sequence[str | Path]] = None,
-    bar: Optional[ProgressBar] = None,
+    bar: BAR_TYPE = PrintBar(),
 ) -> Optional[ExecResult]:
     output_validators = run.problem.validators(validate.OutputValidator)
     if not output_validators:
@@ -113,9 +109,7 @@ def run_interactive_test_case(
         run.in_path.absolute(),
         run.test_case.ans_path.absolute(),
         run.feedbackdir.absolute(),
-        *run.test_case.get_test_case_yaml(
-            bar or PrintBar("Run interactive test case")
-        ).output_validator_args,
+        *run.test_case.get_test_case_yaml(bar).output_validator_args,
     ]
 
     # Submission command
@@ -142,7 +136,7 @@ def run_interactive_test_case(
     # afterwards.
     if is_windows():
         if isinstance(interaction, Path):
-            (bar or PrintBar("Run")).warn("Cannot create .interaction file on windows")
+            bar.warn("Cannot create .interaction file on windows")
 
         pass_id = 0
         max_duration = 0.0
@@ -193,10 +187,13 @@ def run_interactive_test_case(
             validator_status = validator_process.returncode
 
             if validator_status not in [config.RTV_AC, config.RTV_WA]:
-                config.n_error += 1
+                if timeout_expired:
+                    bar.error(f"Validator TIMEOUT after {duration:.1f}s")
+                else:
+                    config.n_error += 1
                 verdict = Verdict.VALIDATOR_CRASH
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                error("got WRONG_ANSWER but found nextpass.in")
+                bar.error("got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.VALIDATOR_CRASH
             elif duration > time_limit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -237,11 +234,11 @@ def run_interactive_test_case(
 
             assert run.problem.limits.validation_passes is not None
             if pass_id >= run.problem.limits.validation_passes:
-                error("exceeded limit of validation_passes")
+                bar.error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
 
-        run._visualize_output(bar or PrintBar("Visualize interaction"))
+        run._visualize_output(bar)
 
         if tle_result is None:
             # Set result.err to validator error and result.out to team error.
@@ -372,20 +369,21 @@ while True:
                     submission_pid = submission.pid
 
                     stop_kill_handler = threading.Event()
+                    validator_time: Optional[float] = None
                     submission_time: Optional[float] = None
 
                     def kill_handler_function() -> None:
                         if stop_kill_handler.wait(timeout + 1):
                             return
-                        nonlocal submission_time
+                        nonlocal validator_time, submission_time
                         submission_time = timeout + 1
                         with suppress(ProcessLookupError):
                             if submission.pid not in reaped:
                                 submission.kill()
-                        if validation_time > timeout and stop_kill_handler.wait(
-                            validation_time - timeout
-                        ):
+                        time_gap = validation_time - timeout + 1
+                        if time_gap > 0 and stop_kill_handler.wait(time_gap):
                             return
+                        validator_time = validation_time + 1
                         with suppress(ProcessLookupError, PermissionError):
                             os.killpg(gid, signal.SIGKILL)
 
@@ -455,6 +453,7 @@ while True:
                         os.killpg(gid, signal.SIGKILL)
                     raise
 
+                assert validator_time is not None
                 assert submission_time is not None
                 did_timeout = submission_time > time_limit
                 aborted = submission_time >= timeout
@@ -470,10 +469,13 @@ while True:
                 # - no more team output -> AC
 
                 if validator_status not in [config.RTV_AC, config.RTV_WA]:
-                    config.n_error += 1
+                    if validator_time > validation_time:
+                        bar.error(f"Validator TIMEOUT after {duration:.1f}s")
+                    else:
+                        config.n_error += 1
                     verdict = Verdict.VALIDATOR_CRASH
                 elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                    error("got WRONG_ANSWER but found nextpass.in")
+                    bar.error("got WRONG_ANSWER but found nextpass.in")
                     verdict = Verdict.VALIDATOR_CRASH
                 elif aborted:
                     verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -533,7 +535,7 @@ while True:
 
             assert run.problem.limits.validation_passes is not None
             if pass_id >= run.problem.limits.validation_passes:
-                error("exceeded limit of validation_passes")
+                bar.error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
 

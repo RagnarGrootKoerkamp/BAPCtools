@@ -530,7 +530,7 @@ class Generator(Program):
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             timeout = self.limits["timeout"]
-            bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
+            bar.log(f"TIMEOUT after {timeout:.1f}s", color=Fore.RED)
             return result
 
         if not result.status:

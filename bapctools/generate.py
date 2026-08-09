@@ -325,7 +325,7 @@ class SolutionInvocation(Invocation):
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error(f"Solution TIMEOUT after {result.duration}s")
+            bar.error(f"Solution TIMEOUT after {result.duration:.1f}s")
         elif not result.status:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
             bar.error("Solution crashed", result.err)
@@ -1363,7 +1363,7 @@ class TestCaseRule(Rule):
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
                 bar.error(
-                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration}s"
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration:.1f}s"
                 )
             elif not result.status:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
