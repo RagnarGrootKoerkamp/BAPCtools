@@ -167,6 +167,9 @@ class Run:
                         if nextpass and nextpass.is_file():
                             bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                             result.verdict = Verdict.VALIDATOR_CRASH
+                    elif result.duration > self.problem.limits.validation_time:
+                        bar.error(f"Validator TIMEOUT after {result.duration:.1f}s")
+                        result.verdict = Verdict.VALIDATOR_CRASH
                     else:
                         config.n_error += 1
                         result.verdict = Verdict.VALIDATOR_CRASH
