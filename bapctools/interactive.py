@@ -1,14 +1,16 @@
-import fcntl
+import io
 import os
+import select
 import signal
 import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from collections.abc import Sequence
 from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
-from typing import Final, IO, Literal, Optional, TYPE_CHECKING
+from typing import IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
@@ -17,7 +19,6 @@ from bapctools.util import (
     exec_command,
     ExecResult,
     ExecStatus,
-    is_bsd,
     is_windows,
     limit_setter,
     PrintBar,
@@ -31,42 +32,192 @@ if TYPE_CHECKING:
     from bapctools.test_case import TestCase
 
 
-MAX_PIPE_SIZE: Final[int] = 10 * 1024**2
-PIPE_SIZE: Optional[int] = None
+class Connection:
+    CHUNK_SIZE = 16 * 1024
+    READ_LIMIT = 16 * CHUNK_SIZE
+    SOFT_BUFFER_LIMIT = 1 * 1024**2  # might be exceeded by up to READ_LIMIT
+
+    def __init__(
+        self,
+        prefix: str,
+        log: Optional[IO[str]],
+        read: Optional[IO[bytes]],
+        write: Optional[IO[bytes]],
+    ) -> None:
+        # we need unbuffered IO
+        assert isinstance(read, io.RawIOBase)
+        assert isinstance(write, io.RawIOBase)
+        os.set_blocking(read.fileno(), False)
+        os.set_blocking(write.fileno(), False)
+
+        self.prefix: str = prefix
+        self.log: Optional[IO[str]] = log
+        self.log_buffer: str = ""
+        self.read: io.RawIOBase = read
+        self.write: io.RawIOBase = write
+        self.allow_propagate_close: bool = False
+
+        self.transmitted: int = 0
+        self.buffered: int = 0
+        self.buffer: deque[memoryview] = deque()
+
+    def reads(self) -> list[io.RawIOBase]:
+        if self.read.closed or self.buffered >= Connection.SOFT_BUFFER_LIMIT:
+            return []
+        return [self.read]
+
+    def writes(self) -> list[io.RawIOBase]:
+        if self.write.closed or not self.buffer:
+            return []
+        return [self.write]
+
+    def _log(self, data: Optional[bytes] = None) -> None:
+        if not self.log:
+            return
+        if data is None:
+            if self.log_buffer:
+                print(self.prefix, self.log_buffer, sep="", file=self.log)
+            self.log = None
+        else:
+            lines = data.decode(errors="replace").split("\n")
+            lines[0] = self.log_buffer + lines[0]
+            self.log_buffer = lines.pop()
+            if lines:
+                print(self.prefix, f"\n{self.prefix}".join(lines), sep="", file=self.log)
+
+    def _try_propagate_closed(self) -> None:
+        if (
+            self.read.closed
+            and not self.buffer
+            and not self.write.closed
+            and self.allow_propagate_close
+        ):
+            self.write.close()
+            self.handle_write_closed()
+
+    def handle_read_closed(self) -> None:
+        if self.read.closed:
+            self._log()
+            self._try_propagate_closed()
+
+    def attemp_read(self, limit: int = -1) -> None:
+        if self.read.closed:
+            return self.handle_read_closed()
+
+        total = 0
+        while limit < 0 or total < limit:
+            try:
+                data = self.read.read(Connection.CHUNK_SIZE)
+                if data is None:
+                    break
+                elif len(data) == 0:
+                    self.read.close()
+                    self.handle_read_closed()
+                    break
+                else:
+                    self._log(data)
+                    total += len(data)
+                    if not self.write.closed:
+                        self.buffer.append(memoryview(data))
+            except BlockingIOError:
+                break
+            except (BrokenPipeError, OSError, ValueError):
+                self.read.close()
+                self.handle_read_closed()
+                break
+        self.buffered += total
+        self.transmitted += total
+
+    def handle_write_closed(self) -> None:
+        if self.write.closed:
+            self.buffer.clear()
+            self.buffered = 0
+
+    def attemp_write(self, limit: int = -1) -> None:
+        if self.write.closed:
+            return self.handle_write_closed()
+
+        total = 0
+        while (limit < 0 or total < limit) and self.buffer:
+            try:
+                data = self.buffer[0]
+                n = self.write.write(data)
+                if not n:
+                    break
+                if n < len(data):
+                    self.buffer[0] = data[n:]
+                    break
+                else:
+                    self.buffer.popleft()
+                total += n
+            except BlockingIOError:
+                break
+            except (BrokenPipeError, OSError, ValueError):
+                self.write.close()
+                self.handle_write_closed()
+                break
+        self.buffered -= total
+        self._try_propagate_closed()
 
 
-# This function can only be used on Linux.
-def get_pipe_size(bar: BAR_TYPE) -> int:
-    global PIPE_SIZE
-    if PIPE_SIZE is not None:
-        return PIPE_SIZE
+class Relay(threading.Thread):
+    def __init__(
+        self,
+        log: Optional[IO[str]],
+        validator: subprocess.Popen[bytes],
+        submission: subprocess.Popen[bytes],
+    ) -> None:
+        super().__init__(daemon=True)
+        self.vs = Connection("<", log, validator.stdout, submission.stdin)
+        self.sv = Connection(">", log, submission.stdout, validator.stdin)
+        self._wait, self._notify = os.pipe()
+        os.set_blocking(self._wait, False)
+        os.set_blocking(self._notify, False)
 
-    # currently python only supports this on linux
-    if is_windows() or is_bsd():
-        return -1
+    def run(self) -> None:
+        while True:
+            read = self.vs.reads() + self.sv.reads()
+            write = self.vs.writes() + self.sv.writes()
+            if not read and not write:
+                break
+            try:
+                readable, writeable, _ = select.select(read + [self._wait], write, [])
+            except (ValueError, OSError):
+                # some stream in the select is was broken -> check all
+                self.vs.handle_read_closed()
+                self.vs.handle_write_closed()
+                self.sv.handle_read_closed()
+                self.sv.handle_write_closed()
+                continue
 
-    # Defaults to 1 MiB on most systems, we limit it to 10MiB
-    PIPE_SIZE = int(Path("/proc/sys/fs/pipe-max-size").read_text())
-    PIPE_SIZE = min(PIPE_SIZE, MAX_PIPE_SIZE)
+            if self._wait in readable:
+                os.read(self._wait, 4096)
+                # we are notified because someone closed something
+                self.vs.handle_read_closed()
+                self.vs.handle_write_closed()
+                self.sv.handle_read_closed()
+                self.sv.handle_write_closed()
 
-    # Try to set the pipe size in the same way as subprocess.Popen does:
-    # https://github.com/python/cpython/blob/v3.14.4/Lib/subprocess.py#L1737
-    pipe_read, pipe_write = -1, -1
-    try:
-        with ExitStack() as cleanup:
-            pipe_read, pipe_write = os.pipe()
-            cleanup.callback(lambda: os.close(pipe_read))
-            cleanup.callback(lambda: os.close(pipe_write))
-            if hasattr(fcntl, "F_SETPIPE_SZ"):
-                fcntl.fcntl(pipe_write, fcntl.F_SETPIPE_SZ, PIPE_SIZE)
-    except PermissionError:
-        bar.warn("Permission error when setting pipe size. Running with default pipe size.")
-        PIPE_SIZE = -1
+            for connection in (self.vs, self.sv):
+                if connection.read in readable:
+                    connection.attemp_read(Connection.READ_LIMIT)
+                if connection.write in writeable:
+                    connection.attemp_write()
 
-    if config.args.verbose >= 2:
-        bar.log(f"Pipe size: {PIPE_SIZE}")
+    def notify(self) -> None:
+        os.write(self._notify, b"x")
 
-    return PIPE_SIZE
+    def close_validator(self) -> None:
+        # self.sv.write == validator.stdin
+        self.sv.write.close()
+        self.vs.allow_propagate_close = True
+        self.notify()
+
+    def close_submission(self) -> None:
+        # self.vs.write == submission.stdin
+        self.vs.write.close()
+        self.sv.allow_propagate_close = True
+        self.notify()
 
 
 def _close(pipe: Optional[IO[bytes]]) -> None:
@@ -273,24 +424,8 @@ def run_interactive_test_case(
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
-        else nullcontext(None) as interaction_file  # type: ignore[attr-defined]
+        else nullcontext(sys.stderr if interaction else None) as interaction_file  # type: ignore[attr-defined]
     ):
-        # Connect pipes with tee.
-        TEE_CODE = R"""
-import sys
-c = sys.argv[1]
-new = True
-while True:
-    l = sys.stdin.read(1)
-    if l=='': break
-    sys.stdout.write(l)
-    sys.stdout.flush()
-    if new: sys.stderr.write(c)
-    sys.stderr.write(l)
-    sys.stderr.flush()
-    new = l=='\n'
-"""
-
         pass_id = 0
         max_duration = 0
         tle_result = None
@@ -304,8 +439,9 @@ while True:
             def kill_process(process: subprocess.Popen[bytes]) -> None:
                 if process.pid not in reaped:
                     with suppress(ProcessLookupError, PermissionError):
-                        process.kill()
-                        process.wait()
+                        os.kill(process.pid, signal.SIGKILL)
+                        os.waitpid(process.pid, 0)
+                        reaped.append(process.pid)
                 _close(process.stdin)
                 _close(process.stdout)
                 _close(process.stderr)
@@ -313,145 +449,110 @@ while True:
             with ExitStack() as cleanup:
                 validator = subprocess.Popen(
                     validator_command,
+                    bufsize=0,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     # TODO: Make a flag to pass validator error directly to terminal.
                     stderr=subprocess.PIPE if validator_error is False else None,
                     cwd=validator_dir,
-                    pipesize=get_pipe_size(bar),
                     preexec_fn=limit_setter(
                         validator_command, validation_time, validation_memory, 0
                     ),
                 )
                 cleanup.callback(lambda: kill_process(validator))
-                validator_pid = validator.pid
                 # add all programs to the same group (for simplicity we take the pid of the validator)
                 # then we can wait for all program ins the same group
-                gid = validator_pid
+                gid = validator.pid
 
                 assert validator.stdin and validator.stdout
-                try:
-                    team_tee = None
-                    val_tee = None
-                    if interaction:
-                        team_tee = subprocess.Popen(
-                            [sys.executable, "-c", TEE_CODE, ">"],
-                            stdin=subprocess.PIPE,
-                            stdout=validator.stdin,
-                            stderr=interaction_file,
-                            pipesize=get_pipe_size(bar),
-                            preexec_fn=limit_setter(None, None, None, gid),
-                        )
-                        cleanup.callback(lambda: kill_process(team_tee))
-                        team_tee_pid = team_tee.pid
+                submission = subprocess.Popen(
+                    submission_command,
+                    bufsize=0,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE if team_error is False else None,
+                    cwd=submission_dir,
+                    preexec_fn=limit_setter(submission_command, timeout, memory, gid),
+                )
+                cleanup.callback(lambda: kill_process(submission))
 
-                        val_tee = subprocess.Popen(
-                            [sys.executable, "-c", TEE_CODE, "<"],
-                            stdin=validator.stdout,
-                            stdout=subprocess.PIPE,
-                            stderr=interaction_file,
-                            pipesize=get_pipe_size(bar),
-                            preexec_fn=limit_setter(None, None, None, gid),
-                        )
-                        cleanup.callback(lambda: kill_process(val_tee))
-                        val_tee_pid = val_tee.pid
+                stop_kill_handler = threading.Event()
+                validator_time: Optional[float] = None
+                submission_time: Optional[float] = None
 
-                    submission = subprocess.Popen(
-                        submission_command,
-                        stdin=(val_tee if val_tee else validator).stdout,
-                        stdout=(team_tee if team_tee else validator).stdin,
-                        stderr=subprocess.PIPE if team_error is False else None,
-                        cwd=submission_dir,
-                        pipesize=get_pipe_size(bar),
-                        preexec_fn=limit_setter(submission_command, timeout, memory, gid),
-                    )
-                    cleanup.callback(lambda: kill_process(submission))
-                    submission_pid = submission.pid
-
-                    stop_kill_handler = threading.Event()
-                    validator_time: Optional[float] = None
-                    submission_time: Optional[float] = None
-
-                    def kill_handler_function() -> None:
-                        if stop_kill_handler.wait(timeout + 1):
-                            return
-                        nonlocal validator_time, submission_time
-                        submission_time = timeout + 1
-                        with suppress(ProcessLookupError):
-                            if submission.pid not in reaped:
-                                submission.kill()
-                        time_gap = validation_time - timeout + 1
-                        if time_gap > 0 and stop_kill_handler.wait(time_gap):
-                            return
-                        validator_time = validation_time + 1
-                        with suppress(ProcessLookupError, PermissionError):
-                            os.killpg(gid, signal.SIGKILL)
-
-                    kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
-                    kill_handler.start()
-
-                    # Will be filled in the loop below.
-                    validator_status = None
-                    submission_status = None
-                    first = None
-
-                    # Wait for first to finish
-                    left = 4 if interaction else 2
-                    first_done = True
-                    while left > 0:
-                        pid, status, rusage = os.wait4(-gid, 0)
-                        reaped.append(pid)
-
-                        # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
-                        status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-
-                        # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
-                        if status == -2:
-                            raise KeyboardInterrupt()
-
-                        if pid == validator_pid:
-                            if first is None:
-                                first = "validator"
-                            validator_status = status
-
-                            # Close the output stream.
-                            _close(validator.stdout)
-                            if val_tee:
-                                _close(val_tee.stdout)
-
-                            # Kill the team submission and everything else in case we already know it's WA.
-                            if first_done and validator_status != config.RTV_AC:
-                                stop_kill_handler.set()
-                                with suppress(ProcessLookupError, PermissionError):
-                                    os.killpg(gid, signal.SIGKILL)
-                            first_done = False
-                        elif pid == submission_pid:
-                            if first is None:
-                                first = "submission"
-                            submission_status = status
-
-                            # Close the output stream.
-                            _close(validator.stdin)
-                            if team_tee:
-                                _close(team_tee.stdin)
-
-                            # Possibly already written by the alarm.
-                            if submission_time is None:
-                                submission_time = rusage.ru_utime + rusage.ru_stime
-
-                            first_done = False
-                        elif interaction:
-                            assert pid in [team_tee_pid, val_tee_pid]
-                        else:
-                            assert False
-
-                        left -= 1
-
-                    stop_kill_handler.set()
-                except KeyboardInterrupt:
+                def kill_handler_function() -> None:
+                    if stop_kill_handler.wait(timeout + 1):
+                        return
+                    nonlocal validator_time, submission_time
+                    submission_time = timeout + 1
                     with suppress(ProcessLookupError, PermissionError):
-                        os.killpg(gid, signal.SIGKILL)
-                    raise
+                        if submission.pid not in reaped:
+                            os.kill(submission.pid, signal.SIGKILL)
+                    time_gap = validation_time - timeout + 1
+                    if time_gap > 0 and stop_kill_handler.wait(time_gap):
+                        return
+                    validator_time = validation_time + 1
+                    with suppress(ProcessLookupError, PermissionError):
+                        os.kill(validator.pid, signal.SIGKILL)
+
+                kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
+                kill_handler.start()
+
+                relay = Relay(interaction_file, validator, submission)
+                relay.start()
+
+                validator_status = None
+                submission_status = None
+                first = None
+                while validator_status is None or submission_status is None:
+                    pid, status, rusage = os.wait4(-gid, 0)
+                    reaped.append(pid)
+
+                    # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
+                    status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
+
+                    # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
+                    if status == -2:
+                        raise KeyboardInterrupt()
+
+                    if pid == validator.pid:
+                        if first is None:
+                            first = "validator"
+                        validator_status = status
+                        relay.close_validator()
+
+                        # Possibly already written by the alarm.
+                        if validator_time is None:
+                            validator_time = rusage.ru_utime + rusage.ru_stime
+
+                        # Kill the team submission and everything else in case we already know it's WA.
+                        if submission.pid not in reaped and validator_status != config.RTV_AC:
+                            stop_kill_handler.set()
+                            with suppress(ProcessLookupError, PermissionError):
+                                os.kill(submission.pid, signal.SIGKILL)
+                    else:
+                        assert pid == submission.pid
+                        if first is None:
+                            first = "submission"
+                        submission_status = status
+                        relay.close_submission()
+
+                        # Possibly already written by the alarm.
+                        if submission_time is None:
+                            submission_time = rusage.ru_utime + rusage.ru_stime
+
+                stop_kill_handler.set()
+
+                relay.notify()
+                relay.join()
+
+                if not config.args.no_test_case_sanity_checks:
+                    transmission_limit = 10  # in MiB
+                    inMiB = 1024**2
+                    if relay.vs.transmitted >= transmission_limit * inMiB:
+                        bar.warn(f"Validator wrote over {transmission_limit}MiB")
+                    if relay.sv.transmitted >= transmission_limit * inMiB:
+                        bar.warn(f"Submission wrote over {transmission_limit}MiB")
 
                 assert validator_time is not None
                 assert submission_time is not None
