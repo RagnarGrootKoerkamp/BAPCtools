@@ -173,17 +173,17 @@ class Relay(threading.Thread):
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
         os.set_blocking(self._notify, False)
-        self.exit = False
+        self._exit = False
 
     def run(self) -> None:
-        while not self.exit:
+        while not self._exit:
             read = self.vs.reads() + self.sv.reads()
             write = self.vs.writes() + self.sv.writes()
             try:
                 # we always have self._wait, so we always have something to wait on
                 readable, writeable, _ = select.select(read + [self._wait], write, [])
             except (ValueError, OSError):
-                # some stream in the select is was broken -> check all
+                # some stream in the select is/was broken -> check all
                 self.vs.handle_read_closed()
                 self.vs.handle_write_closed()
                 self.sv.handle_read_closed()
@@ -191,8 +191,22 @@ class Relay(threading.Thread):
                 continue
 
             if self._wait in readable:
-                os.read(self._wait, 4096)
-                # we are notified because someone closed something
+                notification = os.read(self._wait, 4096)
+
+                for c in notification:
+                    if c == ord("v"):
+                        # self.sv.write == validator.stdin
+                        self.sv.write.close()
+                        self.vs.propagate_close = True
+                    elif c == ord("s"):
+                        # self.vs.write == submission.stdin
+                        self.vs.write.close()
+                        self.sv.propagate_close = True
+                    elif c == ord("x"):
+                        self._exit = True
+                    else:
+                        assert False
+
                 self.vs.handle_read_closed()
                 self.vs.handle_write_closed()
                 self.sv.handle_read_closed()
@@ -204,24 +218,14 @@ class Relay(threading.Thread):
                 if connection.write in writeable:
                     connection.attemp_write()
 
-    def notify(self) -> None:
-        assert os.write(self._notify, b"x")
-
     def close_validator(self) -> None:
-        # self.sv.write == validator.stdin
-        self.sv.write.close()
-        self.vs.propagate_close = True
-        self.notify()
+        os.write(self._notify, b"v")
 
     def close_submission(self) -> None:
-        # self.vs.write == submission.stdin
-        self.vs.write.close()
-        self.sv.propagate_close = True
-        self.notify()
+        os.write(self._notify, b"s")
 
     def close(self) -> None:
-        self.exit = True
-        self.notify()
+        os.write(self._notify, b"x")
         self.join()
 
 
