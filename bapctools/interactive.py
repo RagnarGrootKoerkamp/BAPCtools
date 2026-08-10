@@ -43,6 +43,8 @@ class Connection:
         log: Optional[IO[str]],
         read: Optional[IO[bytes]],
         write: Optional[IO[bytes]],
+        *,
+        propagate_close: bool = False,
     ) -> None:
         # we need unbuffered IO
         assert isinstance(read, io.RawIOBase)
@@ -55,7 +57,7 @@ class Connection:
         self.log_buffer: str = ""
         self.read: io.RawIOBase = read
         self.write: io.RawIOBase = write
-        self.allow_propagate_close: bool = False
+        self.propagate_close: bool = propagate_close
 
         self.transmitted: int = 0
         self.buffered: int = 0
@@ -86,12 +88,7 @@ class Connection:
                 print(self.prefix, f"\n{self.prefix}".join(lines), sep="", file=self.log)
 
     def _try_propagate_closed(self) -> None:
-        if (
-            self.read.closed
-            and not self.buffer
-            and not self.write.closed
-            and self.allow_propagate_close
-        ):
+        if self.read.closed and not self.buffer and not self.write.closed and self.propagate_close:
             self.write.close()
             self.handle_write_closed()
 
@@ -168,7 +165,10 @@ class Relay(threading.Thread):
         submission: subprocess.Popen[bytes],
     ) -> None:
         super().__init__(daemon=True)
-        self.vs = Connection("<", log, validator.stdout, submission.stdin)
+        # We assume the output validator knows what id does and directly propagate
+        # a closed stream. For the team on the other hand we only propagte a closed
+        # stream after the submission died
+        self.vs = Connection("<", log, validator.stdout, submission.stdin, propagate_close=True)
         self.sv = Connection(">", log, submission.stdout, validator.stdin)
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
@@ -210,13 +210,13 @@ class Relay(threading.Thread):
     def close_validator(self) -> None:
         # self.sv.write == validator.stdin
         self.sv.write.close()
-        self.vs.allow_propagate_close = True
+        self.vs.propagate_close = True
         self.notify()
 
     def close_submission(self) -> None:
         # self.vs.write == submission.stdin
         self.vs.write.close()
-        self.sv.allow_propagate_close = True
+        self.sv.propagate_close = True
         self.notify()
 
 
