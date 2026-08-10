@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 class Connection:
     CHUNK_SIZE = 16 * 1024
     READ_LIMIT = 16 * CHUNK_SIZE
-    SOFT_BUFFER_LIMIT = 1 * 1024**2  # might be exceeded by up to READ_LIMIT
+    SOFT_BUFFER_LIMIT = 32 * 1024**2  # might be exceeded by up to READ_LIMIT
 
     def __init__(
         self,
