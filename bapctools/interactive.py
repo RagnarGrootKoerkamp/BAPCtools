@@ -590,6 +590,11 @@ def run_interactive_test_case(
                         verdict = Verdict.RUNTIME_ERROR
                     else:
                         verdict = Verdict.ACCEPTED
+                        if not config.args.no_test_case_sanity_checks:
+                            # we know that the validator did not read EOF because we delay this
+                            bar.warn(
+                                "Validator exited first with AC => it is unable to detect trailing output"
+                            )
                 else:
                     assert first == "submission"
                     if submission_status != 0:
