@@ -176,9 +176,11 @@ class Relay(threading.Thread):
         self._exit = False
 
     def run(self) -> None:
-        while not self._exit:
+        while True:
             read = self.vs.reads() + self.sv.reads()
             write = self.vs.writes() + self.sv.writes()
+            if self._exit and not read and not write:
+                break
             try:
                 # we always have self._wait, so we always have something to wait on
                 readable, writeable, _ = select.select(read + [self._wait], write, [])
@@ -198,19 +200,18 @@ class Relay(threading.Thread):
                         # self.sv.write == validator.stdin
                         self.sv.write.close()
                         self.vs.propagate_close = True
+                        self.vs.handle_read_closed()
+                        self.sv.handle_write_closed()
                     elif c == ord("s"):
                         # self.vs.write == submission.stdin
                         self.vs.write.close()
                         self.sv.propagate_close = True
+                        self.sv.handle_read_closed()
+                        self.vs.handle_write_closed()
                     elif c == ord("x"):
                         self._exit = True
                     else:
                         assert False
-
-                self.vs.handle_read_closed()
-                self.vs.handle_write_closed()
-                self.sv.handle_read_closed()
-                self.sv.handle_write_closed()
 
             for connection in (self.vs, self.sv):
                 if connection.read in readable:
