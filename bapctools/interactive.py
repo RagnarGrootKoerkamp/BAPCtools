@@ -173,14 +173,14 @@ class Relay(threading.Thread):
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
         os.set_blocking(self._notify, False)
+        self.exit = False
 
     def run(self) -> None:
-        while True:
+        while not self.exit:
             read = self.vs.reads() + self.sv.reads()
             write = self.vs.writes() + self.sv.writes()
-            if not read and not write:
-                break
             try:
+                # we always have self._wait, so we always have something to wait on
                 readable, writeable, _ = select.select(read + [self._wait], write, [])
             except (ValueError, OSError):
                 # some stream in the select is was broken -> check all
@@ -205,7 +205,7 @@ class Relay(threading.Thread):
                     connection.attemp_write()
 
     def notify(self) -> None:
-        os.write(self._notify, b"x")
+        assert os.write(self._notify, b"x")
 
     def close_validator(self) -> None:
         # self.sv.write == validator.stdin
@@ -218,6 +218,11 @@ class Relay(threading.Thread):
         self.vs.write.close()
         self.sv.propagate_close = True
         self.notify()
+
+    def close(self) -> None:
+        self.exit = True
+        self.notify()
+        self.join()
 
 
 def _close(pipe: Optional[IO[bytes]]) -> None:
@@ -500,6 +505,7 @@ def run_interactive_test_case(
 
                 relay = Relay(interaction_file, validator, submission)
                 relay.start()
+                cleanup.callback(lambda: relay.close)
 
                 validator_status = None
                 submission_status = None
@@ -542,9 +548,7 @@ def run_interactive_test_case(
                             submission_time = rusage.ru_utime + rusage.ru_stime
 
                 stop_kill_handler.set()
-
-                relay.notify()
-                relay.join()
+                relay.close()
 
                 if not config.args.no_test_case_sanity_checks:
                     transmission_limit = 10  # in MiB
@@ -571,7 +575,7 @@ def run_interactive_test_case(
 
                 if validator_status not in [config.RTV_AC, config.RTV_WA]:
                     if validator_time > validation_time:
-                        bar.error(f"Validator TIMEOUT after {duration:.1f}s")
+                        bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
                     else:
                         config.n_error += 1
                     verdict = Verdict.VALIDATOR_CRASH
