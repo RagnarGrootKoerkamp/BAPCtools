@@ -165,74 +165,88 @@ class Relay(threading.Thread):
         submission: subprocess.Popen[bytes],
     ) -> None:
         super().__init__(daemon=True)
-        # We assume the output validator knows what id does and directly propagate
-        # a closed stream. For the team on the other hand we only propagte a closed
+        # Domjudge propagates EOF, while Kattis does not
+        # https://github.com/DOMjudge/domjudge/pull/1709
+        # https://github.com/Kattis/problemtools/blob/b89cb38a65c500928303da19f24ba0f9975662e4/support/interactive/interactive.cc#L257
+        # We assume that the output validator knows what it does and directly propagate
+        # a closed stream. For the submission on the other hand we only propagte a closed
         # stream after the submission died
         self.vs = Connection("<", log, validator.stdout, submission.stdin, propagate_close=True)
         self.sv = Connection(">", log, submission.stdout, validator.stdin)
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
         os.set_blocking(self._notify, False)
-        self._exit = False
+        self.first_exception: Optional[KeyboardInterrupt | Exception] = None
 
     def run(self) -> None:
-        while True:
-            read = self.vs.reads() + self.sv.reads()
-            write = self.vs.writes() + self.sv.writes()
-            if self._exit and not read and not write:
-                break
-            try:
-                # we always have self._wait, so we always have something to wait on
-                readable, writeable, _ = select.select(read + [self._wait], write, [])
-            except (ValueError, OSError):
-                # some stream in the select is/was broken -> check all
-                self.vs.handle_read_closed()
-                self.vs.handle_write_closed()
-                self.sv.handle_read_closed()
-                self.sv.handle_write_closed()
-                continue
+        try:
+            exit = False
+            while True:
+                read = self.vs.reads() + self.sv.reads()
+                write = self.vs.writes() + self.sv.writes()
+                if exit and not read and not write:
+                    break
+                try:
+                    # we always have self._wait => not all three lists can be empty
+                    readable, writeable, _ = select.select(read + [self._wait], write, [])
+                except (ValueError, OSError):
+                    # some stream in the select is/was broken -> check all
+                    self.vs.handle_read_closed()
+                    self.vs.handle_write_closed()
+                    self.sv.handle_read_closed()
+                    self.sv.handle_write_closed()
+                    continue
 
-            if self._wait in readable:
-                notification = os.read(self._wait, 4096)
+                if self._wait in readable:
+                    notification = os.read(self._wait, 4096)
 
-                for c in notification:
-                    if c == ord("v"):
-                        # self.sv.write == validator.stdin
-                        self.sv.write.close()
-                        self.vs.propagate_close = True
-                        self.vs.handle_read_closed()
-                        self.sv.handle_write_closed()
-                    elif c == ord("s"):
-                        # self.vs.write == submission.stdin
-                        self.vs.write.close()
-                        self.sv.propagate_close = True
-                        self.sv.handle_read_closed()
-                        self.vs.handle_write_closed()
-                    elif c == ord("x"):
-                        self._exit = True
-                    else:
-                        assert False
+                    for c in notification:
+                        assert not exit
+                        if c == ord("v"):
+                            # self.sv.write == validator.stdin
+                            self.sv.write.close()
+                            self.vs.propagate_close = True
+                            self.vs.handle_read_closed()
+                            self.sv.handle_write_closed()
+                        elif c == ord("s"):
+                            # self.vs.write == submission.stdin
+                            self.vs.write.close()
+                            self.sv.propagate_close = True
+                            self.sv.handle_read_closed()
+                            self.vs.handle_write_closed()
+                        elif c == ord("x"):
+                            exit = True
+                        else:
+                            assert False
 
-            for connection in (self.vs, self.sv):
-                if connection.read in readable:
-                    connection.attemp_read(Connection.READ_LIMIT)
-                if connection.write in writeable:
-                    connection.attemp_write()
+                for connection in (self.vs, self.sv):
+                    if connection.read in readable:
+                        connection.attemp_read(Connection.READ_LIMIT)
+                    if connection.write in writeable:
+                        connection.attemp_write()
+        except (KeyboardInterrupt, Exception) as e:
+            self.first_exception = e
 
+    # this methods should only be called by the owner of the relay
+    # i.e. the thread that created it
     def close_validator(self) -> None:
-        os.write(self._notify, b"v")
+        if self._notify >= 0:
+            os.write(self._notify, b"v")
 
     def close_submission(self) -> None:
-        os.write(self._notify, b"s")
+        if self._notify >= 0:
+            os.write(self._notify, b"s")
 
     def close(self) -> None:
-        os.write(self._notify, b"x")
-        self.join()
-
-
-def _close(pipe: Optional[IO[bytes]]) -> None:
-    if pipe:
-        pipe.close()
+        if self._notify >= 0:
+            os.write(self._notify, b"x")
+            os.close(self._notify)
+            self._notify = -1
+            self.join()
+            os.close(self._wait)
+            self._wait = -1
+            if self.first_exception is not None:
+                raise self.first_exception
 
 
 # Return a ExecResult object amended with verdict.
@@ -304,14 +318,18 @@ def run_interactive_test_case(
         tle_result = None
         while True:
             pass_id += 1
-            # Start the validator.
-            validator_process = subprocess.Popen(
-                validator_command,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE if validator_error is False else None,
-                cwd=validator_dir,
-            )
+            try:
+                # Start the validator.
+                validator_process = subprocess.Popen(
+                    validator_command,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE if validator_error is False else None,
+                    cwd=validator_dir,
+                )
+            except (PermissionError, OSError) as e:
+                # File is likely not executable / probably doesn't exist.
+                return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
             # Start and time the submission.
             tstart = time.monotonic()
@@ -420,11 +438,22 @@ def run_interactive_test_case(
     # On Posix:
     # - Start validator
     # - Start submission, limiting CPU time to time_limit+1s
-    # - Set alarm for time_limit+1s, and kill submission on SIGALRM if needed.
+    # - Set timeout thread for submission and valdiator to kill if needed
+    # - pump communication submission <-> validator, but delay submission EOF until submission dies
     # - Wait for either validator or submission to finish
-    # - Close first program + write end of pipe + read end of team output if validator exited first with non-AC.
-    # - Close remaining program + write end of pipe
-    # - Close remaining read end of pipes
+    # - If the valdiator dies first:
+    #   - If not AC: kill submission
+    #   - close validator.stdin
+    # - If the submission dies first:
+    #   - If error -> not ac
+    #   - Else wait for validator
+    #
+    # Note, with EOF propagation of validator to submision there is no reliable way to
+    # distinguish the following two scenarios:
+    # 1. submission crashes (RTE) -> writes invalid query -> validator juges (WA)
+    # 2. validator judges (WA) -> submission can no longer read -> submission crashes (RTE)
+    # But without this propagation pseudo interactive problem (where the validator sends EOF)
+    # do not work... We just hope for the best
 
     if isinstance(interaction, Path):
         assert not interaction.is_relative_to(run.tmpdir)
@@ -437,84 +466,96 @@ def run_interactive_test_case(
         else nullcontext(sys.stderr if interaction else None) as interaction_file  # type: ignore[attr-defined]
     ):
         pass_id = 0
-        max_duration = 0
+        max_duration = 0.0
         tle_result = None
         while True:
             pass_id += 1
 
-            # mixing os.wait4 with subprocess.wait is unsafe so we store which
-            # PIDs have been reaped by os.wait4
+            # mixing os and subprocess functions is unsafe so we store which
+            # PIDs have been reaped manually
             reaped = []
 
-            def kill_process(process: subprocess.Popen[bytes]) -> None:
-                if process.pid not in reaped:
+            def close(pipe: Optional[IO[bytes]]) -> None:
+                if pipe:
+                    pipe.close()
+
+            def kill(pid: int) -> None:
+                if pid not in reaped:
                     with suppress(ProcessLookupError, PermissionError):
-                        os.kill(process.pid, signal.SIGKILL)
-                        os.waitpid(process.pid, 0)
-                        reaped.append(process.pid)
-                _close(process.stdin)
-                _close(process.stdout)
-                _close(process.stderr)
+                        os.kill(pid, signal.SIGKILL)
+
+            def clean_process(process: subprocess.Popen[bytes]) -> None:
+                kill(process.pid)
+                close(process.stdin)
+                close(process.stdout)
+                close(process.stderr)
 
             with ExitStack() as cleanup:
-                validator = subprocess.Popen(
-                    validator_command,
-                    bufsize=0,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    # TODO: Make a flag to pass validator error directly to terminal.
-                    stderr=subprocess.PIPE if validator_error is False else None,
-                    cwd=validator_dir,
-                    preexec_fn=limit_setter(
-                        validator_command, validation_time, validation_memory, 0
-                    ),
-                )
-                cleanup.callback(lambda: kill_process(validator))
+                try:
+                    validator = subprocess.Popen(
+                        validator_command,
+                        bufsize=0,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        # TODO: Make a flag to pass validator error directly to terminal.
+                        stderr=subprocess.PIPE if validator_error is False else None,
+                        cwd=validator_dir,
+                        preexec_fn=limit_setter(
+                            validator_command, validation_time, validation_memory, 0
+                        ),
+                    )
+                    cleanup.callback(clean_process, validator)
+                except (PermissionError, OSError) as e:
+                    # File is likely not executable / probably doesn't exist.
+                    return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+
                 # add all programs to the same group (for simplicity we take the pid of the validator)
-                # then we can wait for all program ins the same group
+                # then we can wait for all program in the same group
                 gid = validator.pid
 
-                assert validator.stdin and validator.stdout
-                submission = subprocess.Popen(
-                    submission_command,
-                    bufsize=0,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE if team_error is False else None,
-                    cwd=submission_dir,
-                    preexec_fn=limit_setter(submission_command, timeout, memory, gid),
-                )
-                cleanup.callback(lambda: kill_process(submission))
+                try:
+                    submission = subprocess.Popen(
+                        submission_command,
+                        bufsize=0,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE if team_error is False else None,
+                        cwd=submission_dir,
+                        preexec_fn=limit_setter(submission_command, timeout, memory, gid),
+                    )
+                    cleanup.callback(clean_process, submission)
+                except (PermissionError, OSError) as e:
+                    # File is likely not executable / probably doesn't exist.
+                    return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+
+                relay = Relay(interaction_file, validator, submission)
+                relay.start()
+                cleanup.callback(relay.close)
 
                 stop_kill_handler = threading.Event()
+                cleanup.callback(stop_kill_handler.set)
+
                 validator_time: Optional[float] = None
                 submission_time: Optional[float] = None
 
                 def kill_handler_function() -> None:
+                    nonlocal validator_time, submission_time
                     if stop_kill_handler.wait(timeout + 1):
                         return
-                    nonlocal validator_time, submission_time
                     submission_time = timeout + 1
-                    with suppress(ProcessLookupError, PermissionError):
-                        if submission.pid not in reaped:
-                            os.kill(submission.pid, signal.SIGKILL)
+                    kill(submission.pid)
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
                     validator_time = validation_time + 1
-                    with suppress(ProcessLookupError, PermissionError):
-                        os.kill(validator.pid, signal.SIGKILL)
+                    kill(validator.pid)
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
 
-                relay = Relay(interaction_file, validator, submission)
-                relay.start()
-                cleanup.callback(lambda: relay.close)
-
                 validator_status = None
                 submission_status = None
-                first = None
+                first: Optional[Literal["validator", "submission"]] = None
                 while validator_status is None or submission_status is None:
                     pid, status, rusage = os.wait4(-gid, 0)
                     reaped.append(pid)
@@ -537,10 +578,9 @@ def run_interactive_test_case(
                             validator_time = rusage.ru_utime + rusage.ru_stime
 
                         # Kill the team submission and everything else in case we already know it's WA.
-                        if submission.pid not in reaped and validator_status != config.RTV_AC:
+                        if validator_status != config.RTV_AC:
                             stop_kill_handler.set()
-                            with suppress(ProcessLookupError, PermissionError):
-                                os.kill(submission.pid, signal.SIGKILL)
+                            kill(submission.pid)
                     else:
                         assert pid == submission.pid
                         if first is None:
@@ -555,74 +595,71 @@ def run_interactive_test_case(
                 stop_kill_handler.set()
                 relay.close()
 
-                if not config.args.no_test_case_sanity_checks:
-                    transmission_limit = 10  # in MiB
-                    inMiB = 1024**2
-                    if relay.vs.transmitted >= transmission_limit * inMiB:
-                        bar.warn(f"Validator wrote over {transmission_limit}MiB")
-                    if relay.sv.transmitted >= transmission_limit * inMiB:
-                        bar.warn(f"Submission wrote over {transmission_limit}MiB")
-
-                assert validator_time is not None
-                assert submission_time is not None
-                did_timeout = submission_time > time_limit
-                aborted = submission_time >= timeout
-                max_duration = max(max_duration, submission_time)
-
-                # If submission timed out: TLE
-                # If team exists first with TLE/RTE -> TLE/RTE
-                # If team exists first nicely -> validator result
-                # If validator exits first with WA -> WA
-                # If validator exits first with AC:
-                # - team TLE/RTE -> TLE/RTE
-                # - more team output -> WA
-                # - no more team output -> AC
-
-                if validator_status not in [config.RTV_AC, config.RTV_WA]:
-                    if validator_time > validation_time:
-                        bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
-                    else:
-                        config.n_error += 1
-                    verdict = Verdict.VALIDATOR_CRASH
-                elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                    bar.error("got WRONG_ANSWER but found nextpass.in")
-                    verdict = Verdict.VALIDATOR_CRASH
-                elif aborted:
-                    verdict = Verdict.TIME_LIMIT_EXCEEDED
-                elif first == "validator":
-                    # WA has priority because validator reported it first.
-                    if did_timeout:
-                        verdict = Verdict.TIME_LIMIT_EXCEEDED
-                    elif validator_status == config.RTV_WA:
-                        verdict = Verdict.WRONG_ANSWER
-                    elif submission_status != 0:
-                        verdict = Verdict.RUNTIME_ERROR
-                    else:
-                        verdict = Verdict.ACCEPTED
-                        if not config.args.no_test_case_sanity_checks:
-                            # we know that the validator did not read EOF because we delay this
-                            bar.warn(
-                                "Validator exited first with AC => it is unable to detect trailing output"
-                            )
-                else:
-                    assert first == "submission"
-                    if submission_status != 0:
-                        verdict = Verdict.RUNTIME_ERROR
-                    elif did_timeout:
-                        verdict = Verdict.TIME_LIMIT_EXCEEDED
-                    elif validator_status == config.RTV_WA:
-                        verdict = Verdict.WRONG_ANSWER
-                    else:
-                        verdict = Verdict.ACCEPTED
-
                 val_err = None
-                if validator_error is False:
-                    assert validator.stderr
+                if validator.stderr is not None:
                     val_err = _feedback(run, validator.stderr.read())
                 team_err = None
-                if team_error is False:
-                    assert submission.stderr
+                if submission.stderr is not None:
                     team_err = submission.stderr.read().decode("utf-8", "replace")
+
+            if not config.args.no_test_case_sanity_checks:
+                transmission_limit = 10  # in MiB
+                MiB = 1024**2
+                if relay.vs.transmitted >= transmission_limit * MiB:
+                    bar.warn(f"Validator wrote over {transmission_limit}MiB")
+                if relay.sv.transmitted >= transmission_limit * MiB:
+                    bar.warn(f"Submission wrote over {transmission_limit}MiB")
+
+            assert validator_time is not None
+            assert submission_time is not None
+            did_timeout = submission_time > time_limit
+            aborted = submission_time >= timeout
+            max_duration = max(max_duration, submission_time)
+
+            # If submission timed out: TLE
+            # If team exists first with TLE/RTE -> TLE/RTE
+            # If team exists first nicely -> validator result
+            # If validator exits first with WA -> WA
+            # If validator exits first with AC:
+            # - team TLE/RTE -> TLE/RTE
+            # - else AC
+
+            if validator_status not in [config.RTV_AC, config.RTV_WA]:
+                if validator_time > validation_time:
+                    bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
+                else:
+                    config.n_error += 1
+                verdict = Verdict.VALIDATOR_CRASH
+            elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
+                bar.error("got WRONG_ANSWER but found nextpass.in")
+                verdict = Verdict.VALIDATOR_CRASH
+            elif aborted:
+                verdict = Verdict.TIME_LIMIT_EXCEEDED
+            elif first == "validator":
+                # WA has priority because validator reported it first.
+                if did_timeout:
+                    verdict = Verdict.TIME_LIMIT_EXCEEDED
+                elif validator_status == config.RTV_WA:
+                    verdict = Verdict.WRONG_ANSWER
+                elif submission_status != 0:
+                    verdict = Verdict.RUNTIME_ERROR
+                else:
+                    verdict = Verdict.ACCEPTED
+                    if not config.args.no_test_case_sanity_checks:
+                        # we know that the validator did not read EOF because we delay this
+                        bar.warn(
+                            "Validator exited first with AC => Validator is unable to detect trailing output"
+                        )
+            else:
+                assert first == "submission"
+                if submission_status != 0:
+                    verdict = Verdict.RUNTIME_ERROR
+                elif did_timeout:
+                    verdict = Verdict.TIME_LIMIT_EXCEEDED
+                elif validator_status == config.RTV_WA:
+                    verdict = Verdict.WRONG_ANSWER
+                else:
+                    verdict = Verdict.ACCEPTED
 
             if verdict == Verdict.TIME_LIMIT_EXCEEDED:
                 if tle_result is None:
@@ -657,7 +694,7 @@ def run_interactive_test_case(
             if interaction:
                 print("---", file=interaction_file or sys.stderr, flush=True)
 
-    run._visualize_output(bar or PrintBar("Visualize interaction"))
+    run._visualize_output(bar)
 
     if tle_result is None:
         return ExecResult(
@@ -675,7 +712,7 @@ def run_interactive_test_case(
         return tle_result
 
 
-def _feedback(run: "Run", err: bytes) -> str:
+def _feedback(run: "Run", err: Optional[bytes]) -> str:
     judgemessage = run.feedbackdir / "judgemessage.txt"
     judgeerror = run.feedbackdir / "judgeerror.txt"
     res = "" if err is None else err.decode("utf-8", "replace")
@@ -709,13 +746,18 @@ def interactor_prints_unprompted(
         *test_case.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
     ]
 
-    validator_process = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        cwd=validator_dir,
-    )
-    time.sleep(wait)
-    validator_process.kill()
-    stdout, _ = validator_process.communicate()
-    return bool(stdout)
+    try:
+        validator_process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            cwd=validator_dir,
+        )
+        time.sleep(wait)
+        with suppress(ProcessLookupError, PermissionError):
+            validator_process.kill()
+        stdout, _ = validator_process.communicate()
+        return bool(stdout)
+    except (PermissionError, OSError):
+        # File is likely not executable / probably doesn't exist.
+        return None

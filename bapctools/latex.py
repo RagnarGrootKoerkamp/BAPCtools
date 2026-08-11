@@ -412,9 +412,9 @@ def build_latex_pdf(
             continue
         if path.suffix not in (".png", ".pdf", ".jpg", ".jpeg"):
             continue
-        if path.stat().st_size < 256 * 1024:
+        if path.stat().st_size < config.ICPC_IMAGE_LIMIT * 1024:
             continue
-        bar.warn(f"{rel_path} is larger than 256KiB")
+        bar.warn(f"{rel_path} is larger than {config.ICPC_IMAGE_LIMIT}KiB")
 
     assert not config.args.watch
     ensure_symlink(dest_path, built_pdf, True)

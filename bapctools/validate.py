@@ -512,21 +512,21 @@ def sanity_check(
     # check file size limits
     # TODO: consider time limit (more time => larger file limit)?
     file_size_limit = 20  # in MiB
-    inMiB = 1024**2
+    MiB = 1024**2
     assert config.ICPC_FILE_LIMIT > file_size_limit
-    if len(file_bytes) >= config.ICPC_FILE_LIMIT * inMiB:
+    if len(file_bytes) >= config.ICPC_FILE_LIMIT * MiB:
         bar.warn(f"{name} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!")
-    elif len(file_bytes) > file_size_limit * inMiB:
+    elif len(file_bytes) > file_size_limit * MiB:
         bar.warn(f"{name} is larger than {file_size_limit}MiB!")
 
     # check output limits
     if path.suffix in [".ans", ".out"]:
-        if len(file_bytes) > problem.limits.output * inMiB:
-            new_limit = (len(file_bytes) + inMiB - 1) // inMiB
+        if len(file_bytes) > problem.limits.output * MiB:
+            new_limit = (len(file_bytes) + MiB - 1) // MiB
             bar.warn(
                 f"{name} exceeds output limit (set limits->output to at least {new_limit}MiB in problem.yaml)"
             )
-        elif 2 * len(file_bytes) > problem.limits.output * inMiB:
+        elif 2 * len(file_bytes) > problem.limits.output * MiB:
             bar.warn(f"{name} is close to output limit (you should consider doubling it)")
 
     # check content
