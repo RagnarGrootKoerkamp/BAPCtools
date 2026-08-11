@@ -16,7 +16,7 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -1546,7 +1546,7 @@ def exec_command(
     timeout_expired = False
     tstart = time.monotonic()
 
-    try:
+    with ExitStack() as cleanup:
         try:
             if not is_windows() and preexec_fn is not False:
                 process = ResourcePopen(
@@ -1556,6 +1556,7 @@ def exec_command(
                 )
             else:
                 process = ResourcePopen(command, **kwargs)
+            cleanup.enter_context(process)
         except PermissionError as e:
             # File is likely not executable.
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
@@ -1570,10 +1571,6 @@ def exec_command(
             timeout_expired = True
             process.kill()
             (stdout, stderr) = process.communicate()
-    except KeyboardInterrupt:
-        if process is not None:
-            process.kill()
-        raise
 
     tend = time.monotonic()
 

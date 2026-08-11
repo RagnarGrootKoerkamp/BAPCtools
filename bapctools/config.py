@@ -26,7 +26,8 @@ RTV_AC: Final[int] = 42
 RTV_WA: Final[int] = 43
 
 # limit in MiB for the ICPC Archive
-ICPC_FILE_LIMIT: Final[int] = 100
+ICPC_FILE_LIMIT: Final[int] = 100  # in MiB
+ICPC_IMAGE_LIMIT: Final[int] = 256  # in KiB
 
 # system default limits
 DEFAULT_MEMORY = 2048  # in MiB

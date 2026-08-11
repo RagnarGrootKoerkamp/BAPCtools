@@ -776,8 +776,8 @@ while True:
             with ExitStack() as cleanup:
                 # Launch a separate thread to pass stdin to a pipe.
                 r, w = os.pipe()
-                cleanup.callback(lambda: os.close(r))
-                cleanup.callback(lambda: os.close(w))
+                cleanup.callback(os.close, r)
+                cleanup.callback(os.close, w)
 
                 # Wait for first input
                 read = False
