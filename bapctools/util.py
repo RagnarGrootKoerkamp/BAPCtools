@@ -1573,7 +1573,7 @@ def exec_command(
     except KeyboardInterrupt:
         if process is not None:
             process.kill()
-        raise KeyboardInterrupt()
+        raise
 
     tend = time.monotonic()
 
