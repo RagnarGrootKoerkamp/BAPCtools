@@ -1391,13 +1391,13 @@ class Problem:
     def validate_data(
         problem,
         mode: validate.Mode,
-        constraints: validate.ConstraintsDict | Literal[True] | None = None,
+        constraints: Optional[validate.ConstraintsDict | Literal[True]] = None,
     ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
             mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUT
-            constraints: True | dict | None. True means "do check constraints but discard the result."
+            constraints: Optional[True | dict]. True means "do check constraints but discard the result."
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1559,7 +1559,7 @@ class Problem:
     def _validate_data(
         problem,
         mode: validate.Mode,
-        constraints: validate.ConstraintsDict | Literal[True] | None,
+        constraints: Optional[validate.ConstraintsDict | Literal[True]],
         action: str,
         test_cases: Sequence[test_case.TestCase],
         extra: bool = False,

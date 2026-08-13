@@ -1249,10 +1249,9 @@ def copytree_and_substitute(
         dst.mkdir(parents=True, exist_ok=exist_ok)
         errors = []
         for d in src.iterdir():
+            srcFile = src / d.name
+            dstFile = dst / d.name
             try:
-                srcFile = src / d.name
-                dstFile = dst / d.name
-
                 copytree_and_substitute(
                     srcFile,
                     dstFile,
@@ -1446,7 +1445,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: "Optional[resource.struct_rusage]"
+    rusage: "Optional[resource.struct_rusage]" = None
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
@@ -1585,7 +1584,7 @@ def exec_command(
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, "rusage") and process.rusage:
+    if process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
