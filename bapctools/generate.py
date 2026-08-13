@@ -484,7 +484,7 @@ class Config:
                     self.needs_default_solution = False
                     self.solution = None
             self.random_salt = parser.extract("random_salt", self.random_salt)
-            self.retries = parser.extract("retries", self.retries, ">= 0")
+            self.retries = parser.extract("retries", self.retries, "> 0")
 
 
 class Rule:
@@ -1015,6 +1015,7 @@ class TestCaseRule(Rule):
             # If {seed} is used, check that the generator depends on it.
             if t.generator.uses_seed:
                 depends_on_seed = False
+                assert config.SEED_DEPENDENCY_RETRIES > 0
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
                     new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
@@ -2077,7 +2078,7 @@ class GeneratorConfig:
                 # Process named children alphabetically, but not in the root directory.
                 # There, process in the 'natural order'.
                 if isinstance(parent, RootDirectoryRule):
-                    valid_keys: Sequence[str | None] = KNOWN_ROOT_DIRECTORIES
+                    valid_keys: Sequence[Optional[str]] = KNOWN_ROOT_DIRECTORIES
                     for deprecated_key in DEPRECATED_ROOT_DIRECTORIES:
                         sub_parser.extract_deprecated(deprecated_key, deprecated_key[:-1])
                 else:

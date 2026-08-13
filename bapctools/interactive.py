@@ -32,9 +32,9 @@ if TYPE_CHECKING:
 
 
 class Connection:
-    CHUNK_SIZE = 16 * 1024
-    READ_LIMIT = 16 * CHUNK_SIZE
-    SOFT_BUFFER_LIMIT = 32 * 1024**2  # might be exceeded by up to READ_LIMIT
+    CHUNK_SIZE: Final[int] = 16 * 1024
+    READ_LIMIT: Final[int] = 16 * CHUNK_SIZE
+    SOFT_BUFFER_LIMIT: Final[int] = 32 * 1024**2  # might be exceeded by up to READ_LIMIT
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class Connection:
         read: Optional[IO[bytes]],
         write: Optional[IO[bytes]],
         *,
-        propagate_close: bool = False,
+        propagate_eof: bool = False,
     ) -> None:
         # we need unbuffered IO
         assert isinstance(read, io.RawIOBase)
@@ -56,7 +56,7 @@ class Connection:
         self.log_buffer: str = ""
         self.read: io.RawIOBase = read
         self.write: io.RawIOBase = write
-        self.propagate_close: bool = propagate_close
+        self.propagate_eof: bool = propagate_eof
 
         self.transmitted: int = 0
         self.buffered: int = 0
@@ -86,15 +86,15 @@ class Connection:
             if lines:
                 print(self.prefix, f"\n{self.prefix}".join(lines), sep="", file=self.log)
 
-    def _try_propagate_closed(self) -> None:
-        if self.read.closed and not self.buffer and not self.write.closed and self.propagate_close:
+    def _try_propagate_eof(self) -> None:
+        if self.read.closed and not self.buffer and not self.write.closed and self.propagate_eof:
             self.write.close()
             self.handle_write_closed()
 
     def handle_read_closed(self) -> None:
         if self.read.closed:
             self._log()
-            self._try_propagate_closed()
+            self._try_propagate_eof()
 
     def attemp_read(self, limit: int = -1) -> None:
         if self.read.closed:
@@ -153,7 +153,7 @@ class Connection:
                 self.handle_write_closed()
                 break
         self.buffered -= total
-        self._try_propagate_closed()
+        self._try_propagate_eof()
 
 
 class Relay(threading.Thread):
@@ -170,7 +170,7 @@ class Relay(threading.Thread):
         # We assume that the output validator knows what it does and directly propagate
         # a closed stream. For the submission on the other hand we only propagte a closed
         # stream after the submission died
-        self.vs = Connection("<", log, validator.stdout, submission.stdin, propagate_close=True)
+        self.vs = Connection("<", log, validator.stdout, submission.stdin, propagate_eof=True)
         self.sv = Connection(">", log, submission.stdout, validator.stdin)
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
@@ -204,13 +204,13 @@ class Relay(threading.Thread):
                         if c == ord("v"):
                             # self.sv.write == validator.stdin
                             self.sv.write.close()
-                            self.vs.propagate_close = True
+                            self.vs.propagate_eof = True
                             self.vs.handle_read_closed()
                             self.sv.handle_write_closed()
                         elif c == ord("s"):
                             # self.vs.write == submission.stdin
                             self.vs.write.close()
-                            self.sv.propagate_close = True
+                            self.sv.propagate_eof = True
                             self.sv.handle_read_closed()
                             self.vs.handle_write_closed()
                         elif c == ord("x"):
@@ -288,12 +288,12 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    # False: Return as part of ExecResult
-    # None: print to stdout
-    validator_error: Literal[False] | None = False,
-    team_error: Literal[False] | None = False,
     *,
-    # False/None: no output
+    # False: Return as part of ExecResult
+    # True: print to stdout
+    validator_error: bool = False,
+    team_error: bool = False,
+    # False: no output
     # True: stderr
     # else: path
     interaction: bool | Path = False,
@@ -407,7 +407,7 @@ def run_interactive_test_case(
                         stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE,
                         # TODO: Make a flag to pass validator error directly to terminal.
-                        stderr=subprocess.PIPE if validator_error is False else None,
+                        stderr=None if validator_error else subprocess.PIPE,
                         cwd=validator_dir,
                         preexec_fn=limit_setter(
                             validator_command,
@@ -421,7 +421,7 @@ def run_interactive_test_case(
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-                # On Unix add all programs to the same group (for simplicity we take the pid of the validator)
+                # if USE_GROUP: add all programs to the same group (for simplicity we take the pid of the validator)
                 # then we can wait for all program in the same group
                 gid = validator.pid
 
@@ -431,7 +431,7 @@ def run_interactive_test_case(
                         bufsize=0,
                         stdin=subprocess.PIPE if USE_RELAY else validator.stdout,
                         stdout=subprocess.PIPE if USE_RELAY else validator.stdin,
-                        stderr=subprocess.PIPE if team_error is False else None,
+                        stderr=None if team_error else subprocess.PIPE,
                         cwd=submission_dir,
                         preexec_fn=limit_setter(
                             submission_command, timeout, memory, gid if USE_GROUP else None
@@ -459,12 +459,12 @@ def run_interactive_test_case(
                     nonlocal validator_time, submission_time
                     if stop_kill_handler.wait(timeout + 1):
                         return
-                    submission_time = timeout + 1
+                    submission_time = timeout + 1.0
                     kill(submission.pid)
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
-                    validator_time = validation_time + 1
+                    validator_time = validation_time + 1.0
                     kill(validator.pid)
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
@@ -615,8 +615,8 @@ def run_interactive_test_case(
                 verdict = Verdict.VALIDATOR_CRASH
                 break
 
-            if interaction:
-                print("---", file=interaction_file or sys.stderr, flush=True)
+            if interaction_file:
+                print("---", file=interaction_file, flush=True)
 
     run._visualize_output(bar)
 
@@ -636,10 +636,10 @@ def run_interactive_test_case(
         return tle_result
 
 
-def _feedback(run: "Run", err: Optional[bytes]) -> str:
+def _feedback(run: "Run", err: bytes) -> str:
     judgemessage = run.feedbackdir / "judgemessage.txt"
     judgeerror = run.feedbackdir / "judgeerror.txt"
-    res = "" if err is None else err.decode("utf-8", "replace")
+    res = err.decode("utf-8", "replace")
     if judgeerror.is_file():
         res = judgeerror.read_text(errors="replace")
     if len(res) == 0 and judgemessage.is_file():

@@ -279,7 +279,6 @@ def copy_skel_dir(problems: list[Problem]) -> None:
             error(f"{d} is not a relative path.")
             continue
 
-        found = False
         for source in sources:
             if not source.is_file() and not source.is_dir():
                 continue
@@ -288,11 +287,9 @@ def copy_skel_dir(problems: list[Problem]) -> None:
             copytree_and_substitute(
                 source, target, None, exist_ok=True, preserve_symlinks=preserve_symlinks
             )
-            found = True
             break
-
-        if not found:
-            error(f"{source} does not exist")
+        else:
+            error(f"{sources[-1]} does not exist")
 
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.

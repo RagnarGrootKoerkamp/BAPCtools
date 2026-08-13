@@ -506,6 +506,8 @@ class TestCase:
                 elif mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]:
                     assert self.out_path is not None
                     file = self.out_path
+                else:
+                    assert False
 
                 data += (
                     f"{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n"
@@ -524,8 +526,6 @@ class TestCase:
                     warn = True
                 elif ret.status == ExecStatus.TIMEOUT:
                     warn = True
-                else:
-                    color = Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW
 
                 if warn:
                     bar.part_done(
@@ -535,6 +535,7 @@ class TestCase:
                         warn_instead_of_error=warn_instead_of_error,
                     )
                 else:
+                    color = Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW
                     bar.debug(
                         message,
                         data=data,

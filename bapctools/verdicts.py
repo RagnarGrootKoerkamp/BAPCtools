@@ -79,7 +79,7 @@ class RunUntil(Enum):
     ALL = 3
 
 
-def to_char(v: Verdict | None | Literal[False], lower: bool = False) -> str:
+def to_char(v: Optional[Verdict | Literal[False]], lower: bool = False) -> str:
     if v is None or v is False:
         return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
@@ -87,7 +87,7 @@ def to_char(v: Verdict | None | Literal[False], lower: bool = False) -> str:
         return f"{v.color()}{char}{Style.RESET_ALL}"
 
 
-def to_string(v: Verdict | None | Literal[False]) -> str:
+def to_string(v: Optional[Verdict | Literal[False]]) -> str:
     if v is None or v is False:
         return to_char(v)
     else:
@@ -188,12 +188,12 @@ class Verdicts:
         self.run_until = run_until
         self.timeout = timeout
 
-        # (test_case | test_group) -> Verdict | None | Literal[False]
-        self.verdict: dict[str, Verdict | None | Literal[False]] = {
+        # (test_case | test_group) -> Optional[Verdict | Literal[False]]
+        self.verdict: dict[str, Optional[Verdict | Literal[False]]] = {
             g: None for g in test_cases | test_groups
         }
-        # test_case -> float | None
-        self.duration: dict[str, float | None] = {g: None for g in test_cases}
+        # test_case -> Optional[float]
+        self.duration: dict[str, Optional[float]] = {g: None for g in test_cases}
         # test_case
         self.ignored: set[str] = {t.name for t in ignored}
         assert all(x not in test_cases for x in self.ignored)
@@ -239,7 +239,7 @@ class Verdicts:
             self.duration[test_case] = duration
             self._set_verdict_for_node(test_case, verdict, duration >= self.timeout)
 
-    def __getitem__(self, test_node: str) -> Verdict | None | Literal[False]:
+    def __getitem__(self, test_node: str) -> Optional[Verdict | Literal[False]]:
         with self:
             if test_node in self.ignored:
                 return False
@@ -271,7 +271,7 @@ class Verdicts:
                     assert duration is not None
                     return (tc, duration)
 
-    def slowest_test_case(self) -> None | tuple[str, float]:
+    def slowest_test_case(self) -> Optional[tuple[str, float]]:
         """The slowest test case, if all cases were run or a timeout occurred."""
         with self:
             tc, d = max(
@@ -494,7 +494,7 @@ class VerdictTable:
         *,
         update: bool = False,
         new_lines: int = 1,
-        printed_lengths: list[int] | None = None,
+        printed_lengths: Optional[list[int]] = None,
     ) -> None:
         if printed_lengths is None:
             printed_lengths = []
@@ -594,7 +594,7 @@ class VerdictTable:
         *,
         update: bool = False,
         new_lines: int = 2,
-        printed_lengths: list[int] | None = None,
+        printed_lengths: Optional[list[int]] = None,
     ) -> None:
         if printed_lengths is None:
             printed_lengths = []

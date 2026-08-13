@@ -719,7 +719,7 @@ class Submission(program.Program):
                 # Interactive problem.
                 run = Run(self.problem, self, test_case)
                 optional_result = interactive.run_interactive_test_case(
-                    run, interaction=True, validator_error=None, team_error=None
+                    run, interaction=True, validator_error=True, team_error=True
                 )
                 if optional_result is None:
                     config.n_error += 1
