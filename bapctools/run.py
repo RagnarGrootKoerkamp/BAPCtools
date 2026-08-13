@@ -75,7 +75,7 @@ class Run:
         self,
         bar: ProgressBar,
         *,
-        interaction: Optional[bool | Path] = None,
+        interaction: bool | Path = False,
     ) -> ExecResult:
         submission_args = self.test_case.get_test_case_yaml(bar).args
         if self.problem.interactive:

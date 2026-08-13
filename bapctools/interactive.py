@@ -10,13 +10,13 @@ from collections import deque
 from collections.abc import Sequence
 from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
-from typing import IO, Literal, Optional, TYPE_CHECKING
+from queue import SimpleQueue
+from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
 from bapctools import config, validate
 from bapctools.util import (
     BAR_TYPE,
     eprint,
-    exec_command,
     ExecResult,
     ExecStatus,
     is_windows,
@@ -249,6 +249,43 @@ class Relay(threading.Thread):
                 raise self.first_exception
 
 
+USE_GROUP: Final[bool] = hasattr(os, "wait4")
+USE_RELAY: Final[bool] = not is_windows()
+
+
+class Wait4:
+    def __init__(self, gid: int) -> None:
+        self.gid = gid
+
+    def wait(self) -> tuple[int, int, float]:
+        pid, status, rusage = os.wait4(-self.gid, 0)
+        return pid, status, rusage.ru_utime + rusage.ru_stime
+
+
+class ThreadedWait:
+    def __init__(self, pids: Sequence[int]) -> None:
+        self.finished = SimpleQueue[tuple[int, int, float] | Exception]()
+        self.tstart = time.monotonic()
+
+        def wait_thread(pid: int) -> None:
+            try:
+                res = os.waitpid(pid, 0)
+                tend = time.monotonic()
+                self.finished.put((*res, tend - self.tstart))
+            except Exception as e:
+                self.finished.put(e)
+
+        for pid in pids:
+            t = threading.Thread(target=wait_thread, args=(pid,), daemon=True)
+            t.start()
+
+    def wait(self) -> tuple[int, int, float]:
+        res = self.finished.get()
+        if isinstance(res, Exception):
+            raise res
+        return res
+
+
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
@@ -260,7 +297,7 @@ def run_interactive_test_case(
     # False/None: no output
     # True: stderr
     # else: path
-    interaction: Optional[bool | Path] = False,
+    interaction: bool | Path = False,
     submission_args: Optional[Sequence[str | Path]] = None,
     bar: BAR_TYPE = PrintBar(),
 ) -> Optional[ExecResult]:
@@ -302,140 +339,6 @@ def run_interactive_test_case(
         eprint("Validator:  ", *validator_command)
         eprint("Submission: ", *submission_command)
 
-    # On Windows:
-    # - Start the validator
-    # - Start the submission
-    # - Wait for the submission to complete or timeout
-    # - Wait for the validator to complete.
-    # This cannot handle cases where the validator reports WA/RTE and the submission timeout
-    # afterwards.
-    if is_windows():
-        if isinstance(interaction, Path):
-            bar.warn("Cannot create .interaction file on windows")
-
-        pass_id = 0
-        max_duration = 0.0
-        tle_result = None
-        while True:
-            pass_id += 1
-            try:
-                # Start the validator.
-                validator_process = subprocess.Popen(
-                    validator_command,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE if validator_error is False else None,
-                    cwd=validator_dir,
-                )
-            except (PermissionError, OSError) as e:
-                # File is likely not executable / probably doesn't exist.
-                return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
-
-            # Start and time the submission.
-            tstart = time.monotonic()
-            exec_res = exec_command(
-                submission_command,
-                stdin=validator_process.stdout,
-                stdout=validator_process.stdin,
-                stderr=subprocess.PIPE if team_error is False else None,
-                cwd=submission_dir,
-                timeout=timeout,
-                memory=memory,
-            )
-
-            timeout_expired = False
-            try:
-                # Wait
-                (validator_out, validator_err) = validator_process.communicate(
-                    timeout=validation_time
-                )
-            except subprocess.TimeoutExpired:
-                # Timeout expired.
-                timeout_expired = True
-                validator_process.kill()
-                (validator_out, validator_err) = validator_process.communicate()
-            tend = time.monotonic()
-
-            duration = tend - tstart
-            if duration >= timeout:
-                timeout_expired = True
-            elif timeout_expired:
-                duration = timeout
-            max_duration = max(max_duration, duration)
-
-            validator_status = validator_process.returncode
-
-            if validator_status not in [config.RTV_AC, config.RTV_WA]:
-                if timeout_expired:
-                    bar.error(f"Validator TIMEOUT after {duration:.1f}s")
-                else:
-                    config.n_error += 1
-                verdict = Verdict.VALIDATOR_CRASH
-            elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                bar.error("got WRONG_ANSWER but found nextpass.in")
-                verdict = Verdict.VALIDATOR_CRASH
-            elif duration > time_limit:
-                verdict = Verdict.TIME_LIMIT_EXCEEDED
-                if tle_result is None:
-                    # Set result.err to validator error and result.out to team error.
-                    tle_result = ExecResult(
-                        None,
-                        ExecStatus.ACCEPTED,
-                        max_duration,
-                        max_duration >= timeout,
-                        _feedback(run, validator_err),
-                        exec_res.err,
-                        verdict,
-                        pass_id if run.problem.multi_pass else None,
-                    )
-                else:
-                    tle_result.timeout_expired |= max_duration >= timeout
-            elif not exec_res.status:
-                verdict = Verdict.RUNTIME_ERROR
-            elif validator_status == config.RTV_WA:
-                verdict = Verdict.WRONG_ANSWER
-            elif validator_status == config.RTV_AC:
-                verdict = Verdict.ACCEPTED
-            else:
-                verdict = Verdict.VALIDATOR_CRASH
-
-            if not validator_err:
-                validator_err = b""
-
-            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
-                if not run._continue_with_tle(verdict, max_duration >= timeout):
-                    break
-            elif verdict != Verdict.ACCEPTED:
-                break
-
-            if not run._prepare_nextpass(nextpass):
-                break
-
-            assert run.problem.limits.validation_passes is not None
-            if pass_id >= run.problem.limits.validation_passes:
-                bar.error("exceeded limit of validation_passes")
-                verdict = Verdict.VALIDATOR_CRASH
-                break
-
-        run._visualize_output(bar)
-
-        if tle_result is None:
-            # Set result.err to validator error and result.out to team error.
-            return ExecResult(
-                None,
-                ExecStatus.ACCEPTED,
-                max_duration,
-                max_duration >= timeout,
-                _feedback(run, validator_err),
-                exec_res.err,
-                verdict,
-                pass_id if run.problem.multi_pass else None,
-            )
-        else:
-            tle_result.duration = max_duration
-            return tle_result
-
-    # On Posix:
     # - Start validator
     # - Start submission, limiting CPU time to time_limit+1s
     # - Set timeout thread for submission and valdiator to kill if needed
@@ -455,6 +358,11 @@ def run_interactive_test_case(
     # But without this propagation pseudo interactive problem (where the validator sends EOF)
     # do not work... We just hope for the best
 
+    if not USE_RELAY:
+        if isinstance(interaction, Path):
+            bar.warn("Cannot create .interaction file on windows")
+        interaction = False
+
     if isinstance(interaction, Path):
         assert not interaction.is_relative_to(run.tmpdir)
     elif interaction:
@@ -473,7 +381,7 @@ def run_interactive_test_case(
 
             # mixing os and subprocess functions is unsafe so we store which
             # PIDs have been reaped manually
-            reaped = []
+            reaped: Sequence[int] = []
 
             def close(pipe: Optional[IO[bytes]]) -> None:
                 if pipe:
@@ -501,7 +409,10 @@ def run_interactive_test_case(
                         stderr=subprocess.PIPE if validator_error is False else None,
                         cwd=validator_dir,
                         preexec_fn=limit_setter(
-                            validator_command, validation_time, validation_memory, 0
+                            validator_command,
+                            validation_time,
+                            validation_memory,
+                            0 if USE_GROUP else None,
                         ),
                     )
                     cleanup.callback(clean_process, validator)
@@ -509,7 +420,7 @@ def run_interactive_test_case(
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-                # add all programs to the same group (for simplicity we take the pid of the validator)
+                # On Unix add all programs to the same group (for simplicity we take the pid of the validator)
                 # then we can wait for all program in the same group
                 gid = validator.pid
 
@@ -517,20 +428,25 @@ def run_interactive_test_case(
                     submission = subprocess.Popen(
                         submission_command,
                         bufsize=0,
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
+                        stdin=subprocess.PIPE if USE_RELAY else validator.stdout,
+                        stdout=subprocess.PIPE if USE_RELAY else validator.stdin,
                         stderr=subprocess.PIPE if team_error is False else None,
                         cwd=submission_dir,
-                        preexec_fn=limit_setter(submission_command, timeout, memory, gid),
+                        preexec_fn=limit_setter(
+                            submission_command, timeout, memory, gid if USE_GROUP else None
+                        ),
                     )
                     cleanup.callback(clean_process, submission)
                 except (PermissionError, OSError) as e:
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-                relay = Relay(interaction_file, validator, submission)
-                relay.start()
-                cleanup.callback(relay.close)
+                if USE_RELAY:
+                    relay = Relay(interaction_file, validator, submission)
+                    relay.start()
+                    cleanup.callback(relay.close)
+                else:
+                    relay = None
 
                 stop_kill_handler = threading.Event()
                 cleanup.callback(stop_kill_handler.set)
@@ -556,9 +472,9 @@ def run_interactive_test_case(
                 validator_status = None
                 submission_status = None
                 first: Optional[Literal["validator", "submission"]] = None
+                wait = Wait4(gid) if USE_GROUP else ThreadedWait([validator.pid, submission.pid])
                 while validator_status is None or submission_status is None:
-                    pid, status, rusage = os.wait4(-gid, 0)
-                    reaped.append(pid)
+                    pid, status, duration = wait.wait()
 
                     # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
                     status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -571,11 +487,14 @@ def run_interactive_test_case(
                         if first is None:
                             first = "validator"
                         validator_status = status
-                        relay.close_validator()
+                        if relay is not None:
+                            relay.close_validator()
+                        else:
+                            close(validator.stdout)
 
                         # Possibly already written by the alarm.
                         if validator_time is None:
-                            validator_time = rusage.ru_utime + rusage.ru_stime
+                            validator_time = duration
 
                         # Kill the team submission and everything else in case we already know it's WA.
                         if validator_status != config.RTV_AC:
@@ -586,14 +505,18 @@ def run_interactive_test_case(
                         if first is None:
                             first = "submission"
                         submission_status = status
-                        relay.close_submission()
+                        if relay is not None:
+                            relay.close_submission()
+                        else:
+                            close(validator.stdin)
 
                         # Possibly already written by the alarm.
                         if submission_time is None:
-                            submission_time = rusage.ru_utime + rusage.ru_stime
+                            submission_time = duration
 
                 stop_kill_handler.set()
-                relay.close()
+                if relay is not None:
+                    relay.close()
 
                 val_err = None
                 if validator.stderr is not None:
@@ -602,7 +525,7 @@ def run_interactive_test_case(
                 if submission.stderr is not None:
                     team_err = submission.stderr.read().decode("utf-8", "replace")
 
-            if not config.args.no_test_case_sanity_checks:
+            if not config.args.no_test_case_sanity_checks and relay is not None:
                 transmission_limit = 10  # in MiB
                 MiB = 1024**2
                 if relay.vs.transmitted >= transmission_limit * MiB:
