@@ -16,7 +16,6 @@ from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 from bapctools import config, validate
 from bapctools.util import (
     BAR_TYPE,
-    eprint,
     ExecResult,
     ExecStatus,
     is_windows,
@@ -336,8 +335,10 @@ def run_interactive_test_case(
     nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
-        eprint("Validator:  ", *validator_command)
-        eprint("Submission: ", *submission_command)
+        validator_command_str = "".join(map(str, validator_command))
+        submission_command_str = "".join(map(str, submission_command))
+        bar.log(f"Validator:  {validator_command_str}")
+        bar.log(f"Submission: {submission_command_str}")
 
     # - Start validator
     # - Start submission, limiting CPU time to time_limit+1s
