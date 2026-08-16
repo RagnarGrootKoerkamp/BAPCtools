@@ -38,13 +38,27 @@ class Language:
         self.name = parser.extract_and_error("name", str)
         self.priority = parser.extract_and_error("priority", int)
         self.files = parser.extract_and_error("files", str).split()
+
+        if ("shebang" in parser.remaining) != ("shebang_files" in parser.remaining):
+            if "shebang" in parser.remaining:
+                found, missing = "shebang", "shebang_files"
+            else:
+                found, missing = "shebang_files", "shebang"
+            parser.pop(found)
+            parser.pop(missing)
+            warn(
+                f"invalid entries in languages.yaml for '{code}'. {found} must be accompanied by {missing}. SKIPPED."
+            )
         self.shebang = None
+        self.shebang_files = None
         shebang = parser.extract_optional("shebang", str)
         if shebang is not None:
             try:
                 self.shebang = re.compile(shebang)
+                self.shebang_files = parser.extract_and_error("shebang_files", str).split()
             except re.error:
                 warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
+
         self.compile = parser.extract_optional("compile", str)
         self.run = parser.extract_and_error("run", str)
 
@@ -96,6 +110,9 @@ class Language:
     def _matches_shebang(self, f: Path) -> bool:
         if self.shebang is None:
             return True
+        assert self.shebang_files is not None
+        if not any(f.match(glob) for glob in self.shebang_files):
+            return True
         try:
             with f.open() as o:
                 return self.shebang.search(o.readline()) is not None
@@ -103,13 +120,14 @@ class Language:
             return False
 
     # Returns true when file f matches the shebang regex and the file glob.
-    def _matches(self, f: Path) -> bool:
-        return any(f.match(glob) for glob in self.files) and self._matches_shebang(f)
+    def _matches_file(self, f: Path) -> bool:
+        return any(f.match(glob) for glob in self.files)
 
-    def evaluate(self, files: list[Path]) -> tuple[tuple[int, int, int], list[Path]]:
-        matching = [f for f in files if self._matches(f)]
-        score = (self.priority // 1000, len(matching), self.priority)
-        return (score, matching)
+    def evaluate(self, files: list[Path]) -> tuple[tuple[int, int], list[Path]]:
+        source_files = [f for f in files if self._matches_file(f)]
+        matches = [f for f in files if self._matches_shebang(f)]
+        score = (len(matches), self.priority)
+        return (score, source_files)
 
     def is_installed(self, bar: BAR_TYPE) -> bool:
         # Make sure we can compile programs for this language.
