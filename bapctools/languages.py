@@ -25,7 +25,7 @@ class Language:
     CODE_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
     ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
-    # Do not warn for the same mixing executeable multiple times.
+    # Do not warn for the same missing executeable multiple times.
     warn_cache: set[str] = set()
 
     def __init__(self, code: str, conf: dict[object, object], *, internal: bool = False) -> None:
@@ -47,7 +47,7 @@ class Language:
             parser.pop(found)
             parser.pop(missing)
             warn(
-                f"invalid entries in languages.yaml for '{code}'. {found} must be accompanied by {missing}. SKIPPED."
+                f"invalid entries in languages.yaml for '{code}', {found} must be accompanied by {missing}. SKIPPED."
             )
         self.shebang = None
         self.shebang_files = None
