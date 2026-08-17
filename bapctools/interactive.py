@@ -389,10 +389,6 @@ def run_interactive_test_case(
             reaped: list[int] = []
             reaped_lock = threading.Lock()
 
-            def reap(pid: int) -> None:
-                with reaped_lock:
-                    reaped.append(pid)
-
             def close(pipe: Optional[IO[bytes]]) -> None:
                 if pipe:
                     pipe.close()
@@ -491,6 +487,8 @@ def run_interactive_test_case(
                 )
                 while validator_status is None or submission_status is None:
                     pid, status, duration = wait.wait()
+                    with reaped_lock:
+                        reaped.append(pid)
 
                     # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
                     status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
