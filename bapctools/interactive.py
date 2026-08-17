@@ -7,7 +7,7 @@ import sys
 import threading
 import time
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
 from queue import SimpleQueue
@@ -253,16 +253,19 @@ USE_RELAY: Final[bool] = not is_windows()
 
 
 class Wait4:
-    def __init__(self, gid: int) -> None:
+    def __init__(self, gid: int, reap: Callable[[int], None]) -> None:
         self.gid = gid
+        self.reap = reap
 
     def wait(self) -> tuple[int, int, float]:
         pid, status, rusage = os.wait4(-self.gid, 0)
+        self.reap(pid)
         return pid, status, rusage.ru_utime + rusage.ru_stime
 
 
 class ThreadedWait:
-    def __init__(self, pids: Sequence[int]) -> None:
+    def __init__(self, pids: Sequence[int], reap: Callable[[int], None]) -> None:
+        self.reap = reap
         self.finished = SimpleQueue[tuple[int, int, float] | Exception]()
         self.tstart = time.monotonic()
 
@@ -270,6 +273,7 @@ class ThreadedWait:
             try:
                 res = os.waitpid(pid, 0)
                 tend = time.monotonic()
+                self.reap(pid)
                 self.finished.put((*res, tend - self.tstart))
             except Exception as e:
                 self.finished.put(e)
@@ -382,14 +386,21 @@ def run_interactive_test_case(
 
             # mixing os and subprocess functions is unsafe so we store which
             # PIDs have been reaped manually
-            reaped: Sequence[int] = []
+            reaped: list[int] = []
+            reaped_lock = threading.Lock()
+
+            def reap(pid: int) -> None:
+                with reaped_lock:
+                    reaped.append(pid)
 
             def close(pipe: Optional[IO[bytes]]) -> None:
                 if pipe:
                     pipe.close()
 
             def kill(pid: int) -> None:
-                if pid not in reaped:
+                with reaped_lock:
+                    is_reaped = pid in reaped
+                if not is_reaped:
                     with suppress(ProcessLookupError, PermissionError):
                         os.kill(pid, signal.SIGKILL)
 
@@ -473,7 +484,11 @@ def run_interactive_test_case(
                 validator_status = None
                 submission_status = None
                 first: Optional[Literal["validator", "submission"]] = None
-                wait = Wait4(gid) if USE_GROUP else ThreadedWait([validator.pid, submission.pid])
+                wait = (
+                    Wait4(gid, reap)
+                    if USE_GROUP
+                    else ThreadedWait([validator.pid, submission.pid], reap)
+                )
                 while validator_status is None or submission_status is None:
                     pid, status, duration = wait.wait()
 
