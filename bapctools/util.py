@@ -1556,6 +1556,7 @@ def exec_command(
             else:
                 process = ResourcePopen(command, **kwargs)
             cleanup.enter_context(process)
+            cleanup.callback(process.kill)
         except PermissionError as e:
             # File is likely not executable.
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)

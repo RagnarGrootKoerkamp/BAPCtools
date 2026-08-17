@@ -425,7 +425,7 @@ def run_interactive_test_case(
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
                 # if USE_GROUP: add all programs to the same group (for simplicity we take the pid of the validator)
-                # then we can wait for all program in the same group
+                # then we can wait for all programs in the same group
                 gid = validator.pid
 
                 try:

@@ -794,6 +794,7 @@ while True:
 
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
+                cleanup.callback(writer.kill)
 
                 assert self.run_command is not None
                 result = self._exec_command(
@@ -804,22 +805,22 @@ while True:
                     stderr=None,
                     timeout=None,  # no timeout since we wait for user input
                 )
-
                 assert result.err is None and result.out is None
-                if not result.status:
-                    config.n_error += 1
-                    status = None
-                    eprint(
-                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
-                else:
-                    status = f"{Fore.GREEN}Done:"
 
-                if status:
-                    eprint(
-                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
-                eprint()
+            if not result.status:
+                config.n_error += 1
+                status = None
+                eprint(
+                    f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
+                )
+            else:
+                status = f"{Fore.GREEN}Done:"
+
+            if status:
+                eprint(
+                    f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
+                )
+            eprint()
 
             bar.done()
 
