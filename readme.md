@@ -3,11 +3,11 @@
 BAPCtools is a tool for creating and developing problems following the CLICS (DOMjudge/Kattis) problem format specified [here](https://icpc.io/problem-package-format/spec/2025-09.html).
 
 The aim of this tool is to run all necessary compilation, validation, and testing commands while working on an ICPC-style problem.
-Ideally one should never have to manually run any compilation or testing command themselves.
+Ideally, one should never have to manually run any compilation or testing command themselves.
 
 We are always interested to know who's using this, so feel free to inform us (e.g. via an issue) if so :)
-The main userbase is sitting in Europe with regular users from the BAPC, GCPC and NWERC.
-BAPCtools has also been used to propare problems at the EUC and the ICPC WF.
+The main user base is sitting in Europe with regular users from the BAPC, GCPC and NWERC.
+BAPCtools has also been used to prepare problems at the EUC and the ICPC WF.
 
 ## Installation
 
@@ -24,8 +24,8 @@ There are multiple ways to install BAPCtools:
 - The [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
   mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
 - Run from a [Docker image](#Docker).
-- The developement version from git via `pip install .`.
-  For more information regarding the developement version see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
+- The development version from git via `pip install .`.
+  For more information regarding the development version see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
 
 (If you know how to make a Debian package, feel free to help out.)
 
@@ -87,39 +87,39 @@ This is automatically detected by searching for the `problem.yaml` file.
 
 The most common commands and options to use on an existing repository are:
 
-- [`bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-- [`bt test <submission> [--interactive | --samples | [testcases [testcases ...]]]`](#test)
+- [`bt run [-v] [submissions [submissions ...]] [test_cases [test_cases ...]]`](#run)
+- [`bt test <submission> [--interactive | --samples | [test_cases [test_cases ...]]]`](#test)
 - [`bt generate [-v] [--jobs JOBS]`](#generate)
-- [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+- [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [test_cases [test_cases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
 
 A guide on how to set a problem with BAPCtools and what commands to use can be found at [doc/workflow.md#synopsis](doc/workflow.md#).
 The list of all available commands and options is at [doc/commands.md#synopsis](doc/commands.md#synopsis).
-Additional, information regarding the implementation is at [doc/implementation_notes.md](doc/implementation_notes.md).
+Additionally, information regarding the implementation is at [doc/implementation_notes.md](doc/implementation_notes.md).
 
 ### Run
 
-- `bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`
+- `bt run [-v] [submissions [submissions ...]] [test_cases [test_cases ...]]`
 
-Without arguments, the `run` command runs all submissions against all testcases.
-Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
+Without arguments, the `run` command runs all submissions against all test cases.
+Specify one or more submissions and one or more test cases to only run the given submissions against the given test cases.
 
-Before running the given submissions, this command first makes sure that all generated testcases are up to date (in case `generators/generators.yaml` was found).
-To disable automatically regenerating testcases, pass `-G` (`--no-generate`), or add `no_generate: true` to a `.bapctools.yaml` file in the problem or contest directory.
+Before running the given submissions, this command first makes sure that all generated test cases are up to date (in case `generators/generators.yaml` was found).
+To disable automatically regenerating test cases, pass `-G` (`--no-generate`), or add `no_generate: true` to a `.bapctools.yaml` file in the problem or contest directory.
 
 ![run](doc/images/run.gif)
 
-By default, `bt run` only prints one summary line per submission, and one additional line for each testcase with an unexpected result. Use `-v` to print one line per testcase instead.
+By default, `bt run` only prints one summary line per submission, and one additional line for each test case with an unexpected result. Use `-v` to print one line per test case instead.
 
 ![run -v](doc/images/run-v.gif)
 
 ### Test
 
-- `bt test <submission> [--samples | [testcases [testcases ...]]]`
+- `bt test <submission> [--samples | [test_cases [test_cases ...]]]`
 
-Use the `test` command to run a single submission on some testcases.
-The submission `stdout` and `stderr` are printed to the terminal instead of beeing verified as an answer file.
-Use `--samples` to run on the samples, or pass a list of testcases or directories containing testcases.
+Use the `test` command to run a single submission on some test cases.
+The submission `stdout` and `stderr` are printed to the terminal instead of being verified as an answer file.
+Use `--samples` to run on the samples, or pass a list of test cases or directories containing test cases.
 Use `--interactive`/`-i` to run in interactive mode, where console input is forwarded to the submission.
 This rebuilds and reruns the program until either `control-C` or `control-D` is pressed.
 It's also possible to supply the test case on the command line directly using e.g. `< /path/to/file.in` or `<<< "10 20"`.
@@ -130,7 +130,7 @@ It's also possible to supply the test case on the command line directly using e.
 
 - `bt generate [-v] [--jobs JOBS]`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`.
+Use the `generate` command to generate the test cases specified in `generators/generators.yaml`.
 See [doc/generators.md](doc/generators.md) for the specification of `generators.yaml` and see [doc/commands.md#generate](doc/commands.md#generate) for the full list of arguents.
 Use `-j 0` to disable running multiple jobs in parallel (the default is half of the available cpu cores).
 
@@ -138,9 +138,9 @@ Use `-j 0` to disable running multiple jobs in parallel (the default is half of 
 
 ### Validate
 
-- `bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`
+- `bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [test_cases [test_cases ...]]`
 
-Validate all the `.in` and `.ans` for all (given) testcases.
+Validate all the `.in` and `.ans` for all (given) test cases.
 It runs all validators from `input_validators`, `answer_validators`, and `output_validators`.
 
 Validators can be one of
@@ -150,7 +150,7 @@ Validators can be one of
 - a .ctd CheckTestData file (this needs the `pyctd` executable in your `$PATH`, see [PyCTD](https://github.com/mzuenni/pyctd)).
 - a .viva file.
 
-You can use `--remove` to delete all failing testcases or `--move <dir>` to move them to a separate directory.
+You can use `--remove` to delete all failing test cases or `--move <dir>` to move them to a separate directory.
 
 ![validator](./doc/images/validate.png)
 
@@ -159,7 +159,7 @@ You can use `--remove` to delete all failing testcases or `--move <dir>` to move
 - `bt pdf [-v] [--cp]`
 
 Use this command to compile the `problem.en.pdf` from the `statement/problem.en.tex` LaTeX statement.
-The generated `problem.en.pdf` is linked to the problem directory itself, if you want a persistend version of the pdf use `--cp`.
+The generated `problem.en.pdf` is linked to the problem directory itself, if you want a persistent version of the pdf use `--cp`.
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
@@ -175,7 +175,7 @@ For this, you can create a configuration YAML file containing key-value pairs in
 The keys in this config file can be any option that can be passed on the command-line.
 Note that the keys should be written out in full (e.g., `username: jury` rather than `u: jury`) and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rather than `no-bar: True`).
 
-These personal config files also allow to set the key `local_time_multiplier` to adjust hardcoded time limits intended for different hardware.
+These personal config files also allow you to set the key `local_time_multiplier` to adjust hardcoded time limits intended for different hardware.
 This might be useful for the CI or if your hardware is much faster or much slower than the contest hardware.
 
 ## Developing / Contributing to BAPCtools
