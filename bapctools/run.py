@@ -1,4 +1,5 @@
 import difflib
+import itertools
 import os
 import shutil
 import subprocess
@@ -102,11 +103,9 @@ class Run:
                 assert not interaction.is_relative_to(self.tmpdir)
             with interaction.open("a") if interaction else nullcontext(None) as interaction_file:  # type: ignore[attr-defined]
                 nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
-                pass_id = 0
                 max_duration = 0.0
                 tle_result = None
-                while True:
-                    pass_id += 1
+                for pass_id in itertools.count(1):
                     result = self.submission.run(
                         self.in_path, self.out_path, args=submission_args or []
                     )
@@ -189,6 +188,7 @@ class Run:
                     if interaction:
                         print("---", file=interaction_file)
 
+            assert result is not None
             if self.problem.multi_pass:
                 result.pass_id = pass_id
 
@@ -748,13 +748,11 @@ class Submission(program.Program):
 
         is_tty = sys.stdin.isatty()
 
-        tc = 0
-        while True:
-            tc += 1
+        for tc in itertools.count(1):
             name = f"run {tc}"
             bar.update(1, len(name))
-            bar.start(name)
-            # Reinitialize the underlying program, so that changed to the source
+            localbar = bar.start(name)
+            # Reinitialize the underlying program, so that changes to the source
             # code can be picked up in build.
             super().__init__(
                 self.problem,
@@ -763,7 +761,7 @@ class Submission(program.Program):
                 limits=self.limits,
                 skip_double_build_warning=True,
             )
-            bar.log("from stdin" if is_tty else "from file")
+            localbar.log("from stdin" if is_tty else "from file")
 
             TEE_CODE = R"""
 import sys
@@ -780,17 +778,12 @@ while True:
                 cleanup.callback(os.close, w)
 
                 # Wait for first input
-                read = False
-                for line in sys.stdin:
-                    read = True
-                    # Read the first line of input, and re-build the program if
-                    # needed after the first line has been entered.
-                    if not self.build(bar):
-                        return
-                    os.write(w, bytes(line, "utf8"))
-                    break
+                read = next(sys.stdin, None)
                 if not read:
                     return
+                if not self.build(localbar):
+                    return
+                os.write(w, bytes(read, "utf8"))
 
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
@@ -822,7 +815,7 @@ while True:
                 )
             eprint()
 
-            bar.done()
+            localbar.done()
 
             if not is_tty:
                 break

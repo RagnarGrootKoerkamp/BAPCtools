@@ -84,12 +84,7 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
-result = subprocess.run(
-    [{args}],
-    stdout=sys.stdout,
-    stderr=sys.stderr,
-    stdin=sys.stdin,
-)
+result = subprocess.run([{args}], stdout=None, stderr=None, stdin=None)
 returncode_file = Path(".returncode")
 # For multipass we store the first non zero return code
 write_returncode = True
@@ -283,6 +278,6 @@ def run(
 
         parallel.run_tasks(run_submission, testinputs, pin=True)
         ok &= cur_ok
-        needs_leading_newline = bar.finalize()
+        needs_leading_newline = bar.finalize(suppress_newline=True)
 
     return ok

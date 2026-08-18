@@ -1,4 +1,5 @@
 import io
+import itertools
 import os
 import select
 import signal
@@ -374,12 +375,9 @@ def run_interactive_test_case(
         if isinstance(interaction, Path)
         else nullcontext(sys.stderr if interaction else None) as interaction_file  # type: ignore[attr-defined]
     ):
-        pass_id = 0
         max_duration = 0.0
         tle_result = None
-        while True:
-            pass_id += 1
-
+        for pass_id in itertools.count(1):
             # mixing os and subprocess functions is unsafe so we store which
             # PIDs have been reaped manually
             reaped: list[int] = []
