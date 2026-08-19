@@ -1,7 +1,8 @@
+from collections.abc import Mapping
 from multiprocessing import Pool
 from os import makedirs
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 from bapctools import config, parallel
 from bapctools.contest import call_api_get_json, get_contest_id
@@ -16,8 +17,15 @@ from bapctools.util import ProgressBar
 # This means we cannot use closures or share global data, e.g. we cannot share `bar` instance between the processes.
 # Our custom parallel module can be used for API fetching without problems.
 
-bins = 120
-judgement_colors = {"AC": "lime", "WA": "red", "TLE": "#c0f", "RTE": "orange", "": "skyblue"}
+BINS: Final[int] = 120
+PENDING: Final[str] = "PENDING"
+JUDGEMENT_COLORS: Final[Mapping[str, str]] = {
+    "AC": "lime",
+    "WA": "red",
+    "TLE": "#c0f",
+    "RTE": "orange",
+    PENDING: "skyblue",
+}
 
 
 # Turns an endpoint list result into an object, mapped by 'id'
@@ -25,7 +33,7 @@ def get_json_assoc(url: str) -> dict[str, dict[str, Any]]:
     return {o["id"]: o for o in call_api_get_json(url)}
 
 
-def time_string_to_minutes(time_string: str) -> float:
+def time_string_to_minutes(time_string: Optional[str]) -> float:
     hours, minutes, seconds = (time_string or "0:0:0").split(":")
     return int(hours) * 60 + int(minutes) + float(seconds) / 60
 
@@ -39,17 +47,17 @@ def plot_problem(
 
     fig, ax = plt.subplots(figsize=(12, 2))
     # Ugly accumulator. Matplotlib doesn't support negative stacked bars properly: https://stackoverflow.com/a/38900035
-    neg_acc = [0] * bins
+    neg_acc = [0] * BINS
     # Reverse order, so that the order at the bottom is WA-TLE-RTE
     for jt in sorted(judgement_types, reverse=True):
         if jt == "CE":
             continue
         is_neg = any(m[jt] < 0 for m in minutes)
         ax.bar(
-            range(bins),
+            range(BINS),
             [m[jt] for m in minutes],
             1,
-            color=judgement_colors.get(jt) or judgement_colors["RTE"],
+            color=JUDGEMENT_COLORS.get(jt) or JUDGEMENT_COLORS["RTE"],
             bottom=neg_acc if is_neg else None,
         )
         if is_neg:
@@ -82,9 +90,9 @@ def generate_solve_stats(post_freeze: bool) -> None:
     contest = call_api_get_json(url_prefix)
     bar.done()
 
-    freeze_duration = time_string_to_minutes(contest["scoreboard_freeze_duration"])
-    contest_duration = time_string_to_minutes(contest["duration"])
-    scale = contest_duration / bins
+    freeze_duration = time_string_to_minutes(contest.get("scoreboard_freeze_duration"))
+    contest_duration = time_string_to_minutes(contest.get("duration"))
+    scale = contest_duration / BINS
 
     def get_contest_data(i_endpoint: tuple[int, str]) -> None:
         i, endpoint = i_endpoint
@@ -106,7 +114,8 @@ def generate_solve_stats(post_freeze: bool) -> None:
     assert judgement_types is not None, "Could not fetch judgement_types"
     bar.done()
 
-    judgement_types[""] = {"id": "", "name": "pending"}
+    assert PENDING not in judgement_types
+    judgement_types[PENDING] = {"id": PENDING, "name": "pending"}
 
     bar.start("Judgements")
     for j in call_api_get_json(url_prefix + "judgements"):
@@ -122,38 +131,38 @@ def generate_solve_stats(post_freeze: bool) -> None:
     class Submission:
         def __init__(self, data: Any) -> None:
             assert isinstance(data, dict)
-            self.minute = time_string_to_minutes(data["contest_time"])
+            self.minute = time_string_to_minutes(data.get("contest_time"))
             self.time_slot = int(self.minute / scale)
             self.team = data["team_id"]
             self.problem = data["problem_id"]
             self.language = data["language_id"]
             if "judgement" in data:
-                self.verdict = data["judgement"]["judgement_type_id"]
+                self.judgement_type = data["judgement"]["judgement_type_id"]
             else:
-                self.verdict = None
+                self.judgement_type = None
             self.pending = not post_freeze and self.minute >= contest_duration - freeze_duration
-            self.pending_verdict = "" if self.pending else self.verdict
+            self.pending_judgement_type = PENDING if self.pending else self.judgement_type
 
     contest_submissions = []
     for data in submissions.values():
         s = Submission(data)
         if s.team not in teams:
             continue
-        if s.verdict is None:
+        if s.judgement_type is None:
             continue
         if 0 <= s.minute < contest_duration:
             contest_submissions.append(s)
 
     def plot_activity() -> None:
         ac_teams: dict[str, set[str]] = {p: set() for p in problems}
-        stats = {p: [{j: 0 for j in judgement_types} for _ in range(bins)] for p in problems}
+        stats = {p: [{j: 0 for j in judgement_types} for _ in range(BINS)] for p in problems}
         stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
         for s in contest_submissions:
-            if s.pending_verdict == "AC":
+            if s.pending_judgement_type == "AC":
                 ac_teams[s.problem].add(s.team)
-            score = 1 if s.pending_verdict in ["AC", ""] else -1
-            stats[s.problem][s.time_slot][s.pending_verdict] += score
-            stats_sum[s.problem][s.pending_verdict] += 1
+            score = 1 if s.pending_judgement_type in ["AC", PENDING] else -1
+            stats[s.problem][s.time_slot][s.pending_judgement_type] += score
+            stats_sum[s.problem][s.pending_judgement_type] += 1
 
         makedirs("solve_stats/activity", exist_ok=True)
         with Pool(num_jobs) as p:
@@ -170,7 +179,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         for problem_id in sorted(stats):
             submitted = sum(stats_sum[problem_id].values())
             accepted = len(ac_teams[problem_id])
-            pending = stats_sum[problem_id][""]
+            pending = stats_sum[problem_id][PENDING]
             label = problems[problem_id]["label"]
 
             name = rf"\solvestats{label}"
@@ -182,15 +191,15 @@ def generate_solve_stats(post_freeze: bool) -> None:
     def plot_language_stats() -> None:
         language_stats = {lang: {j: 0 for j in judgement_types} for lang in languages}
         for s in contest_submissions:
-            language_stats[s.language][s.pending_verdict] += 1
+            language_stats[s.language][s.pending_judgement_type] += 1
 
         fig, ax = plt.subplots(figsize=(8, 4))
-        for j, (verdict, color) in enumerate(judgement_colors.items()):
+        for j, (judgement_type, color) in enumerate(JUDGEMENT_COLORS.items()):
             ax.bar(
                 [i + (j - 2) * 0.15 for i in range(len(languages))],
-                [language_stats[lang][verdict] for lang in languages],
+                [language_stats[lang][judgement_type] for lang in languages],
                 0.15,
-                label=judgement_types[verdict]["name"],
+                label=judgement_types[judgement_type]["name"],
                 color=color,
             )
         ax.set_xticks(range(len(languages)), [lang["name"] for lang in languages.values()])
@@ -203,7 +212,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         team_submit_time: dict[str, set[int]] = {t: set() for t in teams}
         for s in contest_submissions:
             team_submit_time[s.team].add(s.time_slot)
-            if s.verdict != "AC":
+            if s.judgement_type != "AC":
                 continue
             # we only consider the first AC for each problem
             team_ac_time[s.team].setdefault(s.problem, s.time_slot)
@@ -222,10 +231,10 @@ def generate_solve_stats(post_freeze: bool) -> None:
             )
 
         last_submit = [max(times, default=-1) for times in team_submit_time.values()]
-        add_plot(last_submit, "Teams Submitting", judgement_colors["WA"])
+        add_plot(last_submit, "Teams Submitting", JUDGEMENT_COLORS["WA"])
 
         last_ac = [max(times.values(), default=-1) for times in team_ac_time.values()]
-        add_plot(last_ac, "Teams AC", judgement_colors["AC"])
+        add_plot(last_ac, "Teams AC", JUDGEMENT_COLORS["AC"])
 
         ax.autoscale(enable=True, axis="both", tight=True)
         plt.xticks(range(0, int(contest_duration) + 1, 60))
