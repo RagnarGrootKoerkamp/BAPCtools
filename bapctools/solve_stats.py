@@ -39,7 +39,7 @@ def plot_problem(
 
     fig, ax = plt.subplots(figsize=(12, 2))
     # Ugly accumulator. Matplotlib doesn't support negative stacked bars properly: https://stackoverflow.com/a/38900035
-    neg_acc = [0 for _ in minutes]
+    neg_acc = [0] * bins
     # Reverse order, so that the order at the bottom is WA-TLE-RTE
     for jt in sorted(judgement_types, reverse=True):
         if jt == "CE":
@@ -117,83 +117,131 @@ def generate_solve_stats(post_freeze: bool) -> None:
             # Add judgement to submission.
             submissions[j["submission_id"]]["judgement"] = j
     bar.done()
-
     bar.finalize()
 
-    ac_teams: dict[str, set[str]] = {p: set() for p in problems}
-    stats = {p: [{j: 0 for j in judgement_types} for _ in range(bins)] for p in problems}
-    stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
-    language_stats = {lang: {j: 0 for j in judgement_types} for lang in languages}
+    class Submission:
+        def __init__(self, data: Any) -> None:
+            assert isinstance(data, dict)
+            self.minute = time_string_to_minutes(data["contest_time"])
+            self.time_slot = int(self.minute / scale)
+            self.team = data["team_id"]
+            self.problem = data["problem_id"]
+            self.language = data["language_id"]
+            if "judgement" in data:
+                self.verdict = data["judgement"]["judgement_type_id"]
+            else:
+                self.verdict = None
+            self.pending = not post_freeze and self.minute >= contest_duration - freeze_duration
+            self.pending_verdict = "" if self.pending else self.verdict
 
-    for s in submissions.values():
-        if s["team_id"] not in teams:
+    contest_submissions = []
+    for data in submissions.values():
+        s = Submission(data)
+        if s.team not in teams:
             continue
-        minute = time_string_to_minutes(s["contest_time"])
-        if 0 <= minute < contest_duration:
-            jt = (
-                ""
-                if not post_freeze and minute >= contest_duration - freeze_duration
-                else s["judgement"]["judgement_type_id"]
+        if s.verdict is None:
+            continue
+        if 0 <= s.minute < contest_duration:
+            contest_submissions.append(s)
+
+    def plot_activity() -> None:
+        ac_teams: dict[str, set[str]] = {p: set() for p in problems}
+        stats = {p: [{j: 0 for j in judgement_types} for _ in range(bins)] for p in problems}
+        stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
+        for s in contest_submissions:
+            if s.pending_verdict == "AC":
+                ac_teams[s.problem].add(s.team)
+            score = 1 if s.pending_verdict in ["AC", ""] else -1
+            stats[s.problem][s.time_slot][s.pending_verdict] += score
+            stats_sum[s.problem][s.pending_verdict] += 1
+
+        makedirs("solve_stats/activity", exist_ok=True)
+        with Pool(num_jobs) as p:
+            p.starmap(
+                plot_problem,
+                [
+                    # Passing all required data to plot_problem, because we can't use closures (see comment at top of file)
+                    [stats[problem_id], problems[problem_id]["label"], judgement_types]
+                    for problem_id in stats
+                ],
             )
-            if jt is None:
+
+        macros = []
+        for problem_id in sorted(stats):
+            submitted = sum(stats_sum[problem_id].values())
+            accepted = len(ac_teams[problem_id])
+            pending = stats_sum[problem_id][""]
+            label = problems[problem_id]["label"]
+
+            name = rf"\solvestats{label}"
+            body = rf"\printsolvestats{{{submitted}}}{{{accepted}}}{{{pending}}}"
+            macros.append(rf"\providecommand{{{name}}}{{{body}}}")
+
+        Path("solve_stats/problem_stats.tex").write_text("\n".join(macros) + "\n")
+
+    def plot_language_stats() -> None:
+        language_stats = {lang: {j: 0 for j in judgement_types} for lang in languages}
+        for s in contest_submissions:
+            language_stats[s.language][s.pending_verdict] += 1
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        for j, (verdict, color) in enumerate(judgement_colors.items()):
+            ax.bar(
+                [i + (j - 2) * 0.15 for i in range(len(languages))],
+                [language_stats[lang][verdict] for lang in languages],
+                0.15,
+                label=judgement_types[verdict]["name"],
+                color=color,
+            )
+        ax.set_xticks(range(len(languages)), [lang["name"] for lang in languages.values()])
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig("solve_stats/language_stats.pdf", bbox_inches="tight", transparent=True)
+
+    def plot_active_teams() -> None:
+        team_ac_time: dict[str, dict[str, int]] = {t: {} for t in teams}
+        team_submit_time: dict[str, set[int]] = {t: set() for t in teams}
+        for s in contest_submissions:
+            team_submit_time[s.team].add(s.time_slot)
+            if s.verdict != "AC":
                 continue
-            if jt == "AC":
-                ac_teams[s["problem_id"]].add(s["team_id"])
-            stats[s["problem_id"]][int(minute / scale)][jt] += 1 if jt in ["AC", ""] else -1
-            stats_sum[s["problem_id"]][jt] += 1
-            language_stats[s["language_id"]][jt] += 1
+            # we only consider the first AC for each problem
+            team_ac_time[s.team].setdefault(s.problem, s.time_slot)
+            if s.time_slot < team_ac_time[s.team][s.problem]:
+                team_ac_time[s.team][s.problem] = s.time_slot
 
-    problem_stats = dict[str, str]()
+        fig, ax = plt.subplots(figsize=(8, 4))
 
-    bar = ProgressBar("Plotting", items=["Problem activity", "Language stats"])
-    makedirs("solve_stats/activity", exist_ok=True)
-
-    bar.start("Problem activity")
-    with Pool(num_jobs) as p:
-        p.starmap(
-            plot_problem,
-            [
-                # Passing all required data to plot_problem, because we dan't use closures (see comment at top of file)
-                [stats[problem_id], problems[problem_id]["label"], judgement_types]
-                for problem_id in stats
-            ],
-        )
-    bar.done()
-
-    for problem_id in stats:
-        problem_stats[problem_id] = (
-            r"\providecommand{\solvestats"
-            + problems[problem_id]["label"]
-            + r"}{\printsolvestats{"
-            + "}{".join(
-                str(x)
-                for x in [
-                    sum(stats_sum[problem_id].values()),
-                    len(ac_teams[problem_id]),
-                    stats_sum[problem_id][""],
-                ]
+        def add_plot(data: list[int], label: str, color: str) -> None:
+            ax.barh(
+                [i + 0.5 for i in range(len(data))],
+                [(i + 1) * scale for i in sorted(data, reverse=True)],
+                1,
+                label=label,
+                color=color,
             )
-            + "}}\n"
-        )
 
-    Path("solve_stats/problem_stats.tex").write_text(
-        "".join(problem_stats[p] for p in sorted(problem_stats.keys()))
-    )
+        last_submit = [max(times, default=-1) for times in team_submit_time.values()]
+        add_plot(last_submit, "Teams Submitting", judgement_colors["WA"])
 
-    bar.start("Language stats")
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for j, (jt, color) in enumerate(judgement_colors.items()):
-        ax.bar(
-            [i + (j - 2) * 0.15 for i in range(len(languages))],
-            [language_stats[lang][jt] for lang in languages],
-            0.15,
-            label=judgement_types[jt]["name"],
-            color=color,
-        )
-    ax.set_xticks(range(len(languages)), [lang["name"] for lang in languages.values()])
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig("solve_stats/language_stats.pdf", bbox_inches="tight", transparent=True)
-    bar.done()
+        last_ac = [max(times.values(), default=-1) for times in team_ac_time.values()]
+        add_plot(last_ac, "Teams AC", judgement_colors["AC"])
 
+        ax.autoscale(enable=True, axis="both", tight=True)
+        plt.xticks(range(0, int(contest_duration) + 1, 60))
+        fig.savefig("solve_stats/active_teams.pdf", bbox_inches="tight", transparent=True)
+
+    plots = {
+        "Problem activity": plot_activity,
+        "Language stats": plot_language_stats,
+        "Active Teams": plot_active_teams,
+    }
+
+    makedirs("solve_stats", exist_ok=True)
+
+    bar = ProgressBar("Plotting", items=list(plots))
+    for name, function in plots.items():
+        bar.start(name)
+        function()
+        bar.done()
     bar.finalize()
