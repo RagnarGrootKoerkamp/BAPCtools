@@ -260,14 +260,37 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
 
 # Check non unique uuid
-# TODO: check this even more globally?
 def check_uuid(problems: list[Problem]) -> None:
+    # 1. compare with problems in the same contest
     uuids: dict[str, Problem] = {}
     for p in problems:
         if p.settings.uuid in uuids:
             warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
         else:
             uuids[p.settings.uuid] = p
+
+    # 2. compare remaining problems with a global state
+    cache_path = home_config_dir() / "uuids.yaml"
+    cache = read_yaml(cache_path) if cache_path.is_file() else None
+    if not isinstance(cache, dict):
+        cache = {}
+    updated = False
+    for p in uuids.values():
+        path = (p.path / "problem.yaml").resolve().as_posix()
+        if p.settings.uuid in cache:
+            other = cache[p.settings.uuid]
+            if other == path:
+                continue
+            if isinstance(other, str) and Path(other).is_file():
+                warn(f"{p.name} has the same uuid as {Path(other).parent}")
+                continue
+        cache[p.settings.uuid] = path
+        updated = True
+
+    if updated:
+        # TODO: multiple instances could write this file at the same time
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        write_yaml(cache, cache_path)
 
 
 # try to spot typos in the contest source
