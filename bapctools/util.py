@@ -687,6 +687,16 @@ def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     return [p / type, p, p.parent, config.current_working_directory]
 
 
+def home_config_dir() -> Path:
+    if is_windows():
+        home_dir = Path(os.getenv("APPDATA", Path.home()))
+    elif is_mac():
+        home_dir = Path.home() / "Library" / "Application Support"
+    else:
+        home_dir = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return home_dir / "bapctools"
+
+
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
 ) -> Optional[Path]:

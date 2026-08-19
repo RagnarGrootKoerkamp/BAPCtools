@@ -54,6 +54,7 @@ from bapctools.util import (
     error,
     fatal,
     glob,
+    home_config_dir,
     inc_label,
     is_problem_directory,
     is_windows,
@@ -1135,27 +1136,13 @@ Run this from one of:
     return parser
 
 
-def find_home_config_dir() -> Optional[Path]:
-    if is_windows():
-        app_data = os.getenv("AppData")
-        return Path(app_data) if app_data else None
-    else:
-        home = os.getenv("HOME")
-        xdg_config_home = os.getenv("XDG_CONFIG_HOME")
-        return (
-            Path(xdg_config_home) if xdg_config_home else Path(home) / ".config" if home else None
-        )
-
-
 def read_personal_config(problem_dir: Optional[Path]) -> None:
-    home_config_dir = find_home_config_dir()
     # possible config files, sorted by priority
     config_files = []
     if problem_dir:
         config_files.append(problem_dir / ".bapctools.yaml")
     config_files.append(Path.cwd() / ".bapctools.yaml")
-    if home_config_dir:
-        config_files.append(home_config_dir / "bapctools" / "config.yaml")
+    config_files.append(home_config_dir() / "config.yaml")
 
     for config_file in config_files:
         if not config_file.is_file():
