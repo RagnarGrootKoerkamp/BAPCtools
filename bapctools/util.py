@@ -24,7 +24,6 @@ from typing import (
     Any,
     cast,
     Generic,
-    Literal,
     NoReturn,
     Optional,
     overload,
@@ -1396,7 +1395,6 @@ def limit_setter(
     timeout: Optional[int],
     memory_limit: Optional[int],
     group: Optional[int] = None,
-    cores: Literal[False] | list[int] = False,
 ) -> Optional[Callable[[], None]]:
     # preexec_fn is only supported on unix
     if is_windows():
@@ -1414,9 +1412,6 @@ def limit_setter(
             memory_limit = None
     if config.args.sanitizer or is_bsd():
         memory_limit = None
-
-    if is_bsd():
-        cores = False
 
     if disable_stack_limit:
         current = resource.getrlimit(resource.RLIMIT_STACK)
@@ -1444,9 +1439,6 @@ def limit_setter(
 
         if group is not None:
             os.setpgid(0, group)
-
-        if cores is not False:
-            os.sched_setaffinity(0, cores)  # type: ignore[attr-defined]
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
