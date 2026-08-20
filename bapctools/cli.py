@@ -270,27 +270,19 @@ def check_uuid(problems: list[Problem]) -> None:
             uuids[p.settings.uuid] = p
 
     # 2. compare remaining problems with a global state
-    cache_path = home_config_dir() / "uuids.yaml"
-    cache = read_yaml(cache_path) if cache_path.is_file() else None
-    if not isinstance(cache, dict):
-        cache = {}
-    updated = False
-    for p in uuids.values():
-        path = (p.path / "problem.yaml").resolve().as_posix()
-        if p.settings.uuid in cache:
-            other = cache[p.settings.uuid]
-            if other == path:
+    cache_path = home_config_dir() / "uuids"
+    cache_path.mkdir(parents=True, exist_ok=True)
+    for uuid, p in uuids.items():
+        this_value = (p.path / "problem.yaml").resolve().as_posix()
+        cache_entry = cache_path / uuid
+        if cache_entry.is_file():
+            cache_value = cache_entry.read_text().strip()
+            if cache_value == this_value:
                 continue
-            if isinstance(other, str) and Path(other).is_file():
-                warn(f"{p.name} has the same uuid as {Path(other).parent}")
+            if Path(cache_value).is_file():
+                warn(f"{p.name} has the same uuid as {Path(cache_value).parent}")
                 continue
-        cache[p.settings.uuid] = path
-        updated = True
-
-    if updated:
-        # TODO: multiple instances could write this file at the same time
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        write_yaml(cache, cache_path)
+        cache_entry.write_text(this_value)
 
 
 # try to spot typos in the contest source
