@@ -777,13 +777,13 @@ while True:
                 cleanup.callback(os.close, r)
                 cleanup.callback(os.close, w)
 
-                # Wait for first input
-                read = next(sys.stdin, None)
+                # Wait for first input (and ensure that the read is not partially buffered in python)
+                read = os.read(sys.stdin.fileno(), 1)
                 if not read:
                     return
                 if not self.build(localbar):
                     return
-                os.write(w, bytes(read, "utf8"))
+                os.write(w, read)
 
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
