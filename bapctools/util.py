@@ -1459,7 +1459,7 @@ class ResourcePopen(subprocess.Popen[bytes]):
     rusage: "Optional[resource.struct_rusage]" = None
 
     # If wait4 is available, store resource usage information.
-    if "wait4" in dir(os):
+    if hasattr(os, "wait4"):
 
         def _try_wait(self, wait_flags: int) -> tuple[int, int]:
             """All callers to this function MUST hold self._waitpid_lock."""
