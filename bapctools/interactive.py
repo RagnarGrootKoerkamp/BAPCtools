@@ -249,7 +249,7 @@ class Relay(threading.Thread):
                 raise self.first_exception
 
 
-USE_GROUP: Final[bool] = hasattr(os, "wait4")
+USE_WAIT4: Final[bool] = hasattr(os, "wait4")
 USE_RELAY: Final[bool] = not is_windows()
 
 
@@ -414,7 +414,7 @@ def run_interactive_test_case(
                             validator_command,
                             validation_time,
                             validation_memory,
-                            0 if USE_GROUP else None,
+                            0,
                         ),
                     )
                     cleanup.callback(clean_process, validator)
@@ -422,8 +422,8 @@ def run_interactive_test_case(
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
-                # if USE_GROUP: add all programs to the same group (for simplicity we take the pid of the validator)
-                # then we can wait for all programs in the same group
+                # add all programs to the same group (for simplicity we take the pid of the validator)
+                # then we can wait for all programs in the same group (only on unix)
                 gid = validator.pid
 
                 try:
@@ -434,9 +434,7 @@ def run_interactive_test_case(
                         stdout=subprocess.PIPE if USE_RELAY else validator.stdin,
                         stderr=None if team_error else subprocess.PIPE,
                         cwd=submission_dir,
-                        preexec_fn=limit_setter(
-                            submission_command, timeout, memory, gid if USE_GROUP else None
-                        ),
+                        preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                     )
                     cleanup.callback(clean_process, submission)
                 except (PermissionError, OSError) as e:
@@ -474,7 +472,7 @@ def run_interactive_test_case(
                 validator_status = None
                 submission_status = None
                 first: Optional[Literal["validator", "submission"]] = None
-                wait = Wait4(gid) if USE_GROUP else ThreadedWait([validator.pid, submission.pid])
+                wait = Wait4(gid) if USE_WAIT4 else ThreadedWait([validator.pid, submission.pid])
                 while validator_status is None or submission_status is None:
                     pid, status, duration = wait.wait()
                     with reaped_lock:

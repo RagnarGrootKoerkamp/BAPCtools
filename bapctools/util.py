@@ -1397,7 +1397,11 @@ def limit_setter(
     memory_limit: Optional[int],
     group: Optional[int] = None,
     cores: Literal[False] | list[int] = False,
-) -> Callable[[], None]:
+) -> Optional[Callable[[], None]]:
+    # preexec_fn is only supported on unix
+    if is_windows():
+        return None
+
     # perform all syscalls / things that could fail in the current context, i.e., outside of the preexec_fn
     disable_stack_limit = not is_bsd()
 
@@ -1408,13 +1412,10 @@ def limit_setter(
         assert command is not None
         if not command_supports_memory_limit(command):
             memory_limit = None
-    if config.args.sanitizer or is_bsd() or is_windows():
+    if config.args.sanitizer or is_bsd():
         memory_limit = None
 
-    if group is not None:
-        assert not is_windows()
-
-    if is_windows() or is_bsd():
+    if is_bsd():
         cores = False
 
     if disable_stack_limit:
@@ -1550,6 +1551,9 @@ def exec_command(
         memory = kwargs["memory"]
         kwargs.pop("memory")
 
+    if preexec_fn:
+        kwargs["preexec_fn"] = limit_setter(command, timeout, memory)
+
     process: Optional[ResourcePopen] = None
 
     timeout_expired = False
@@ -1557,14 +1561,7 @@ def exec_command(
 
     with ExitStack() as cleanup:
         try:
-            if not is_windows() and preexec_fn is not False:
-                process = ResourcePopen(
-                    command,
-                    preexec_fn=limit_setter(command, timeout, memory),
-                    **kwargs,
-                )
-            else:
-                process = ResourcePopen(command, **kwargs)
+            process = ResourcePopen(command, **kwargs)
             cleanup.enter_context(process)
             cleanup.callback(process.kill)
         except PermissionError as e:
