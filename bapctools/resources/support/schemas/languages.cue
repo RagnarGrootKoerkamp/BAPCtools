@@ -23,19 +23,15 @@ template_string: s={
 #Languages: {
 	// Language names must be lowercase and start with a letter, and can only contain letters and digits
 	[=~"^[a-z][a-z0-9]*$"]: {
-		name!:          string
-		priority!:      int
-		files!:         string
-		shebang?:       string
-		shebang_files?: string
-		compile?:       template_string
-		run!:           template_string
-		if shebang != _|_ {
-			shebang_files: _
-		}
-		if shebang_files != _|_ {
-			shebang: _
-		}
+		name!:              string
+		priority!:          int
+		files!:             string
+		{
+			shebang!:       string
+			shebang_files!: string
+		} | *{}
+		compile?:           template_string
+		run!:               template_string
 	}
 }
 
