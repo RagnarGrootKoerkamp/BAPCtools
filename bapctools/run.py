@@ -771,11 +771,18 @@ while True:
     sys.stdout.write(l)
     sys.stdout.flush()
 """
+            closed = []
+
+            def close(fd: int) -> None:
+                if fd not in closed:
+                    closed.append(fd)
+                    os.close(fd)
+
             with ExitStack() as cleanup:
                 # Launch a separate thread to pass stdin to a pipe.
                 r, w = os.pipe()
-                cleanup.callback(os.close, r)
-                cleanup.callback(os.close, w)
+                cleanup.callback(close, r)
+                cleanup.callback(close, w)
 
                 # Wait for first input (and ensure that the read is not partially buffered in python)
                 read = os.read(sys.stdin.fileno(), 1)
@@ -788,6 +795,8 @@ while True:
                 writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
                 cleanup.callback(writer.kill)
+
+                close(w)
 
                 assert self.run_command is not None
                 result = self._exec_command(
