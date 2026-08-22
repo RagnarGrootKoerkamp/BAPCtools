@@ -24,7 +24,7 @@ class Verdict(Enum):
     WRONG_ANSWER = 2
     TIME_LIMIT_EXCEEDED = 3
     RUNTIME_ERROR = 4
-    VALIDATOR_CRASH = 5
+    JUDGE_ERROR = 5
     COMPILER_ERROR = 6
 
     def __str__(self) -> str:
@@ -33,7 +33,7 @@ class Verdict(Enum):
             Verdict.WRONG_ANSWER: "WRONG ANSWER",
             Verdict.TIME_LIMIT_EXCEEDED: "TIME LIMIT EXCEEDED",
             Verdict.RUNTIME_ERROR: "RUNTIME ERROR",
-            Verdict.VALIDATOR_CRASH: "VALIDATOR CRASH",
+            Verdict.JUDGE_ERROR: "JUDGE ERROR",
             Verdict.COMPILER_ERROR: "COMPILER ERROR",
         }[self]
 
@@ -46,7 +46,7 @@ class Verdict(Enum):
             Verdict.WRONG_ANSWER: "WA",
             Verdict.TIME_LIMIT_EXCEEDED: "TLE",
             Verdict.RUNTIME_ERROR: "RTE",
-            Verdict.VALIDATOR_CRASH: "VC",
+            Verdict.JUDGE_ERROR: "JE",
             Verdict.COMPILER_ERROR: "CE",
         }[self]
 
@@ -56,7 +56,7 @@ class Verdict(Enum):
             Verdict.WRONG_ANSWER: Fore.RED,
             Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
             Verdict.RUNTIME_ERROR: Fore.YELLOW,
-            Verdict.VALIDATOR_CRASH: Fore.RED,
+            Verdict.JUDGE_ERROR: Fore.RED,
             Verdict.COMPILER_ERROR: Fore.RED,
         }[self]
 

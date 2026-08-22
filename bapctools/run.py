@@ -95,7 +95,7 @@ class Run:
                     False,
                     None,
                     None,
-                    Verdict.VALIDATOR_CRASH,
+                    Verdict.JUDGE_ERROR,
                 )
         else:
             assert interaction is not True
@@ -154,7 +154,7 @@ class Run:
                             False,
                             None,
                             None,
-                            Verdict.VALIDATOR_CRASH,
+                            Verdict.JUDGE_ERROR,
                         )
                     elif result.status:
                         result.verdict = Verdict.ACCEPTED
@@ -165,13 +165,13 @@ class Run:
                         result.verdict = Verdict.WRONG_ANSWER
                         if nextpass and nextpass.is_file():
                             bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
-                            result.verdict = Verdict.VALIDATOR_CRASH
+                            result.verdict = Verdict.JUDGE_ERROR
                     elif result.duration > self.problem.limits.validation_time:
                         bar.error(f"Validator TIMEOUT after {result.duration:.1f}s")
-                        result.verdict = Verdict.VALIDATOR_CRASH
+                        result.verdict = Verdict.JUDGE_ERROR
                     else:
                         config.n_error += 1
-                        result.verdict = Verdict.VALIDATOR_CRASH
+                        result.verdict = Verdict.JUDGE_ERROR
 
                     if result.verdict != Verdict.ACCEPTED:
                         break
@@ -182,7 +182,7 @@ class Run:
                     assert self.problem.limits.validation_passes is not None
                     if pass_id >= self.problem.limits.validation_passes:
                         bar.error("exceeded limit of validation_passes", resume=True)
-                        result.verdict = Verdict.VALIDATOR_CRASH
+                        result.verdict = Verdict.JUDGE_ERROR
                         break
 
                     if interaction:

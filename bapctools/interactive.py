@@ -554,10 +554,10 @@ def run_interactive_test_case(
                     bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
                 else:
                     config.n_error += 1
-                verdict = Verdict.VALIDATOR_CRASH
+                verdict = Verdict.JUDGE_ERROR
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
                 bar.error("got WRONG_ANSWER but found nextpass.in")
-                verdict = Verdict.VALIDATOR_CRASH
+                verdict = Verdict.JUDGE_ERROR
             elif aborted:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
             elif first == "validator":
@@ -613,7 +613,7 @@ def run_interactive_test_case(
             assert run.problem.limits.validation_passes is not None
             if pass_id >= run.problem.limits.validation_passes:
                 bar.error("exceeded limit of validation_passes")
-                verdict = Verdict.VALIDATOR_CRASH
+                verdict = Verdict.JUDGE_ERROR
                 break
 
             if interaction_file:

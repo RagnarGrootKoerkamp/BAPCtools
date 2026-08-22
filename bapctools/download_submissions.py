@@ -63,7 +63,7 @@ def download_submissions() -> None:
             Verdict.WRONG_ANSWER: "wrong_answer",
             Verdict.TIME_LIMIT_EXCEEDED: "time_limit_exceeded",
             Verdict.RUNTIME_ERROR: "run_time_error",
-            Verdict.VALIDATOR_CRASH: "validator_crash",
+            Verdict.JUDGE_ERROR: "judge_error",
             Verdict.COMPILER_ERROR: "compiler_error",
         }[verdict]
 
