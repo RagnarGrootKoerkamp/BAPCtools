@@ -1394,7 +1394,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if action == "all" or not specified or config.args.invalid:
                 success &= problem.validate_data(validate.Mode.INVALID)
             if action == "all" or not specified or config.args.generic is not None:
-                if config.args.generic is None:
+                if not config.args.generic:
                     config.args.generic = [
                         "invalid_input",
                         "invalid_answer",
@@ -1403,6 +1403,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                     ]
                 success &= problem.validate_invalid_extra_data()
                 success &= problem.validate_valid_extra_data()
+                success &= problem.check_output_validator()
             if action == "all" or not specified or config.args.input:
                 success &= problem.validate_data(validate.Mode.INPUT)
             if action == "all" or not specified or config.args.answer:

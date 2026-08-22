@@ -1,5 +1,6 @@
 import datetime
 import difflib
+import itertools
 import math
 import re
 import shutil
@@ -33,6 +34,8 @@ from bapctools.util import (
     drop_suffix,
     eprint,
     error,
+    exec_command,
+    ExecStatus,
     fatal,
     generate_problem_uuid,
     glob,
@@ -43,8 +46,10 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    remove_path,
     resolve_path_argument,
     ryaml_get_or_add,
+    validator_exec_code_map,
     verbose,
     warn,
     write_yaml,
@@ -1387,6 +1392,118 @@ class Problem:
             return self._test_case_hashes[h]
         self._test_case_hashes[h] = t
         return None
+
+    def check_output_validator(problem) -> bool:
+        assert config.args.generic is not None
+        if "invalid_output" not in config.args.generic:
+            return True
+        if not problem.interactive and not problem.multi_pass:
+            # standart problems can just use valid_output
+            return True
+
+        # pick at most first 3 samples
+        samples = problem.test_cases(only_samples=True, needans=False)[:3]
+
+        @dataclass(frozen=True)
+        class OutputValidatorCheck:
+            name: str
+            short_path: Path
+            test_case: test_case.TestCase
+            submission_data: str
+
+        checks = []
+        for i, sample in enumerate(samples):
+            for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
+                if validate.OutputValidator not in supported_cls:
+                    continue
+
+                if not isinstance(data, str):
+                    continue
+
+                short_path = Path("invalid_output") / str(i) / name
+                check_name = short_path.as_posix()
+                verbose(f"Generating {short_path}")
+                checks.append(OutputValidatorCheck(check_name, short_path, sample, data))
+
+        if not checks:
+            return True
+
+        # Pre-build the output validator
+        output_validators = problem.validators(validate.OutputValidator)
+        if not output_validators:
+            return False
+        output_validator = output_validators[0]
+
+        success = True
+        bar = ProgressBar("Output Validator checks", items=checks)
+
+        def run_check(check: OutputValidatorCheck) -> None:
+            nonlocal success
+            localbar = bar.start(check)
+
+            feedbackdir = problem.tmpdir / "tool_runs" / check.short_path
+            remove_path(feedbackdir)
+            feedbackdir.mkdir(exist_ok=True, parents=True)
+
+            assert output_validator.run_command is not None, "Output validator must be built"
+            validator_command = [
+                *output_validator.run_command,
+                check.test_case.in_path.absolute(),
+                check.test_case.ans_path.absolute(),
+                feedbackdir.absolute(),
+                *check.test_case.get_test_case_yaml(localbar).output_validator_args,
+            ]
+
+            nextpass = feedbackdir / "nextpass.in" if problem.multi_pass else None
+            data = f"Input: {repr(check.submission_data)}"
+            for pass_id in itertools.count(1):
+                result = exec_command(
+                    validator_command,
+                    input=check.submission_data.encode(),
+                    exec_code_map=validator_exec_code_map,
+                    cwd=feedbackdir,
+                    timeout=problem.limits.validation_time,
+                    memory=problem.limits.validation_memory,
+                )
+
+                if result.status == ExecStatus.REJECTED:
+                    if nextpass and nextpass.is_file():
+                        success = False
+                        localbar.error(
+                            "Output Validator gave WRONG_ANSWER but created nextpass.in", data
+                        )
+                        return
+                    break
+                if result.status == ExecStatus.TIMEOUT:
+                    localbar.error("Output Validator got TIMEOUT", data)
+                    return
+                if result.status == ExecStatus.ERROR:
+                    if result.returncode == 0:
+                        success = False
+                        localbar.error(
+                            "Output Validator exited with exit code 0, did you forget to exit with WA or AC?",
+                            data,
+                        )
+                    else:
+                        success = False
+                        localbar.error(
+                            f"Output Validator crashed (exit code: {result.returncode})", data
+                        )
+                    return
+                assert result.status == ExecStatus.ACCEPTED
+                if not nextpass or not nextpass.is_file():
+                    break
+
+                assert problem.limits.validation_passes is not None
+                if pass_id >= problem.limits.validation_passes:
+                    success = False
+                    localbar.error("Output Validator exceeded limit of validation_passes", data)
+                    return
+            localbar.done(True, "properly rejected")
+
+        parallel.run_tasks(run_check, checks, pin=True)
+        bar.finalize(print_done=True)
+        return success
 
     def validate_data(
         problem,
