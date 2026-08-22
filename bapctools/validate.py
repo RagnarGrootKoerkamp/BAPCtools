@@ -74,6 +74,13 @@ def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict) -> 
         constraints_path.unlink()
 
 
+FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
+    languages.CHECKTESTDATA,
+    languages.COMPILED_CHECKTESTDATA,
+    languages.VIVA,
+]
+
+
 class Validator(program.Program):
     """Base class for AnswerValidator, InputValidator, and OutputValidator.
 
@@ -88,14 +95,6 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.ACCEPTED  if the validator accepted.
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
-
-    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
-        languages.CHECKTESTDATA,
-        languages.COMPILED_CHECKTESTDATA,
-        languages.VIVA,
-    ]
-
-    languages: Final[Sequence[str]] = languages.VALIDATOR_LANGUAGE_CODES
 
     def __repr__(self) -> str:
         return type(self).__name__ + ": " + str(self.path)
@@ -173,7 +172,6 @@ class Validator(program.Program):
     def _run_format_validator(
         self, test_case: "test_case.TestCase", cwd: Path, args: Sequence[str | Path]
     ) -> ExecResult:
-        assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
         assert self.run_command is not None, "Validator should be built before running it"
 
         if isinstance(self, InputValidator):
@@ -255,6 +253,8 @@ class InputValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    languages: Final[Sequence[str]] = languages.VALIDATOR_LANGUAGE_CODES
+
     validator_type: Final[str] = "input"
 
     source_dir: Final[str] = "input_validators"
@@ -289,7 +289,7 @@ class InputValidator(Validator):
 
         cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
-        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+        if self.language in FORMAT_VALIDATOR_LANGUAGES:
             ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
             with test_case.in_path.open("rb") as in_file:
@@ -315,6 +315,8 @@ class AnswerValidator(Validator):
 
     Also supports checktestdata and viva files, with different invocation.
     """
+
+    languages: Final[Sequence[str]] = languages.VALIDATOR_LANGUAGE_CODES
 
     validator_type: Final[str] = "answer"
 
@@ -343,7 +345,7 @@ class AnswerValidator(Validator):
 
         cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 
-        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+        if self.language in FORMAT_VALIDATOR_LANGUAGES:
             ret = Validator._run_format_validator(self, test_case, cwd, arglist)
         else:
             with test_case.ans_path.open("rb") as ans_file:
@@ -367,6 +369,8 @@ class OutputValidator(Validator):
 
        ./validator input answer feedbackdir [arguments from problem.yaml] < output
     """
+
+    languages: Final[Sequence[str]] = languages.SPEC_LANGUAGE_CODES
 
     validator_type: Final[str] = "output"
 
@@ -421,9 +425,6 @@ class OutputValidator(Validator):
             # mode is actually a Run
             path = mode.out_path
             in_path = mode.in_path  # relevant for multipass
-
-        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(mode, test_case, constraints, args)
 

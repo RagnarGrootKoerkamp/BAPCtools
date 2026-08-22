@@ -17,6 +17,7 @@ import threading
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import ExitStack, suppress
+from dataclasses import dataclass
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -138,7 +139,8 @@ def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
 
 
 class Named(Protocol):
-    name: str
+    @property
+    def name(self) -> str: ...
 
 
 ITEM_TYPE: TypeAlias = str | Path | Named
@@ -1363,26 +1365,16 @@ class ExecStatus(Enum):
         return self == ExecStatus.ACCEPTED
 
 
+@dataclass
 class ExecResult:
-    def __init__(
-        self,
-        returncode: Optional[int],
-        status: ExecStatus,
-        duration: int | float,
-        timeout_expired: bool,
-        err: Optional[str],
-        out: Optional[str],
-        verdict: Optional["Verdict"] = None,
-        pass_id: Optional[int] = None,
-    ) -> None:
-        self.returncode = returncode
-        self.status = status
-        self.duration = duration
-        self.timeout_expired = timeout_expired
-        self.err = err
-        self.out = out
-        self.verdict = verdict
-        self.pass_id = pass_id
+    returncode: Optional[int]
+    status: ExecStatus
+    duration: int | float
+    timeout_expired: bool
+    err: Optional[str]
+    out: Optional[str]
+    verdict: Optional["Verdict"] = None
+    pass_id: Optional[int] = None
 
 
 def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
@@ -1512,6 +1504,7 @@ def exec_command(
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
     preexec_fn: bool = True,
+    input: Optional[bytes] = None,
     **kwargs: Any,
 ) -> ExecResult:
     # By default: discard stdout, return stderr
@@ -1519,6 +1512,8 @@ def exec_command(
         kwargs["stdout"] = subprocess.PIPE
     if "stderr" not in kwargs or kwargs["stderr"] is True:
         kwargs["stderr"] = subprocess.PIPE
+    if input is not None and "stdin" not in kwargs:
+        kwargs["stdin"] = subprocess.PIPE
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
@@ -1529,8 +1524,10 @@ def exec_command(
         else:
             eprint("cd", Path.cwd(), "; ", end="")
         eprint(*command, end="")
-        if "stdin" in kwargs:
-            eprint(" < ", kwargs["stdin"].name, end="")
+        if input is not None:
+            eprint(" <", input, end="")
+        elif "stdin" in kwargs:
+            eprint(" <", kwargs["stdin"].name, end="")
         eprint()
 
     timeout: Optional[int] = None
@@ -1564,7 +1561,7 @@ def exec_command(
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
         try:
-            (stdout, stderr) = process.communicate(timeout=timeout)
+            (stdout, stderr) = process.communicate(input=input, timeout=timeout)
         except subprocess.TimeoutExpired:
             # Timeout expired.
             timeout_expired = True
