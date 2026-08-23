@@ -6,6 +6,7 @@ from colorama import Fore, Style
 from bapctools import latex, validate
 from bapctools.problem import Problem
 from bapctools.util import eprint, error, log, math_eval, warn
+from bapctools.validate import ConstraintsDict
 
 """DISCLAIMER:
 
@@ -18,8 +19,8 @@ from bapctools.util import eprint, error, log, math_eval, warn
 def check_validators(
     problem: Problem,
 ) -> tuple[set[int | float], list[str | tuple[int | float, str, int | float]]]:
-    in_constraints: validate.ConstraintsDict = {}
-    ans_constraints: validate.ConstraintsDict = {}
+    in_constraints: ConstraintsDict = {}
+    ans_constraints: ConstraintsDict = {}
     problem.validate_data(validate.Mode.INPUT, constraints=in_constraints)
     if not in_constraints:
         warn("No constraint validation of input values found in input validators.")
@@ -31,7 +32,7 @@ def check_validators(
     validator_values: set[int | float] = set()
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
 
-    def f(cs: validate.ConstraintsDict) -> None:
+    def f(cs: ConstraintsDict) -> None:
         for loc, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
             validator_defs.append((low, name, high))

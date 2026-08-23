@@ -51,6 +51,13 @@ from bapctools.util import (
     write_yaml,
     YamlParser,
 )
+from bapctools.validate import (
+    AnswerValidator,
+    AnyValidator,
+    ConstraintsDict,
+    InputValidator,
+    OutputValidator,
+)
 from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -325,7 +332,7 @@ class ProblemSettings:
         self.custom_output: bool = (
             self.interactive
             or self.multi_pass
-            or (problem.path / validate.OutputValidator.source_dir).is_dir()
+            or (problem.path / OutputValidator.source_dir).is_dir()
         )
 
         names: dict[object, object] = parser.extract("name", {"en": ""})
@@ -355,7 +362,7 @@ class ProblemSettings:
 
         parser.extract_deprecated(
             "validator_flags",
-            f"{validate.OutputValidator.args_key}' in 'test_group.yaml",
+            f"{OutputValidator.args_key}' in 'test_group.yaml",
         )
 
         self.keywords: list[str] = parser.extract_optional_list("keywords", str, allow_empty=True)
@@ -509,7 +516,7 @@ class Problem:
         self._read_settings(bar)
 
         # Some caches.
-        self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
+        self._validators_warn_cache = set[tuple[type[AnyValidator], bool]]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -1015,11 +1022,11 @@ class Problem:
 
     def validators(
         problem,
-        cls: type[validate.AnyValidator],
+        cls: type[AnyValidator],
         check_constraints: bool = False,
         strict: bool = False,
         print_warn: bool = True,
-    ) -> Sequence[validate.AnyValidator]:
+    ) -> Sequence[AnyValidator]:
         """
         Gets the validators of the given class.
         If strict is true we only return the validators as the icpc specification indicates.
@@ -1032,10 +1039,10 @@ class Problem:
             list(Validator) otherwise, maybe empty
         """
         validators = problem._validators(cls, check_constraints)
-        if not strict and cls == validate.AnswerValidator and problem.settings.ans_is_output:
+        if not strict and cls == AnswerValidator and problem.settings.ans_is_output:
             validators = (
                 *validators,
-                *problem._validators(validate.OutputValidator, check_constraints),
+                *problem._validators(OutputValidator, check_constraints),
             )
 
         # Check that the proper number of validators is present
@@ -1045,9 +1052,9 @@ class Problem:
             if key not in problem._validators_warn_cache:
                 constraints_msg = " for constraints checking" if check_constraints else ""
                 problem._validators_warn_cache.add(key)
-                if cls == validate.InputValidator and not validators:
+                if cls == InputValidator and not validators:
                     warn(f"No input validators{constraints_msg} found.")
-                if cls == validate.AnswerValidator and not validators and not problem.interactive:
+                if cls == AnswerValidator and not validators and not problem.interactive:
                     # for interactive problems, the .ans file should be empty
                     warn(f"No answer validators{constraints_msg} found.")
 
@@ -1059,11 +1066,11 @@ class Problem:
 
     @once_per_instance
     def _validators(
-        problem, cls: type[validate.AnyValidator], check_constraints: bool = False
-    ) -> Sequence[validate.AnyValidator]:
-        if cls == validate.OutputValidator:
+        problem, cls: type[AnyValidator], check_constraints: bool = False
+    ) -> Sequence[AnyValidator]:
+        if cls == OutputValidator:
             if problem.custom_output:
-                paths = [problem.path / validate.OutputValidator.source_dir]
+                paths = [problem.path / OutputValidator.source_dir]
             else:
                 paths = [config.RESOURCES_ROOT / "support" / "default_output_validator.cpp"]
         else:
@@ -1122,7 +1129,7 @@ class Problem:
             return False
 
         # Pre build the output validator to prevent nested ProgressBars.
-        if not problem.validators(validate.OutputValidator):
+        if not problem.validators(OutputValidator):
             return False
 
         # Pre build the output visualizer to prevent nested ProgressBars.
@@ -1365,7 +1372,7 @@ class Problem:
         test_cases = []
         for i, sample in enumerate(samples):
             for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
-                if validate.OutputValidator not in supported_cls:
+                if OutputValidator not in supported_cls:
                     continue
 
                 if not isinstance(data, str):
@@ -1385,11 +1392,11 @@ class Problem:
             return True
 
         # Pre-build the output validator
-        output_validators = problem.validators(validate.OutputValidator)
+        output_validators = problem.validators(OutputValidator)
         if not output_validators:
             return False
         output_validator = output_validators[0]
-        assert isinstance(output_validator, validate.OutputValidator)
+        assert isinstance(output_validator, OutputValidator)
 
         success = True
         bar = ProgressBar("Output Validator checks", items=test_cases)
@@ -1452,7 +1459,7 @@ class Problem:
     def validate_data(
         problem,
         mode: validate.Mode,
-        constraints: Optional[validate.ConstraintsDict | Literal[True]] = None,
+        constraints: Optional[ConstraintsDict | Literal[True]] = None,
     ) -> bool:
         """Validate aspects of the test data files.
 
@@ -1484,11 +1491,11 @@ class Problem:
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3] + [None]
 
         # validator, dir, read, write, copy
-        validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
-            (validate.InputValidator, "invalid_input", ".in", ".in", []),
-            (validate.AnswerValidator, "invalid_answer", ".ans", ".ans", [".in"]),
+        validators: list[tuple[type[AnyValidator], str, str, str, list[str]]] = [
+            (InputValidator, "invalid_input", ".in", ".in", []),
+            (AnswerValidator, "invalid_answer", ".ans", ".ans", [".in"]),
             (
-                validate.OutputValidator,
+                OutputValidator,
                 "invalid_output",
                 ".ans" if p.settings.ans_is_output else ".out",
                 ".out",
@@ -1502,9 +1509,9 @@ class Problem:
             for cls, directory, read, write, copy in validators:
                 if directory not in config.args.generic:
                     continue
-                if p.interactive and cls != validate.InputValidator:
+                if p.interactive and cls != InputValidator:
                     continue
-                if p.multi_pass and cls == validate.OutputValidator:
+                if p.multi_pass and cls == OutputValidator:
                     continue
                 if not p.validators(cls, strict=True, print_warn=False):
                     continue
@@ -1562,7 +1569,7 @@ class Problem:
             return True
         if p.interactive or p.multi_pass:
             return True
-        if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
+        if not p.validators(OutputValidator, strict=True, print_warn=False):
             return True
 
         args = p.get_test_group_yaml(
@@ -1620,7 +1627,7 @@ class Problem:
     def _validate_data(
         problem,
         mode: validate.Mode,
-        constraints: Optional[validate.ConstraintsDict | Literal[True]],
+        constraints: Optional[ConstraintsDict | Literal[True]],
         action: str,
         test_cases: Sequence[TestCase],
         extra: bool = False,
@@ -1636,17 +1643,17 @@ class Problem:
         # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
-                problem.validators(validate.InputValidator, check_constraints=check_constraints)
+                problem.validators(InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
+                problem.validators(AnswerValidator, check_constraints=check_constraints)
             case validate.Mode.INVALID:
-                problem.validators(validate.InputValidator)
-                problem.validators(validate.AnswerValidator)
-                problem.validators(validate.OutputValidator)
+                problem.validators(InputValidator)
+                problem.validators(AnswerValidator)
+                problem.validators(OutputValidator)
             case validate.Mode.VALID_OUTPUT:
-                problem.validators(validate.InputValidator)
-                problem.validators(validate.AnswerValidator)
-                problem.validators(validate.OutputValidator)
+                problem.validators(InputValidator)
+                problem.validators(AnswerValidator)
+                problem.validators(OutputValidator)
             case _:
                 raise ValueError(mode)
 

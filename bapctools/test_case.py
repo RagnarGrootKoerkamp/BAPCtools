@@ -28,6 +28,7 @@ from bapctools.util import (
 from bapctools.validate import (
     AnswerValidator,
     AnyValidator,
+    ConstraintsDict,
     InputValidator,
     OutputValidator,
 )
@@ -356,7 +357,7 @@ class TestCase:
         mode: validate.Mode,
         *,
         bar: ProgressBar,
-        constraints: Optional[validate.ConstraintsDict] = None,
+        constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
         check_constraints = constraints is not None
@@ -453,7 +454,7 @@ class TestCase:
         expect_rejection: bool,
         *,
         bar: ProgressBar,
-        constraints: Optional[validate.ConstraintsDict] = None,
+        constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
         results = []

@@ -14,7 +14,7 @@ from pathlib import Path
 from queue import SimpleQueue
 from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
-from bapctools import config, validate
+from bapctools import config
 from bapctools.util import (
     BAR_TYPE,
     ExecResult,
@@ -24,6 +24,7 @@ from bapctools.util import (
     PrintBar,
     remove_path,
 )
+from bapctools.validate import OutputValidator
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -301,7 +302,7 @@ def run_interactive_test_case(
     submission_args: Optional[Sequence[str | Path]] = None,
     bar: BAR_TYPE = PrintBar(),
 ) -> Optional[ExecResult]:
-    output_validators = run.problem.validators(validate.OutputValidator)
+    output_validators = run.problem.validators(OutputValidator)
     if not output_validators:
         return None
     output_validator = output_validators[0]
@@ -652,7 +653,7 @@ def _feedback(run: "Run", err: bytes) -> str:
 def interactor_prints_unprompted(
     problem: "Problem", test_case: "TestCase", wait: float = 0.1
 ) -> Optional[bool]:
-    output_validators = problem.validators(validate.OutputValidator)
+    output_validators = problem.validators(OutputValidator)
     if not output_validators:
         return None
     output_validator = output_validators[0]
