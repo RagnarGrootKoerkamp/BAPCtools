@@ -1505,7 +1505,6 @@ def exec_command(
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
     preexec_fn: bool = True,
-    input: Optional[bytes] = None,
     **kwargs: Any,
 ) -> ExecResult:
     # By default: discard stdout, return stderr
@@ -1513,8 +1512,6 @@ def exec_command(
         kwargs["stdout"] = subprocess.PIPE
     if "stderr" not in kwargs or kwargs["stderr"] is True:
         kwargs["stderr"] = subprocess.PIPE
-    if input is not None and "stdin" not in kwargs:
-        kwargs["stdin"] = subprocess.PIPE
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
@@ -1562,7 +1559,7 @@ def exec_command(
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
         try:
-            (stdout, stderr) = process.communicate(input=input, timeout=timeout)
+            (stdout, stderr) = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             # Timeout expired.
             timeout_expired = True

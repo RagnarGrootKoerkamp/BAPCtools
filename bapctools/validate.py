@@ -126,7 +126,7 @@ class Validator(program.Program):
 
     def _run_helper(
         self,
-        mode: "Mode | run.Run",
+        mode: "Mode | run.Run | Path",
         test_case: "test_case.TestCase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
@@ -150,6 +150,8 @@ class Validator(program.Program):
                 )
             remove_path(cwd)
             cwd.mkdir(parents=True, exist_ok=True)
+        elif isinstance(mode, Path):
+            cwd = mode.with_suffix(".feedbackdir")
         else:
             cwd = mode.feedbackdir
 
@@ -384,7 +386,7 @@ class OutputValidator(Validator):
     def run(
         self,
         test_case: "test_case.TestCase",
-        mode: "Mode | run.Run",
+        mode: "Mode | run.Run | Path",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
@@ -421,6 +423,8 @@ class OutputValidator(Validator):
         elif mode == Mode.VALID_OUTPUT:
             assert test_case.out_path is not None
             path = test_case.out_path.absolute()
+        elif isinstance(mode, Path):
+            path = mode
         else:
             # mode is actually a Run
             path = mode.out_path

@@ -34,7 +34,6 @@ from bapctools.util import (
     drop_suffix,
     eprint,
     error,
-    exec_command,
     ExecStatus,
     fatal,
     generate_problem_uuid,
@@ -46,10 +45,8 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
-    remove_path,
     resolve_path_argument,
     ryaml_get_or_add,
-    validator_exec_code_map,
     verbose,
     warn,
     write_yaml,
@@ -1404,14 +1401,8 @@ class Problem:
         # pick at most first 3 samples
         samples = problem.test_cases(only_samples=True, needans=False)[:3]
 
-        @dataclass(frozen=True)
-        class OutputValidatorCheck:
-            name: str
-            short_path: Path
-            test_case: test_case.TestCase
-            submission_data: str
-
-        checks = []
+        base_path = problem.tmpdir / "invalid_data" / "output_validator_checks"
+        test_cases = []
         for i, sample in enumerate(samples):
             for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
                 if validate.OutputValidator not in supported_cls:
@@ -1420,12 +1411,17 @@ class Problem:
                 if not isinstance(data, str):
                     continue
 
-                short_path = Path("invalid_output") / str(i) / name
-                check_name = short_path.as_posix()
-                verbose(f"Generating {short_path}")
-                checks.append(OutputValidatorCheck(check_name, short_path, sample, data))
+                short_path = sample.short_path.with_suffix("") / name
+                full_path = base_path / short_path / "testcase.in"
+                full_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if not checks:
+                shutil.copy(sample.in_path, full_path.with_suffix(".in"))
+                shutil.copy(sample.ans_path, full_path.with_suffix(".ans"))
+                full_path.with_name("submission.out").write_text(data)
+
+                verbose(f"Generating {short_path}")
+                test_cases.append(test_case.TestCase(problem, full_path, short_path=short_path))
+        if not test_cases:
             return True
 
         # Pre-build the output validator
@@ -1433,38 +1429,23 @@ class Problem:
         if not output_validators:
             return False
         output_validator = output_validators[0]
+        assert isinstance(output_validator, validate.OutputValidator)
 
         success = True
-        bar = ProgressBar("Output Validator checks", items=checks)
+        bar = ProgressBar("Output Validator checks", items=test_cases)
 
-        def run_check(check: OutputValidatorCheck) -> None:
+        def run(test_case: test_case.TestCase) -> None:
             nonlocal success
-            localbar = bar.start(check)
+            localbar = bar.start(test_case)
 
-            feedbackdir = problem.tmpdir / "tool_runs" / check.short_path
-            remove_path(feedbackdir)
-            feedbackdir.mkdir(exist_ok=True, parents=True)
+            submission = test_case.in_path.with_name("submission.out")
+            data = f"Input: {repr(submission.read_text())}"
 
-            assert output_validator.run_command is not None, "Output validator must be built"
-            validator_command = [
-                *output_validator.run_command,
-                check.test_case.in_path.absolute(),
-                check.test_case.ans_path.absolute(),
-                feedbackdir.absolute(),
-                *check.test_case.get_test_case_yaml(localbar).output_validator_args,
-            ]
-
+            feedbackdir = submission.with_suffix(".feedbackdir")
+            feedbackdir.mkdir(parents=True, exist_ok=True)
             nextpass = feedbackdir / "nextpass.in" if problem.multi_pass else None
-            data = f"Input: {repr(check.submission_data)}"
             for pass_id in itertools.count(1):
-                result = exec_command(
-                    validator_command,
-                    input=check.submission_data.encode(),
-                    exec_code_map=validator_exec_code_map,
-                    cwd=feedbackdir,
-                    timeout=problem.limits.validation_time,
-                    memory=problem.limits.validation_memory,
-                )
+                result = output_validator.run(test_case, submission)
 
                 if result.status == ExecStatus.REJECTED:
                     if nextpass and nextpass.is_file():
@@ -1499,9 +1480,12 @@ class Problem:
                     success = False
                     localbar.error("Output Validator exceeded limit of validation_passes", data)
                     return
-            localbar.done(True, "properly rejected")
+                # use nextpass.in as input and check again
+                shutil.move(nextpass, test_case.in_path)
 
-        parallel.run_tasks(run_check, checks, pin=True)
+            localbar.done(True, "properly rejected", data)
+
+        parallel.run_tasks(run, test_cases, pin=True)
         bar.finalize(print_done=True)
         return success
 
