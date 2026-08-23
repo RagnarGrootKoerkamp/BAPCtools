@@ -245,7 +245,7 @@ class Invocation:
             assert isinstance(prog, (Generator, Submission))
             self.program = prog
 
-        Program.add_callback(problem, problem.path / self.program_path, callback)
+        problem.register_program_callback(problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.

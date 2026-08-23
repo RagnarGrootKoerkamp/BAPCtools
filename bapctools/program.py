@@ -4,7 +4,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
@@ -145,10 +145,10 @@ class Program:
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
-            if path in problem._programs:
+            if path in problem.programs:
                 error(f"Why would you build {path} twice?")
-                assert path not in problem._programs
-            problem._programs[path] = self
+                assert path not in problem.programs
+            problem.programs[path] = self
 
         self.problem = problem
         self.path = path
@@ -465,8 +465,8 @@ class Program:
             if not self._compile(bar):
                 return False
 
-        if self.path in self.problem._program_callbacks:
-            for c in self.problem._program_callbacks[self.path]:
+        if self.path in self.problem.program_callbacks:
+            for c in self.problem.program_callbacks[self.path]:
                 c(self)
 
         if "code" in self.limits:
@@ -484,12 +484,6 @@ class Program:
         if "memory" not in kwargs and "memory" in self.limits:
             kwargs["memory"] = self.limits["memory"]
         return exec_command(*args, **kwargs)
-
-    @staticmethod
-    def add_callback(problem: "Problem", path: Path, c: Callable[["Program"], Any]) -> None:
-        if path not in problem._program_callbacks:
-            problem._program_callbacks[path] = []
-        problem._program_callbacks[path].append(c)
 
 
 class Generator(Program):

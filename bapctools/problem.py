@@ -5,6 +5,7 @@ import math
 import re
 import shutil
 import threading
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -517,10 +518,11 @@ class Problem:
 
         # Some caches.
         self._validators_warn_cache = set[tuple[type[AnyValidator], bool]]()
-        self._programs = dict[Path, "Program"]()
-        self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
-        # Dictionary from path to parsed file contents.
+        self.programs = dict[Path, "Program"]()
+        self.program_callbacks = defaultdict[Path, list[Callable[["Program"], None]]](list)
+
         self._root_test_group_yaml: Optional[TestGroup] = None
+        # Dictionary from path to parsed file contents.
         self._test_group_yamls = dict[Path, TestGroup]()
         self._test_group_lock = threading.Lock()
 
@@ -607,6 +609,9 @@ class Problem:
         self.interactive: bool = self.settings.interactive
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
+
+    def register_program_callback(p, path: Path, c: Callable[["Program"], None]) -> None:
+        p.program_callbacks[path].append(c)
 
     def get_test_group_yaml(p, path: Path, bar: BAR_TYPE) -> TestGroup:
         """
