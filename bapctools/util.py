@@ -3,6 +3,7 @@
 import copy
 import difflib
 import errno
+import functools
 import hashlib
 import os
 import re
@@ -1718,21 +1719,23 @@ R = TypeVar("R")
 
 class OnceWrapper(Generic[R]):
     def __init__(self, function: Callable[[], R]):
-        self.function = function
-        self.lock = threading.Lock()
-        self.done = False
-        self.result: Optional[R] = None
+        self._function = function
+        self._lock = threading.Lock()
+        self._done = False
+        self._result: Optional[R] = None
+        functools.wraps(function)(self)
 
     def __call__(self) -> R:
-        with self.lock:
-            if not self.done:
-                self.result = self.function()
-                self.done = True
-            return cast(R, self.result)
+        with self._lock:
+            if not self._done:
+                self._result = self._function()
+                self._done = True
+            return cast(R, self._result)
 
     def reset(self) -> None:
-        with self.lock:
-            self.done = False
+        with self._lock:
+            self._done = False
+            self._result = None
 
 
 def once(function: Callable[[], R]) -> OnceWrapper[R]:
