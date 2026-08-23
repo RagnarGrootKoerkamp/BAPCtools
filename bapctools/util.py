@@ -41,7 +41,7 @@ from uuid import UUID
 
 from colorama import Fore, Style
 from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.constructor import DuplicateKeyError
 
 from bapctools import config
@@ -165,14 +165,6 @@ class ProgressBar:
     current_bar: Optional["ProgressBar"] = None
 
     columns = shutil.get_terminal_size().columns
-
-    if not is_windows():
-
-        def update_columns(_: Any, __: Any) -> None:
-            cols, rows = shutil.get_terminal_size()
-            ProgressBar.columns = cols
-
-        signal.signal(signal.SIGWINCH, update_columns)
 
     @staticmethod
     def item_text(item: Optional[ITEM_TYPE]) -> str:
@@ -560,6 +552,15 @@ class ProgressBar:
         return self.global_logged and not suppress_newline
 
 
+if not is_windows():
+
+    def update_columns(_: Any, __: Any) -> None:
+        cols, rows = shutil.get_terminal_size()
+        ProgressBar.columns = cols
+
+    signal.signal(signal.SIGWINCH, update_columns)
+
+
 # A simple bar that only holds a task prefix
 class PrintBar:
     def __init__(
@@ -933,7 +934,7 @@ def ryaml_filter(data: CommentedMap, remove: str) -> object:
 
     curr = data
     prev_key = list(data.keys())[remove_index - 1]
-    while isinstance(curr[prev_key], (list, dict)) and len(curr[prev_key]):
+    while isinstance(curr[prev_key], (CommentedSeq, CommentedMap)) and len(curr[prev_key]):
         # Try to remove the comment from the last element in the preceding list/dict
         curr = curr[prev_key]
         if isinstance(curr, list):
