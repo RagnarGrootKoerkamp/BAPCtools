@@ -15,8 +15,10 @@ from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from typing_extensions import TypeIs
 
-from bapctools import config, parallel, program, run, validate, visualize
+from bapctools import config, parallel, validate
 from bapctools.problem import Problem
+from bapctools.program import Generator, Program
+from bapctools.run import Run, Submission
 from bapctools.test_case import TestCase
 from bapctools.util import (
     BAR_TYPE,
@@ -43,7 +45,9 @@ from bapctools.util import (
     write_yaml,
     YamlParser,
 )
+from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
 from bapctools.verdicts import Verdict
+from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
@@ -235,13 +239,13 @@ class Invocation:
         self.uses_seed = seed_cnt > 0
 
         # Automatically set self.program when that program has been built.
-        self.program: Optional[program.Generator | run.Submission] = None
+        self.program: Optional[Generator | Submission] = None
 
-        def callback(prog: program.Program) -> None:
-            assert isinstance(prog, (program.Generator, run.Submission))
+        def callback(prog: Program) -> None:
+            assert isinstance(prog, (Generator, Submission))
             self.program = prog
 
-        program.Program.add_callback(problem, problem.path / self.program_path, callback)
+        Program.add_callback(problem, problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
@@ -281,7 +285,7 @@ class GeneratorInvocation(Invocation):
     def run(
         self, bar: ProgressBar, cwd: Path, name: str, seed: int, retries: int = 1
     ) -> ExecResult:
-        assert isinstance(self.program, program.Generator), "Generator program must be built!"
+        assert isinstance(self.program, Generator), "Generator program must be built!"
 
         for retry in range(retries):
             result = self.program.run(
@@ -315,7 +319,7 @@ class SolutionInvocation(Invocation):
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
     def run(self, bar: ProgressBar, cwd: Path) -> ExecResult:
-        assert isinstance(self.program, run.Submission), "Submission program must be built!"
+        assert isinstance(self.program, Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
         ans_path = cwd / "testcase.ans"
@@ -340,8 +344,8 @@ class SolutionInvocation(Invocation):
         interaction_path.unlink(missing_ok=True)
 
         test_case = TestCase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
-        assert isinstance(self.program, run.Submission)
-        r = run.Run(self.problem, self.program, test_case)
+        assert isinstance(self.program, Submission)
+        r = Run(self.problem, self.program, test_case)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = r.run(bar, interaction=interaction_path)
@@ -786,8 +790,6 @@ class TestCaseRule(Rule):
             if not isinstance(data, dict):
                 data = {}
 
-            T = TypeVar("T")
-
             def get(key: str, default: T) -> T:
                 value = data.get(key, default)
                 return value if isinstance(value, type(default)) else default
@@ -876,7 +878,7 @@ class TestCaseRule(Rule):
         if test_case.root == "testing_tool_test":
             return True
 
-        input_validator_hashes = test_case.validator_hashes(validate.InputValidator, bar)
+        input_validator_hashes = test_case.validator_hashes(InputValidator, bar)
         if all(h in meta_yaml.input_validator_hashes for h in input_validator_hashes):
             return True
 
@@ -927,8 +929,8 @@ class TestCaseRule(Rule):
             bar.error("No .out file was generated!")
             return False
 
-        ans_out_validator_hashes = test_case.validator_hashes(validate.AnswerValidator, bar).copy()
-        output_validator_hashes = test_case.validator_hashes(validate.OutputValidator, bar)
+        ans_out_validator_hashes = test_case.validator_hashes(AnswerValidator, bar).copy()
+        output_validator_hashes = test_case.validator_hashes(OutputValidator, bar)
 
         mode = validate.Mode.ANSWER
         if test_case.root == "invalid_answer":
@@ -1232,7 +1234,7 @@ class TestCaseRule(Rule):
                         changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
                 if problem.interactive or problem.multi_pass:
-                    interactor_hash = test_case.validator_hashes(validate.OutputValidator, bar)
+                    interactor_hash = test_case.validator_hashes(OutputValidator, bar)
                     if (
                         t.config.solution
                         and (test_case.root == "sample" or config.args.interaction)
@@ -1309,10 +1311,8 @@ class TestCaseRule(Rule):
                         bar.log(f"Using {name} from {source} as visualization")
                         return
 
-            visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
-                visualize.InputVisualizer
-            )
-            output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            visualizer: Optional[AnyVisualizer] = problem.visualizer(InputVisualizer)
+            output_visualizer = problem.visualizer(OutputVisualizer)
             visualizer_args = test_case.get_test_case_yaml(bar).input_visualizer_args
             if output_visualizer is not None:
                 if out_path.is_file() or problem.settings.ans_is_output:
@@ -1340,7 +1340,7 @@ class TestCaseRule(Rule):
             for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
                 in_path.with_suffix(ext).unlink(True)
 
-            if isinstance(visualizer, visualize.InputVisualizer):
+            if isinstance(visualizer, InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
             else:
                 feedbackcopy = in_path.with_suffix(".feedbackcopy")
@@ -2207,19 +2207,19 @@ class GeneratorConfig:
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
-            program_type: type[program.Generator | run.Submission],
+            program_type: type[Generator | Submission],
             program_paths: Iterable[Path],
         ) -> None:
-            programs = list[program.Generator | run.Submission]()
+            programs = list[Generator | Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
-                if program_type is program.Generator and program_path in self.generators:
+                if program_type is Generator and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
-                    programs.append(program.Generator(self.problem, path, deps=deps))
+                    programs.append(Generator(self.problem, path, deps=deps))
                 else:
-                    if program_type is run.Submission:
+                    if program_type is Submission:
                         programs.append(
-                            run.Submission(self.problem, path, skip_double_build_warning=True)
+                            Submission(self.problem, path, skip_double_build_warning=True)
                         )
                     else:
                         programs.append(
@@ -2232,7 +2232,7 @@ class GeneratorConfig:
 
             bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
 
-            def build_program(p: program.Generator | run.Submission) -> None:
+            def build_program(p: Generator | Submission) -> None:
                 localbar = bar.start(p)
                 p.build(localbar)
                 localbar.done()
@@ -2242,15 +2242,15 @@ class GeneratorConfig:
             bar.finalize(print_done=False)
 
         # TODO: Consider building all types of programs in parallel as well.
-        build_programs(program.Generator, generators_used)
-        build_programs(run.Submission, solutions_used)
+        build_programs(Generator, generators_used)
+        build_programs(Submission, solutions_used)
         if build_visualizers:
-            self.problem.visualizer(visualize.InputVisualizer)
-            self.problem.visualizer(visualize.OutputVisualizer)
+            self.problem.visualizer(InputVisualizer)
+            self.problem.visualizer(OutputVisualizer)
 
-        self.problem.validators(validate.InputValidator)
-        self.problem.validators(validate.AnswerValidator)
-        self.problem.validators(validate.OutputValidator)
+        self.problem.validators(InputValidator)
+        self.problem.validators(AnswerValidator)
+        self.problem.validators(OutputValidator)
 
         def cleanup_build_failures(t: TestCaseRule) -> None:
             if t.config.solution and t.config.solution.program is None:
@@ -2482,7 +2482,7 @@ data/*
 
         test_cases = [t for t in ts_pair[0] if t.in_path in test_case_filter]
 
-        def not_accepted(s: run.Submission) -> bool:
+        def not_accepted(s: Submission) -> bool:
             # If a submission is permitted to get a non AC verdict on any test case
             # it is not an accepted submission
             return any({Verdict.ACCEPTED} != s.expectations.all_permitted(t) for t in test_cases)

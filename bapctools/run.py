@@ -18,10 +18,9 @@ from bapctools import (
     languages,
     parallel,
     problem,
-    program,
     validate,
-    visualize,
 )
+from bapctools.program import Program
 from bapctools.test_case import TestCase
 from bapctools.util import (
     BAR_TYPE,
@@ -37,6 +36,7 @@ from bapctools.util import (
     shorten_path,
     warn,
 )
+from bapctools.validate import OutputValidator
 from bapctools.verdicts import (
     from_string_domjudge,
     RunUntil,
@@ -44,6 +44,7 @@ from bapctools.verdicts import (
     Verdicts,
     VerdictTable,
 )
+from bapctools.visualize import OutputVisualizer
 
 
 class Run:
@@ -244,11 +245,11 @@ class Run:
         return True
 
     def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
-        output_validators = self.problem.validators(validate.OutputValidator)
+        output_validators = self.problem.validators(OutputValidator)
         if not output_validators:
             return None
         output_validator = output_validators[0]
-        assert isinstance(output_validator, validate.OutputValidator)
+        assert isinstance(output_validator, OutputValidator)
         return output_validator.run(
             self.test_case,
             self,
@@ -258,7 +259,7 @@ class Run:
     def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
         if config.args.no_visualizer:
             return None
-        output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
+        output_visualizer = self.problem.visualizer(OutputVisualizer)
         if output_visualizer is None:
             return None
         return output_visualizer.run(
@@ -270,7 +271,7 @@ class Run:
         )
 
 
-class Submission(program.Program):
+class Submission(Program):
     def __init__(
         self, problem: "problem.Problem", path: Path, skip_double_build_warning: bool = False
     ) -> None:
@@ -672,7 +673,7 @@ class Submission(program.Program):
 
         test_cases = self.problem.test_cases(needans=False)
 
-        if not self.problem.validators(validate.OutputValidator):
+        if not self.problem.validators(OutputValidator):
             return
 
         for test_case in test_cases:
@@ -740,7 +741,7 @@ class Submission(program.Program):
 
     # Run the submission using stdin as input.
     def test_interactive(self) -> None:
-        if not self.problem.validators(validate.OutputValidator):
+        if not self.problem.validators(OutputValidator):
             return
 
         bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)

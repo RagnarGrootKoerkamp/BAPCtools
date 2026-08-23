@@ -10,11 +10,12 @@ from typing import Any, Final, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
-from bapctools import config, test_case
+from bapctools import config
+from bapctools.test_case import TestCase
 from bapctools.util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    from bapctools import run
+    from bapctools.run import Submission
 
 
 class Verdict(Enum):
@@ -173,10 +174,10 @@ class Verdicts:
 
     def __init__(
         self,
-        test_cases_list: Sequence[test_case.TestCase],
+        test_cases_list: Sequence[TestCase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
-        ignored: Sequence[test_case.TestCase] = [],
+        ignored: Sequence[TestCase] = [],
     ) -> None:
         test_cases: set[str] = {t.name for t in test_cases_list}
         test_groups: set[str] = {str(path) for tc in test_cases for path in Path(tc).parents}
@@ -392,8 +393,8 @@ class VerdictTable:
 
     def __init__(
         self,
-        submissions: Sequence["run.Submission"],
-        test_cases: Sequence[test_case.TestCase],
+        submissions: Sequence["Submission"],
+        test_cases: Sequence[TestCase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,

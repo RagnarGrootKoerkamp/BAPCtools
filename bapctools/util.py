@@ -5,6 +5,7 @@ import difflib
 import errno
 import functools
 import hashlib
+import inspect
 import os
 import re
 import secrets
@@ -25,10 +26,12 @@ from pathlib import Path
 from typing import (
     Any,
     cast,
+    Concatenate,
     Generic,
     NoReturn,
     Optional,
     overload,
+    ParamSpec,
     Protocol,
     TYPE_CHECKING,
     TypeAlias,
@@ -786,9 +789,10 @@ def normalize_yaml_value(value: object, t: type[object]) -> object:
     return value
 
 
-class YamlParser:
-    T = TypeVar("T")
+T = TypeVar("T")
 
+
+class YamlParser:
     def __init__(
         self,
         source: str,
@@ -903,18 +907,15 @@ class YamlParser:
         return YamlParser(self.source, self.extract(key, {}), self._key_path(key), self.bar)
 
 
-U = TypeVar("U")
-
-
 @overload
 def ryaml_get_or_add(yaml: CommentedMap, key: str) -> CommentedMap: ...
 @overload
-def ryaml_get_or_add(yaml: CommentedMap, key: str, t: type[U]) -> U: ...
+def ryaml_get_or_add(yaml: CommentedMap, key: str, t: type[T]) -> T: ...
 def ryaml_get_or_add(
     yaml: CommentedMap,
     key: str,
-    t: type[CommentedMap] | type[U] = CommentedMap,
-) -> CommentedMap | U:
+    t: type[CommentedMap] | type[T] = CommentedMap,
+) -> CommentedMap | T:
     assert isinstance(yaml, CommentedMap)
     if key not in yaml or yaml[key] is None:
         yaml[key] = t()
@@ -1736,4 +1737,35 @@ class OnceWrapper(Generic[R]):
 
 
 def once(function: Callable[[], R]) -> OnceWrapper[R]:
+    """This decorator ensures that a function is executed at most once (this is thread safe)"""
     return OnceWrapper(function)
+
+
+P = ParamSpec("P")
+
+
+def once_per_instance(method: Callable[Concatenate[T, P], R]) -> Callable[Concatenate[T, P], R]:
+    """
+    This decorator ensures that a instance method is executed at most once.
+    This is **not** threadsafe!
+    """
+    cache_name = f"__cache_{method.__name__}"
+    signature = inspect.signature(method)
+    instance_parameter = next(iter(signature.parameters))
+
+    @functools.wraps(method)
+    def wrapped(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not hasattr(self, cache_name):
+            setattr(self, cache_name, {})
+        cache: dict[object, R] = getattr(self, cache_name)
+
+        bound = signature.bind(self, *args, **kwargs)
+        bound.apply_defaults()
+        key = tuple(
+            (name, value) for name, value in bound.arguments.items() if name != instance_parameter
+        )
+        if key not in cache:
+            cache[key] = method(self, *args, **kwargs)
+        return cache[key]
+
+    return cast(Callable[Concatenate[T, P], R], wrapped)

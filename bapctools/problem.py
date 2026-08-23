@@ -17,18 +17,16 @@ from ruamel.yaml.scanner import ScannerError
 from bapctools import (
     check_testing_tool,
     config,
-    expectations,
     interactive,
     latex,
     parallel,
-    run,
-    test_case,
     validate,
     validator_tests,
     verdicts,
-    visualize,
 )
-from bapctools.expectations import Person
+from bapctools.expectations import Expectations, Person
+from bapctools.run import Submission
+from bapctools.test_case import TestCase, TestCaseOverrides, TestGroup
 from bapctools.util import (
     BAR_TYPE,
     drop_suffix,
@@ -42,6 +40,7 @@ from bapctools.util import (
     log,
     math_eval,
     once,
+    once_per_instance,
     PrintBar,
     ProgressBar,
     read_yaml,
@@ -52,6 +51,7 @@ from bapctools.util import (
     write_yaml,
     YamlParser,
 )
+from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.program import Program
@@ -489,7 +489,7 @@ class ProblemSettings:
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
+    SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
@@ -502,36 +502,20 @@ class Problem:
         bar = PrintBar(self.name)
         if not self.path.is_dir():
             bar.fatal("problem directory not found")
-        if not Problem._SHORTNAME_REGEX.fullmatch(self.name):
-            bar.warn(f"name does not match {Problem._SHORTNAME_REGEX.pattern}")
+        if not Problem.SHORTNAME_REGEX.fullmatch(self.name):
+            bar.warn(f"name does not match {Problem.SHORTNAME_REGEX.pattern}")
 
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings(bar)
 
         # Some caches.
-        self._test_cases = dict[
-            tuple[Optional[validate.Mode], bool, bool, bool], Sequence[test_case.TestCase]
-        ]()
-        self._overrides = dict[bool, Sequence[test_case.TestCaseOverrides]]()
-        self._expectations: Optional[expectations.Expectations] = None
-        self._raw_submissions: Optional[Sequence[run.Submission]] = None
-        self._compiled_submissions: Optional[Sequence[run.Submission]] = None
-        self._validators_cache = dict[  # The "bool" is for "check_constraints"
-            tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
-        ]()
         self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
-        self._visualizer_cache = dict[
-            type[visualize.AnyVisualizer], Optional[visualize.AnyVisualizer]
-        ]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        self._root_test_group_yaml: Optional[test_case.TestGroup] = None
-        self._test_group_yamls = dict[Path, test_case.TestGroup]()
+        self._root_test_group_yaml: Optional[TestGroup] = None
+        self._test_group_yamls = dict[Path, TestGroup]()
         self._test_group_lock = threading.Lock()
-        # Because Problem.test_cases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
-        # this cache makes sure that some warnings (like malformed test case names) only appear once.
-        self._warned_for_test_case = set[str]()
 
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
@@ -617,11 +601,7 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    def get_test_group_yaml(
-        p,
-        path: Path,
-        bar: BAR_TYPE,
-    ) -> test_case.TestGroup:
+    def get_test_group_yaml(p, path: Path, bar: BAR_TYPE) -> TestGroup:
         """
         Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
@@ -634,7 +614,7 @@ class Problem:
 
         Returns:
         --------
-        A test_case.TestGroup object
+        A TestGroup object
         """
         assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
 
@@ -648,11 +628,11 @@ class Problem:
                 break
             paths.append(f)
 
-        # create a root test_case.TestGroup object
+        # create a root TestGroup object
         if p._root_test_group_yaml is None:
             with p._test_group_lock:
                 if p._root_test_group_yaml is None:
-                    p._root_test_group_yaml = test_case.TestGroup(p, None, {}, None, bar)
+                    p._root_test_group_yaml = TestGroup(p, None, {}, None, bar)
 
         test_group_yaml = p._root_test_group_yaml
         for f in reversed(paths):
@@ -663,17 +643,16 @@ class Problem:
                 with p._test_group_lock:
                     # handle race conditions
                     if f not in p._test_group_yamls:
-                        p._test_group_yamls[f] = test_case.TestGroup.parse_yaml(
-                            p, f, test_group_yaml, bar
-                        )
+                        p._test_group_yamls[f] = TestGroup.parse_yaml(p, f, test_group_yaml, bar)
             assert f in p._test_group_yamls
             test_group_yaml = p._test_group_yamls[f]
         return test_group_yaml
 
+    @once_per_instance
     def _warn_once(p, test_name: str, msg: str) -> None:
-        if test_name not in p._warned_for_test_case:
-            p._warned_for_test_case.add(test_name)
-            warn(msg)
+        # Because Problem.test_cases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
+        # this cache makes sure that some warnings (like malformed test case names) only appear once.
+        warn(msg)
 
     def _valid_test_group(p, path: Path) -> bool:
         for group in reversed(path.parents[:-1]):
@@ -691,13 +670,23 @@ class Problem:
         needans: bool = True,
         only_samples: bool = False,
         testing_tool_test: bool = False,
-    ) -> Sequence[test_case.TestCase]:
-        only_samples = config.args.samples or only_samples
+    ) -> Sequence[TestCase]:
+        return p._test_cases(
+            mode=mode,
+            needans=needans,
+            only_samples=config.args.samples or only_samples,
+            testing_tool_test=testing_tool_test,
+        )
 
-        key = (mode, needans, only_samples, testing_tool_test)
-        if key in p._test_cases is not None:
-            return p._test_cases[key]
-
+    @once_per_instance
+    def _test_cases(
+        p,
+        *,
+        mode: Optional[validate.Mode],
+        needans: bool,
+        only_samples: bool,
+        testing_tool_test: bool,
+    ) -> Sequence[TestCase]:
         in_paths = None
         if config.args.test_cases:
             assert not only_samples
@@ -735,7 +724,7 @@ class Problem:
 
         test_cases = []
         for f in in_paths:
-            t = test_case.TestCase(p, f)
+            t = TestCase(p, f)
             if not p._valid_test_group(t.short_path):
                 continue
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
@@ -787,10 +776,10 @@ class Problem:
                 f"Didn't find any test cases{ans}{val} in problem {p.name}. Skipping."
             )
 
-        p._test_cases[key] = tuple(test_cases)
-        return p._test_cases[key]
+        return tuple(test_cases)
 
-    def overrides(p, *, only_samples: bool = False) -> Sequence[test_case.TestCaseOverrides]:
+    @once_per_instance
+    def overrides(p, *, only_samples: bool = False) -> Sequence[TestCaseOverrides]:
         """
         Find the test case overrides of the problem
 
@@ -799,8 +788,6 @@ class Problem:
         A list of TestCaseOverrides. The TestCaseOverrides contains separate data for statement and download.
         The entries sample is represented bei either a (.in, .ans) tuple or (only for statement) a .interaction file
         """
-        if only_samples in p._overrides:
-            return p._overrides[only_samples]
 
         in_extensions = [
             ".in.statement",
@@ -824,7 +811,7 @@ class Problem:
                     base = drop_suffix(file, [ext])
                     # add .in to make .with_suffix() work
                     files.add(base.with_name(base.name + ".in"))
-        ret = []
+        overrides = []
 
         has_raw = False
         for file in files:
@@ -902,10 +889,8 @@ class Problem:
             if download[-1].suffix == ".ans" and download[-1].stat().st_size > 0:
                 has_raw = True
 
-            ret.append(
-                test_case.TestCaseOverrides(
-                    name, statement if len(statement) > 1 else statement[0], download
-                )
+            overrides.append(
+                TestCaseOverrides(name, statement if len(statement) > 1 else statement[0], download)
             )
 
         if has_raw and not p.settings.ans_is_output and only_samples:
@@ -914,31 +899,26 @@ class Problem:
                 + "\n\tUse .ans.statement+.ans.download or .out for this."
             )
 
-        ret.sort(key=lambda t: t.name)
-        p._overrides[only_samples] = ret
-        return ret
+        overrides.sort(key=lambda t: t.name)
+        return tuple(overrides)
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
+    def selected_or_accepted_submissions(problem) -> Sequence[Submission]:
         submissions = problem.submissions()
         if config.args.submissions:
             return submissions
         else:
             return tuple(s for s in submissions if s.expectations.is_accepted())
 
-    def expectations(problem) -> expectations.Expectations:
-        if problem._expectations is not None:
-            return problem._expectations
-        problem._expectations = expectations.Expectations(problem)
-        return problem._expectations
+    @once_per_instance
+    def expectations(problem) -> Expectations:
+        return Expectations(problem)
 
     # Returns a list of all submissions the submissions might or might not have already
     # been compiled depending on other calls
     # No function except problem.submissions() should attempt to build these!
-    def raw_submissions(problem) -> Sequence[run.Submission]:
-        if problem._raw_submissions is not None:
-            return problem._raw_submissions
-
+    @once_per_instance
+    def raw_submissions(problem) -> Sequence[Submission]:
         # ensure that expectations are cached
         problem.expectations()
 
@@ -976,10 +956,9 @@ class Problem:
 
         if len(paths) == 0:
             error("No submissions found!")
-            problem._raw_submissions = tuple()
-            return problem._raw_submissions
+            return tuple()
 
-        def submissions_key(x: run.Submission) -> tuple[int, str, str]:
+        def submissions_key(x: Submission) -> tuple[int, str, str]:
             order = [
                 "accepted",
                 "wrong_answer",
@@ -993,21 +972,17 @@ class Problem:
             group_key = order.index(group if group in order else None)
             return group_key, x.subdir, x.name
 
-        programs = [run.Submission(problem, path) for path in paths]
+        programs = [Submission(problem, path) for path in paths]
         programs.sort(key=submissions_key)
+        return tuple(programs)
 
-        problem._raw_submissions = tuple(programs)
-        return problem._raw_submissions
-
-    def submissions(problem) -> Sequence[run.Submission]:
-        if problem._compiled_submissions is not None:
-            return problem._compiled_submissions
-
+    @once_per_instance
+    def submissions(problem) -> Sequence[Submission]:
         programs = problem.raw_submissions()
 
         bar = ProgressBar("Build submissions", items=programs)
 
-        def build_program(p: run.Submission) -> None:
+        def build_program(p: Submission) -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -1017,32 +992,26 @@ class Problem:
         bar.finalize(print_done=False)
 
         # Filter out broken submissions.
-        problem._compiled_submissions = tuple(p for p in programs if p.ok)
-        return problem._compiled_submissions
+        return tuple(p for p in programs if p.ok)
 
     @overload
-    def visualizer(
-        problem, cls: type[visualize.InputVisualizer]
-    ) -> Optional[visualize.InputVisualizer]: ...
+    @once_per_instance
+    def visualizer(problem, cls: type[InputVisualizer]) -> Optional[InputVisualizer]: ...
     @overload
-    def visualizer(
-        problem, cls: type[visualize.OutputVisualizer]
-    ) -> Optional[visualize.OutputVisualizer]: ...
-    def visualizer(
-        problem, cls: type[visualize.AnyVisualizer]
-    ) -> Optional[visualize.AnyVisualizer]:
+    @once_per_instance
+    def visualizer(problem, cls: type[OutputVisualizer]) -> Optional[OutputVisualizer]: ...
+    @once_per_instance
+    def visualizer(problem, cls: type[AnyVisualizer]) -> Optional[AnyVisualizer]:
         path = problem.path / cls.source_dir
         if not path.is_dir():
             return None
-        if cls not in problem._visualizer_cache:
-            visualizer = cls(problem, path)
-            bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
-            localbar = bar.start(visualizer)
-            visualizer.build(localbar)
-            localbar.done()
-            bar.finalize(print_done=False)
-            problem._visualizer_cache[cls] = visualizer if visualizer.ok else None
-        return problem._visualizer_cache[cls]
+        visualizer = cls(problem, path)
+        bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+        localbar = bar.start(visualizer)
+        visualizer.build(localbar)
+        localbar.done()
+        bar.finalize(print_done=False)
+        return visualizer if visualizer.ok else None
 
     def validators(
         problem,
@@ -1057,8 +1026,6 @@ class Problem:
         If strict is false we may return additional validators (right now we return OutputValidators as AnswerValidators).
 
         If needed, builds them.
-
-        problem._validators_cache caches previous calls to avoid rebuilding
 
         Returns:
             singleton list(OutputValidator) if cls is OutputValidator
@@ -1090,13 +1057,10 @@ class Problem:
         # TODO Really? Why not at least return those that built?
         return validators if build_ok else tuple()
 
+    @once_per_instance
     def _validators(
         problem, cls: type[validate.AnyValidator], check_constraints: bool = False
     ) -> Sequence[validate.AnyValidator]:
-        key = (cls, check_constraints)
-        if key in problem._validators_cache:
-            return problem._validators_cache[key]
-
         if cls == validate.OutputValidator:
             if problem.custom_output:
                 paths = [problem.path / validate.OutputValidator.source_dir]
@@ -1147,14 +1111,12 @@ class Problem:
 
         parallel.run_tasks(build_program, validators)
         bar.finalize(print_done=False)
-
-        problem._validators_cache[key] = validators
         return validators
 
     # get all test cases and submissions and prepare the output validator and visualizer
     def prepare_run(
         problem,
-    ) -> Literal[False] | tuple[Sequence[test_case.TestCase], Sequence[run.Submission]]:
+    ) -> Literal[False] | tuple[Sequence[TestCase], Sequence[Submission]]:
         test_cases = problem.test_cases()
         if not test_cases:
             return False
@@ -1165,7 +1127,7 @@ class Problem:
 
         # Pre build the output visualizer to prevent nested ProgressBars.
         if not config.args.no_visualizer:
-            problem.visualizer(visualize.OutputVisualizer)
+            problem.visualizer(OutputVisualizer)
 
         submissions = problem.submissions()
         if not submissions:
@@ -1175,9 +1137,9 @@ class Problem:
 
     @staticmethod
     def run_some(
-        test_cases: Sequence[test_case.TestCase],
-        submissions: Sequence[run.Submission],
-        skip_test_case: Callable[[run.Submission, test_case.TestCase], bool] = lambda s, t: False,
+        test_cases: Sequence[TestCase],
+        submissions: Sequence[Submission],
+        skip_test_case: Callable[[Submission, TestCase], bool] = lambda s, t: False,
     ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
@@ -1229,7 +1191,7 @@ class Problem:
             len(test_cases) * len(submissions) > 1
             and not config.args.verbose
             and not config.args.no_visualizer
-            and problem.visualizer(visualize.OutputVisualizer)
+            and problem.visualizer(OutputVisualizer)
         ):
             log("use -v with --visualize to see the paths to the generated images")
 
@@ -1272,17 +1234,17 @@ class Problem:
 
     @staticmethod
     def _print_table(
-        verdict_table: Sequence[verdicts.Verdicts], test_cases: Sequence[test_case.TestCase]
+        verdict_table: Sequence[verdicts.Verdicts], test_cases: Sequence[TestCase]
     ) -> None:
         # Begin by aggregating bitstrings for all test cases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-        def single_verdict(row: verdicts.Verdicts, test_case: test_case.TestCase) -> str:
+        def single_verdict(row: verdicts.Verdicts, test_case: TestCase) -> str:
             assert row[test_case.name] is not None
             if row[test_case.name] is not False:
                 return verdicts.to_char(row[test_case.name])
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        def make_verdict(tc: test_case.TestCase) -> str:
+        def make_verdict(tc: TestCase) -> str:
             return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
 
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
@@ -1378,12 +1340,10 @@ class Problem:
         return check_testing_tool.run(problem, testinputs, submissions)
 
     def reset_test_case_hashes(self) -> None:
-        self._test_case_hashes: dict[str, test_case.TestCase] = {}
+        self._test_case_hashes: dict[str, TestCase] = {}
 
     # Returns None for new test_cases or the TestCase object it equals.
-    def matches_existing_test_case(
-        self, t: test_case.TestCase, bar: BAR_TYPE
-    ) -> Optional[test_case.TestCase]:
+    def matches_existing_test_case(self, t: TestCase, bar: BAR_TYPE) -> Optional[TestCase]:
         h = t.core_hash(bar)
         if h in self._test_case_hashes:
             return self._test_case_hashes[h]
@@ -1420,7 +1380,7 @@ class Problem:
                 full_path.with_name("submission.out").write_text(data)
 
                 verbose(f"Generating {short_path}")
-                test_cases.append(test_case.TestCase(problem, full_path, short_path=short_path))
+                test_cases.append(TestCase(problem, full_path, short_path=short_path))
         if not test_cases:
             return True
 
@@ -1434,7 +1394,7 @@ class Problem:
         success = True
         bar = ProgressBar("Output Validator checks", items=test_cases)
 
-        def run(test_case: test_case.TestCase) -> None:
+        def run(test_case: TestCase) -> None:
             nonlocal success
             localbar = bar.start(test_case)
 
@@ -1497,8 +1457,8 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUT
-            constraints: Optional[True | dict]. True means "do check constraints but discard the result."
+            mode: validate.Mode
+            constraints: Optional[True | ConstraintsDict]. True means "do check constraints but discard the result."
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1536,7 +1496,7 @@ class Problem:
             ),
         ]
 
-        test_cases: list[test_case.TestCase] = []
+        test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
             for cls, directory, read, write, copy in validators:
@@ -1584,7 +1544,7 @@ class Problem:
                     full_path.with_suffix(write).write_text(content)
 
                     verbose(f"Generating {short_path}")
-                    test_cases.append(test_case.TestCase(p, full_path, short_path=short_path))
+                    test_cases.append(TestCase(p, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
@@ -1617,7 +1577,7 @@ class Problem:
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3]
         samples = [p for p in samples if p.with_suffix(".ans").exists()]
 
-        test_cases: list[test_case.TestCase] = []
+        test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
             for name, data, space_change, case_change in validator_tests.VALID_GENERATORS:
@@ -1645,7 +1605,7 @@ class Problem:
                 full_path.with_suffix(".out").write_text(content)
 
                 verbose(f"Generating {short_path}")
-                test_cases.append(test_case.TestCase(p, full_path, short_path=short_path))
+                test_cases.append(TestCase(p, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
@@ -1662,7 +1622,7 @@ class Problem:
         mode: validate.Mode,
         constraints: Optional[validate.ConstraintsDict | Literal[True]],
         action: str,
-        test_cases: Sequence[test_case.TestCase],
+        test_cases: Sequence[TestCase],
         extra: bool = False,
     ) -> bool:
         # If there are no test cases, validation succeeds
@@ -1697,7 +1657,7 @@ class Problem:
         # validate the test cases
         bar = ProgressBar(action, items=[t.name for t in test_cases])
 
-        def process_test_case(test_case: test_case.TestCase) -> None:
+        def process_test_case(test_case: TestCase) -> None:
             nonlocal success
 
             localbar = bar.start(test_case.name)
@@ -1818,12 +1778,12 @@ class Problem:
         ok = True
 
         def run_all(
-            skip_test_case: Callable[[run.Submission, test_case.TestCase], bool],
+            skip_test_case: Callable[[Submission, TestCase], bool],
             select_duration: Callable[[Sequence[float]], float],
         ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
-            def skip_submission(s: run.Submission) -> bool:
+            def skip_submission(s: Submission) -> bool:
                 return all(skip_test_case(s, t) for t in test_cases)
 
             cur_submissions = [s for s in submissions if not skip_submission(s)]

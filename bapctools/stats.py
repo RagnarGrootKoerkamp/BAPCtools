@@ -10,9 +10,10 @@ from typing import Any, cast, Literal, Optional
 from colorama import ansi, Fore, Style
 from dateutil import parser
 
-from bapctools import config, generate, languages, latex, validate
+from bapctools import config, generate, languages, latex
 from bapctools.problem import Problem
 from bapctools.util import drop_suffix, eprint, error, glob, log, ShellCommand
+from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
 
 
 def stats(problems: list[Problem]) -> None:
@@ -197,18 +198,16 @@ def problem_stats(problems: list[Problem]) -> None:
         Column("yaml", glob_selector("problem.yaml"), threshold=True),
         Column("tex", glob_selector(str(latex.PdfType.PROBLEM.path("*"))), threshold=1),
         Column("sol", glob_selector(str(latex.PdfType.SOLUTION.path("*"))), threshold=1),
-        Column(
-            "  val: I", glob_selector(f"{validate.InputValidator.source_dir}/*"), threshold=True
-        ),
+        Column("  val: I", glob_selector(f"{InputValidator.source_dir}/*"), threshold=True),
         Column(
             "A",
-            glob_selector(f"{validate.AnswerValidator.source_dir}/*"),
+            glob_selector(f"{AnswerValidator.source_dir}/*"),
             threshold=True,
             suppress=lambda p: p.interactive,
         ),
         Column(
             "O",
-            glob_selector(f"{validate.OutputValidator.source_dir}/*"),
+            glob_selector(f"{OutputValidator.source_dir}/*"),
             threshold=True,
             suppress=lambda p: not p.custom_output,
         ),

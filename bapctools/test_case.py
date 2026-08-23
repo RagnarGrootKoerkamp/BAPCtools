@@ -11,7 +11,6 @@ from colorama import Fore, Style
 from bapctools import (
     config,
     validate,
-    visualize,
 )
 from bapctools.util import (
     BAR_TYPE,
@@ -26,6 +25,13 @@ from bapctools.util import (
     substitute,
     YamlParser,
 )
+from bapctools.validate import (
+    AnswerValidator,
+    AnyValidator,
+    InputValidator,
+    OutputValidator,
+)
+from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools import problem
@@ -69,15 +75,15 @@ class TestGroup:
         parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data, bar=bar)
 
         # parse deprecated keys
-        parser.extract_deprecated("output_validator_flags", validate.OutputValidator.args_key)
-        parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
+        parser.extract_deprecated("output_validator_flags", OutputValidator.args_key)
+        parser.extract_deprecated("input_validator_flags", InputValidator.args_key)
 
         # parse args
         for key in [
             "args",
-            visualize.InputVisualizer.args_key,
-            visualize.OutputVisualizer.args_key,
-            validate.OutputValidator.args_key,
+            InputVisualizer.args_key,
+            OutputVisualizer.args_key,
+            OutputValidator.args_key,
         ]:
             if key in parser.remaining:
                 setattr(
@@ -87,12 +93,10 @@ class TestGroup:
                 )
 
         for validator_type in [
-            validate.AnswerValidator,
-            validate.InputValidator,
+            AnswerValidator,
+            InputValidator,
         ]:
-            assert isinstance(
-                validator_type, (type(validate.AnswerValidator), type(validate.InputValidator))
-            )
+            assert isinstance(validator_type, (type(AnswerValidator), type(InputValidator)))
             key = validator_type.args_key
             source_dir = validator_type.source_dir
             if key in parser.remaining:
@@ -139,7 +143,7 @@ class TestGroup:
 
         parser.check_unknown_keys()
 
-    def get_args(self, program: validate.AnyValidator | visualize.AnyVisualizer) -> Sequence[str]:
+    def get_args(self, program: AnyValidator | AnyVisualizer) -> Sequence[str]:
         assert hasattr(self, type(program).args_key)
         args = getattr(self, type(program).args_key)
         if isinstance(args, dict):
@@ -315,9 +319,7 @@ class TestCase:
 
         return combine_hashes_dict(hashes)
 
-    def validator_hashes(
-        self, cls: type[validate.AnyValidator], bar: BAR_TYPE
-    ) -> dict[str, dict[str, str]]:
+    def validator_hashes(self, cls: type[AnyValidator], bar: BAR_TYPE) -> dict[str, dict[str, str]]:
         """
         Returns
         -------
@@ -327,7 +329,7 @@ class TestCase:
              - flags
         indicating which validators will be run for this test case.
         """
-        assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
+        assert cls in [InputValidator, AnswerValidator, OutputValidator]
         validators = self.problem.validators(cls)
 
         d = dict()
@@ -363,9 +365,7 @@ class TestCase:
             case validate.Mode.INPUT:
                 return self._run_validators(
                     validate.Mode.INPUT,
-                    self.problem.validators(
-                        validate.InputValidator, check_constraints=check_constraints
-                    ),
+                    self.problem.validators(InputValidator, check_constraints=check_constraints),
                     self.root == "invalid_input",
                     bar=bar,
                     constraints=constraints,
@@ -374,9 +374,7 @@ class TestCase:
             case validate.Mode.ANSWER:
                 return self._run_validators(
                     validate.Mode.ANSWER,
-                    self.problem.validators(
-                        validate.AnswerValidator, check_constraints=check_constraints
-                    ),
+                    self.problem.validators(AnswerValidator, check_constraints=check_constraints),
                     self.root == "invalid_answer",
                     bar=bar,
                     constraints=constraints,
@@ -409,7 +407,7 @@ class TestCase:
 
                 return self._run_validators(
                     validate.Mode.INVALID,
-                    self.problem.validators(validate.OutputValidator),
+                    self.problem.validators(OutputValidator),
                     True,
                     bar=bar,
                     constraints=constraints,
@@ -439,7 +437,7 @@ class TestCase:
 
                 return self._run_validators(
                     validate.Mode.VALID_OUTPUT,
-                    self.problem.validators(validate.OutputValidator),
+                    self.problem.validators(OutputValidator),
                     False,
                     bar=bar,
                     constraints=constraints,
@@ -451,7 +449,7 @@ class TestCase:
     def _run_validators(
         self,
         mode: validate.Mode,
-        validators: Sequence[validate.AnyValidator],
+        validators: Sequence[AnyValidator],
         expect_rejection: bool,
         *,
         bar: ProgressBar,
@@ -463,7 +461,7 @@ class TestCase:
         for validator in validators:
             name = validator.name
             args = []
-            if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
+            if isinstance(validator, OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
             args = [*args, *self.get_test_case_yaml(bar).get_args(validator)]
@@ -518,7 +516,7 @@ class TestCase:
             if expect_rejection:
                 warn = False
                 if (
-                    isinstance(validator, validate.OutputValidator)
+                    isinstance(validator, OutputValidator)
                     and ret.status == ExecStatus.ERROR
                     and mode != validate.Mode.ANSWER
                 ):

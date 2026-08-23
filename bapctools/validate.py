@@ -4,7 +4,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import config, languages, program
+from bapctools import config, languages
+from bapctools.program import Program
 from bapctools.util import (
     ExecResult,
     ExecStatus,
@@ -14,8 +15,9 @@ from bapctools.util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools import run, test_case
     from bapctools.problem import Problem
+    from bapctools.run import Run
+    from bapctools.test_case import TestCase
 
 
 class Mode(Enum):
@@ -81,7 +83,7 @@ FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
 ]
 
 
-class Validator(program.Program):
+class Validator(Program):
     """Base class for AnswerValidator, InputValidator, and OutputValidator.
 
     They can all take constraints.
@@ -126,8 +128,8 @@ class Validator(program.Program):
 
     def _run_helper(
         self,
-        mode: "Mode | run.Run | Path",
-        test_case: "test_case.TestCase",
+        mode: "Mode | Run | Path",
+        test_case: "TestCase",
         constraints: Optional[ConstraintsDict],
         args: Optional[Sequence[str | Path]],
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
@@ -172,7 +174,7 @@ class Validator(program.Program):
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
     def _run_format_validator(
-        self, test_case: "test_case.TestCase", cwd: Path, args: Sequence[str | Path]
+        self, test_case: "TestCase", cwd: Path, args: Sequence[str | Path]
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -238,7 +240,7 @@ class Validator(program.Program):
 
     def run(
         self,
-        test_case: "test_case.TestCase",
+        test_case: "TestCase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -268,7 +270,7 @@ class InputValidator(Validator):
 
     def run(
         self,
-        test_case: "test_case.TestCase",
+        test_case: "TestCase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -331,7 +333,7 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        test_case: "test_case.TestCase",
+        test_case: "TestCase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
@@ -385,8 +387,8 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        test_case: "test_case.TestCase",
-        mode: "Mode | run.Run | Path",
+        test_case: "TestCase",
+        mode: "Mode | Run | Path",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
@@ -396,7 +398,7 @@ class OutputValidator(Validator):
         Arguments
         ---------
 
-        mode: either a run.Run (namely, when validating submission output) or a Mode
+        mode: either a Run (namely, when validating submission output) or a Mode
             (namely, when validating a test case)
 
         Returns
