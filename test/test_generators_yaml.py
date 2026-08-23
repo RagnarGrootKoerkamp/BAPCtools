@@ -17,11 +17,12 @@ class MockSettings:
 class MockProblem:
     def __init__(self):
         self.path = Path(".")
-        self._program_callbacks = dict()
-        self._rules_cache = dict()
         self.settings = MockSettings()
         self.interactive = False
         self.multi_pass = False
+
+    def register_program_callback(self, path, c):
+        pass
 
 
 class MockGeneratorConfig(generate.GeneratorConfig):
