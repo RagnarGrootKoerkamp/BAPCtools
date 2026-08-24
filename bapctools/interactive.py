@@ -142,12 +142,12 @@ class Connection:
                 n = self.write.write(data)
                 if not n:
                     break
+                total += n
                 if n < len(data):
                     self.buffer[0] = data[n:]
                     break
                 else:
                     self.buffer.popleft()
-                total += n
             except BlockingIOError:
                 break
             except (BrokenPipeError, OSError, ValueError):
