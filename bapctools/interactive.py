@@ -131,18 +131,27 @@ class Connection:
             self.buffer.clear()
             self.buffered = 0
 
-    def attemp_write(self, limit: int = -1) -> None:
+    def attemp_write(self) -> None:
         if self.write.closed:
             return self.handle_write_closed()
 
-        total = 0
-        while (limit < 0 or total < limit) and self.buffer:
+        while self.buffer:
             try:
+                # This tries to reduce the number of self.write.write calls by joining small buffers
+                # Note: Joining is linear, but we have no guarantee on the number of bytes we will
+                #       actually write => always joining can lead to O(n^2) behaviour!
+                # The current code ensures O(n) worst-case behaviour while still limiting the number
+                # of self.write.write calls to 2 (per attemp_write invocation)
+                if self.buffered > len(self.buffer[0]):
+                    data = memoryview(b"".join(self.buffer))
+                    self.buffer.clear()
+                    self.buffer.append(data)
+
                 data = self.buffer[0]
                 n = self.write.write(data)
                 if not n:
                     break
-                total += n
+                self.buffered -= n
                 if n < len(data):
                     self.buffer[0] = data[n:]
                     break
@@ -154,7 +163,6 @@ class Connection:
                 self.write.close()
                 self.handle_write_closed()
                 break
-        self.buffered -= total
         self._try_propagate_eof()
 
 
