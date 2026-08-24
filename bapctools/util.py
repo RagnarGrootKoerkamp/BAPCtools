@@ -28,6 +28,7 @@ from typing import (
     cast,
     Concatenate,
     Generic,
+    Literal,
     NoReturn,
     Optional,
     overload,
@@ -51,19 +52,10 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
     from bapctools.verdicts import Verdict
 
 
-try:
-    import questionary
-    from prompt_toolkit.document import Document
+import questionary
 
-    has_questionary = True
-
-    class EmptyValidator(questionary.Validator):
-        def validate(self, document: Document) -> None:
-            if len(document.text) == 0:
-                raise questionary.ValidationError(message="Please enter a value")
-
-except Exception:
-    has_questionary = False
+use_questionary = True
+__lazy_modules__ = ["questionary"]
 
 
 def is_windows() -> bool:
@@ -1015,8 +1007,11 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
 
 
 def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
-    if has_questionary:
-        validate = None if allow_empty else EmptyValidator
+    if use_questionary:
+
+        def validate(text: str) -> Literal[True] | str:
+            return True if allow_empty or text else "Please enter a value"
+
         return cast(
             str,
             questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
@@ -1027,7 +1022,7 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
 
 
 def ask_variable_bool(name: str, default: bool = True) -> bool:
-    if has_questionary:
+    if use_questionary:
         return cast(
             bool,
             questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
@@ -1038,7 +1033,7 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
 
 
 def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
-    if has_questionary:
+    if use_questionary:
         plain = questionary.Style([("selected", "noreverse")])
         return cast(
             str,
