@@ -68,9 +68,6 @@ from bapctools.util import (
     write_yaml,
 )
 
-if not is_windows():
-    import argcomplete  # For automatic shell completions
-
 # Initialize colorama for printing coloured output. On Windows, this captures
 # stdout and replaces ANSI colour codes by calls to change the terminal colour.
 #
@@ -83,11 +80,6 @@ if not is_windows():
 # - https://docs.gitlab.com/runner/faq/#how-can-i-get-colored-output-on-the-web-terminal
 if not os.getenv("GITLAB_CI", False) and not os.getenv("CI", False):
     colorama.init()
-
-# List of high level todos:
-# TODO: Do more things in parallel (e.g. building validators/generators/submissions).
-# TODO: Get rid of old problem.path and settings objects in cli.py.
-#       This mostly needs changes in the less frequently used subcommands.
 
 if sys.version_info < (3, 10):
     fatal("BAPCtools requires at least Python 3.10.")
@@ -1142,6 +1134,8 @@ Run this from one of:
     join_slack_channel_parser.add_argument("username", help="Slack username")
 
     if not is_windows():
+        import argcomplete
+
         argcomplete.autocomplete(parser)
 
     if hasattr(parser, "suggest_on_error"):
