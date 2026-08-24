@@ -12,6 +12,7 @@ from dateutil import parser
 
 from bapctools import config, generate, languages, latex
 from bapctools.problem import Problem
+from bapctools.run import Submission
 from bapctools.util import drop_suffix, eprint, error, glob, log, ShellCommand
 from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
 
@@ -85,13 +86,18 @@ def _submission_language(file: Path) -> Optional[str]:
     return max(candidates)[1].code if candidates else None
 
 
+def submissions(problem: Problem) -> Sequence[Submission]:
+    with config.suppress_warnings(level=2):
+        return problem.raw_submissions()
+
+
 def submission_selector(root: str, codes: str | Sequence[str]) -> Callable[[Problem], int]:
     if isinstance(codes, str):
         codes = (codes,)
 
     def selector(problem: Problem) -> int:
         selected = []
-        for submission in problem.raw_submissions():
+        for submission in submissions(problem):
             language = submission.expectations.language
             if language is None:
                 language = _submission_language(submission.path)
@@ -380,7 +386,7 @@ def stats_all(problems: list[Problem]) -> None:
         lines: list[str | float | int] = []
         values = []
         for problem in problems:
-            submissions = list[Path]()
+            selected = list[Path]()
             if team_submissions:
                 directory = Path.cwd() / "submissions" / problem.name / "accepted"
                 for file in glob(directory, "*"):
@@ -390,9 +396,9 @@ def stats_all(problems: list[Problem]) -> None:
                         language = _submission_language(file)
                         if language is None or language not in codes:
                             continue
-                    submissions.append(file)
+                    selected.append(file)
             else:
-                for submission in problem.raw_submissions():
+                for submission in submissions(problem):
                     if codes is not None:
                         language = submission.expectations.language
                         if language is None:
@@ -401,8 +407,8 @@ def stats_all(problems: list[Problem]) -> None:
                             continue
                     if submission.short_path.parts[0] != "accepted":
                         continue
-                    submissions.append(submission.path)
-            cur_lines = [loc(submission) for submission in submissions]
+                    selected.append(submission.path)
+            cur_lines = [loc(submission) for submission in selected]
             cur_lines_filtered = [x for x in cur_lines if x is not None]
             if cur_lines_filtered:
                 best = min(cur_lines_filtered)
