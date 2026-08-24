@@ -5,6 +5,7 @@ import difflib
 import errno
 import functools
 import hashlib
+import importlib.util
 import inspect
 import os
 import re
@@ -51,11 +52,9 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
     from bapctools.problem import Problem
     from bapctools.verdicts import Verdict
 
-
-import questionary
-
-use_questionary = True
-__lazy_modules__ = ["questionary"]
+# we delay this import since it is quite time consuming
+# lazy import questionary
+use_questionary = importlib.util.find_spec("questionary") is None
 
 
 def is_windows() -> bool:
@@ -1008,6 +1007,7 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
 
 def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
     if use_questionary:
+        import questionary
 
         def validate(text: str) -> Literal[True] | str:
             return True if allow_empty or text else "Please enter a value"
@@ -1023,6 +1023,8 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
 
 def ask_variable_bool(name: str, default: bool = True) -> bool:
     if use_questionary:
+        import questionary
+
         return cast(
             bool,
             questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
@@ -1034,6 +1036,8 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
 
 def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
     if use_questionary:
+        import questionary
+
         plain = questionary.Style([("selected", "noreverse")])
         return cast(
             str,
