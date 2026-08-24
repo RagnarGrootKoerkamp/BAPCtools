@@ -18,6 +18,7 @@ import argparse
 import difflib
 import hashlib
 import os
+import platform
 import re
 import sys
 import tempfile
@@ -56,6 +57,7 @@ from bapctools.util import (
     glob,
     home_config_dir,
     inc_label,
+    is_mac,
     is_problem_directory,
     is_windows,
     log,
@@ -382,6 +384,18 @@ class LazyVersion(argparse.Action):
             parser.exit()
 
         exit = 0
+        if is_windows():
+            os_name = f"Windows {platform.win32_ver()[0]}"
+        elif is_mac():
+            mac_version = platform.mac_ver()[0]
+            os_name = f"macOS {mac_version}" if mac_version else "macOS"
+        else:
+            try:
+                os_name = platform.freedesktop_os_release()["PRETTY_NAME"]
+            except (OSError, KeyError):
+                os_name = f"{platform.system()} {platform.release()}"
+        print("- on", os_name)
+        print("- running", platform.python_implementation(), platform.python_version())
         try:
             print("- with checktestdata", version("checktestdata"))
         except PackageNotFoundError:
