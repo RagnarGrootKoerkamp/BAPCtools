@@ -34,8 +34,7 @@ if TYPE_CHECKING:
 
 
 class Connection:
-    CHUNK_SIZE: Final[int] = 16 * 1024
-    READ_LIMIT: Final[int] = 16 * CHUNK_SIZE
+    READ_LIMIT: Final[int] = 256 * 1024
     SOFT_BUFFER_LIMIT: Final[int] = 32 * 1024**2  # might be exceeded by up to READ_LIMIT
 
     def __init__(
@@ -99,33 +98,28 @@ class Connection:
             self._log()
             self._try_propagate_eof()
 
-    def attemp_read(self, limit: int = -1) -> None:
+    def attemp_read(self) -> None:
         if self.read.closed:
             return self.handle_read_closed()
 
-        total = 0
-        while limit < 0 or total < limit:
-            try:
-                data = self.read.read(Connection.CHUNK_SIZE)
-                if data is None:
-                    break
-                elif len(data) == 0:
-                    self.read.close()
-                    self.handle_read_closed()
-                    break
-                else:
-                    self._log(data)
-                    total += len(data)
-                    if not self.write.closed:
-                        self.buffer.append(memoryview(data))
-            except BlockingIOError:
-                break
-            except (BrokenPipeError, OSError, ValueError):
+        try:
+            data = self.read.read(Connection.READ_LIMIT)
+            if data is None:
+                pass
+            elif len(data) == 0:
                 self.read.close()
                 self.handle_read_closed()
-                break
-        self.buffered += total
-        self.transmitted += total
+            else:
+                self._log(data)
+                self.buffered += len(data)
+                self.transmitted += len(data)
+                if not self.write.closed:
+                    self.buffer.append(memoryview(data))
+        except BlockingIOError:
+            pass
+        except (BrokenPipeError, OSError, ValueError):
+            self.read.close()
+            self.handle_read_closed()
 
     def handle_write_closed(self) -> None:
         if self.write.closed:
@@ -235,7 +229,7 @@ class Relay(threading.Thread):
 
                 for connection in (self.vs, self.sv):
                     if connection.read in readable:
-                        connection.attemp_read(Connection.READ_LIMIT)
+                        connection.attemp_read()
                     if connection.write in writeable:
                         connection.attemp_write()
         except (KeyboardInterrupt, Exception) as e:
