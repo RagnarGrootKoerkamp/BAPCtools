@@ -7,7 +7,6 @@ import subprocess
 import sys
 import threading
 import time
-from collections import deque
 from collections.abc import Sequence
 from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
@@ -35,7 +34,9 @@ if TYPE_CHECKING:
 
 class Connection:
     READ_LIMIT: Final[int] = 256 * 1024
-    SOFT_BUFFER_LIMIT: Final[int] = 32 * 1024**2  # might be exceeded by up to READ_LIMIT
+    SOFT_BUFFER_LIMIT: Final[int] = 32 * 1024**2
+    # actual buffer size: SOFT_BUFFER_LIMIT + 2*READ_LIMIT
+    # maximal buffered: SOFT_BUFFER_LIMIT + READ_LIMIT
 
     def __init__(
         self,
@@ -61,8 +62,13 @@ class Connection:
 
         self.transmitted: int = 0
         self.buffered: int = 0
-        self.buffer: deque[memoryview] = deque()
-        self.joined: bool = False
+        self._buffer: bytearray = bytearray(
+            Connection.SOFT_BUFFER_LIMIT + 2 * Connection.READ_LIMIT
+        )
+        self.buffer: memoryview = memoryview(self._buffer)
+        self.rev: bool = False
+        self.write_start: int = 0
+        self.read_start: int = 0
 
     def reads(self) -> list[io.RawIOBase]:
         if self.read.closed or self.buffered >= Connection.SOFT_BUFFER_LIMIT:
@@ -70,11 +76,11 @@ class Connection:
         return [self.read]
 
     def writes(self) -> list[io.RawIOBase]:
-        if self.write.closed or not self.buffer:
+        if self.write.closed or not self.buffered:
             return []
         return [self.write]
 
-    def _log(self, data: Optional[bytes] = None) -> None:
+    def _log(self, data: Optional[memoryview] = None) -> None:
         if not self.log:
             return
         if data is None:
@@ -82,14 +88,14 @@ class Connection:
                 print(self.prefix, self.log_buffer, sep="", file=self.log)
             self.log = None
         else:
-            lines = data.decode(errors="replace").split("\n")
+            lines = data.tobytes().decode(errors="replace").split("\n")
             lines[0] = self.log_buffer + lines[0]
             self.log_buffer = lines.pop()
             if lines:
                 print(self.prefix, f"\n{self.prefix}".join(lines), sep="", file=self.log)
 
     def _try_propagate_eof(self) -> None:
-        if self.read.closed and not self.buffer and not self.write.closed and self.propagate_eof:
+        if self.read.closed and not self.buffered and not self.write.closed and self.propagate_eof:
             self.write.close()
             self.handle_write_closed()
 
@@ -103,18 +109,25 @@ class Connection:
             return self.handle_read_closed()
 
         try:
-            data = self.read.read(Connection.READ_LIMIT)
-            if data is None:
-                pass
-            elif len(data) == 0:
+            if not self.write.closed:
+                read_end = self.write_start if self.rev else len(self.buffer)
+                read_end = min(read_end, self.read_start + Connection.READ_LIMIT)
+                n = self.read.readinto(self.buffer[self.read_start : read_end])
+            else:
+                n = self.read.readinto(self.buffer[: Connection.READ_LIMIT])
+            if n == 0:
                 self.read.close()
                 self.handle_read_closed()
             else:
-                self._log(data)
-                self.buffered += len(data)
-                self.transmitted += len(data)
+                self.transmitted += n
+                self._log(self.buffer[self.read_start : self.read_start + n])
                 if not self.write.closed:
-                    self.buffer.append(memoryview(data))
+                    self.buffered += n
+                    self.read_start += n
+                    if self.read_start >= Connection.SOFT_BUFFER_LIMIT + Connection.READ_LIMIT:
+                        self.buffer = memoryview(self._buffer)[0 : self.read_start]
+                        self.read_start = 0
+                        self.rev = True
         except BlockingIOError:
             pass
         except (BrokenPipeError, OSError, ValueError):
@@ -123,45 +136,28 @@ class Connection:
 
     def handle_write_closed(self) -> None:
         if self.write.closed:
-            self.buffer.clear()
             self.buffered = 0
-            self.joined = False
 
     def attemp_write(self) -> None:
         if self.write.closed:
             return self.handle_write_closed()
 
-        while self.buffer:
+        if self.buffered:
             try:
-                # This tries to reduce the number of self.write.write calls by joining small buffers
-                # Note: Joining is linear, but we have no guarantee on the number of bytes we will
-                #       actually write => always joining can lead to O(n^2) behaviour!
-                # The current code ensures O(n) worst-case behaviour while still limiting the number
-                # of self.write.write calls to 2 (per attemp_write invocation)
-                if len(self.buffer) > 1:
-                    if not self.joined or self.buffered >= len(self.buffer[0]):
-                        data = memoryview(b"".join(self.buffer))
-                        self.buffer.clear()
-                        self.buffer.append(data)
-                        self.joined = True
-
-                data = self.buffer[0]
-                n = self.write.write(data)
-                if not n:
-                    break
-                self.buffered -= n
-                if n < len(data):
-                    self.buffer[0] = data[n:]
-                    break
-                else:
-                    self.buffer.popleft()
-                    self.joined = False
+                write_end = len(self.buffer) if self.rev else self.read_start
+                n = self.write.write(self.buffer[self.write_start : write_end])
+                if n:
+                    self.buffered -= n
+                    self.write_start += n
+                    if self.write_start == len(self.buffer):
+                        self.buffer = memoryview(self._buffer)
+                        self.write_start = 0
+                        self.rev = False
             except BlockingIOError:
-                break
+                pass
             except (BrokenPipeError, OSError, ValueError):
                 self.write.close()
                 self.handle_write_closed()
-                break
         self._try_propagate_eof()
 
 
