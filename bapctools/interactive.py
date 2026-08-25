@@ -540,7 +540,10 @@ def run_interactive_test_case(
                 MiB = 1024**2
                 if relay.vs.transmitted >= transmission_limit * MiB:
                     bar.warn(f"Validator wrote over {transmission_limit}MiB")
-                if relay.sv.transmitted >= transmission_limit * MiB:
+                if (
+                    validator_status == config.RTV_AC
+                    and relay.sv.transmitted >= transmission_limit * MiB
+                ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
 
             assert validator_time is not None
