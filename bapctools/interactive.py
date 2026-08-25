@@ -63,6 +63,7 @@ class Connection:
         self.transmitted: int = 0
         self.buffered: int = 0
         self.buffer: deque[memoryview] = deque()
+        self.joined: bool = False
 
     def reads(self) -> list[io.RawIOBase]:
         if self.read.closed or self.buffered >= Connection.SOFT_BUFFER_LIMIT:
@@ -130,6 +131,7 @@ class Connection:
         if self.write.closed:
             self.buffer.clear()
             self.buffered = 0
+            self.joined = False
 
     def attemp_write(self) -> None:
         if self.write.closed:
@@ -142,10 +144,12 @@ class Connection:
                 #       actually write => always joining can lead to O(n^2) behaviour!
                 # The current code ensures O(n) worst-case behaviour while still limiting the number
                 # of self.write.write calls to 2 (per attemp_write invocation)
-                if self.buffered > len(self.buffer[0]):
-                    data = memoryview(b"".join(self.buffer))
-                    self.buffer.clear()
-                    self.buffer.append(data)
+                if len(self.buffer) > 1:
+                    if not self.joined or self.buffered >= len(self.buffer[0]):
+                        data = memoryview(b"".join(self.buffer))
+                        self.buffer.clear()
+                        self.buffer.append(data)
+                        self.joined = True
 
                 data = self.buffer[0]
                 n = self.write.write(data)
@@ -157,6 +161,7 @@ class Connection:
                     break
                 else:
                     self.buffer.popleft()
+                    self.joined = False
             except BlockingIOError:
                 break
             except (BrokenPipeError, OSError, ValueError):
