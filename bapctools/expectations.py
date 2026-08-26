@@ -300,6 +300,7 @@ class Expectations:
 
         if not found_match:
             warn(f"{submission.name} not covered by submissions.yaml")
+            combined.expectations.append(TestCaseExpectation(None))
 
         self._combined[submission.path] = combined
         return combined
