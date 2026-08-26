@@ -1386,7 +1386,7 @@ class Problem:
 
                 short_path = sample.short_path.with_suffix("") / name
                 full_path = base_path / short_path / "testcase.in"
-                remove_path(full_path)
+                remove_path(full_path.parent)
                 full_path.parent.mkdir(parents=True, exist_ok=True)
 
                 shutil.copy(sample.in_path, full_path.with_suffix(".in"))
