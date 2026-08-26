@@ -45,6 +45,7 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    remove_path,
     resolve_path_argument,
     ryaml_get_or_add,
     verbose,
@@ -1385,6 +1386,7 @@ class Problem:
 
                 short_path = sample.short_path.with_suffix("") / name
                 full_path = base_path / short_path / "testcase.in"
+                remove_path(full_path)
                 full_path.parent.mkdir(parents=True, exist_ok=True)
 
                 shutil.copy(sample.in_path, full_path.with_suffix(".in"))
