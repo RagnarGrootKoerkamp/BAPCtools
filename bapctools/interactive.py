@@ -14,6 +14,8 @@ from pathlib import Path
 from queue import SimpleQueue
 from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
+from colorama import Fore, Style
+
 from bapctools import config
 from bapctools.util import (
     BAR_TYPE,
@@ -179,8 +181,12 @@ class Relay(threading.Thread):
         # We assume that the output validator knows what it does and directly propagate
         # a closed stream. For the submission on the other hand we only propagte a closed
         # stream after the submission died
-        self.vs = Connection("<", log, validator.stdout, submission.stdin, propagate_eof=True)
-        self.sv = Connection(">", log, submission.stdout, validator.stdin)
+        vs, sv = "<>"
+        if log is not None and log.isatty():
+            vs = f"{Fore.CYAN}{vs}{Style.RESET_ALL}"
+            sv = f"{Fore.YELLOW}{sv}{Style.RESET_ALL}"
+        self.vs = Connection(vs, log, validator.stdout, submission.stdin, propagate_eof=True)
+        self.sv = Connection(sv, log, submission.stdout, validator.stdin)
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)
         os.set_blocking(self._notify, False)
