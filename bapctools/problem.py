@@ -48,6 +48,7 @@ from bapctools.util import (
     remove_path,
     resolve_path_argument,
     ryaml_get_or_add,
+    shorten_path,
     verbose,
     warn,
     write_yaml,
@@ -1371,8 +1372,10 @@ class Problem:
             # standart problems can just use valid_output
             return True
 
-        # pick at most first 3 samples
-        samples = problem.test_cases(only_samples=True, needans=False)[:3]
+        # pick at most first 3 samples (assuming they are valid and have .ans)
+        samples = sorted(glob(problem.path, "data/sample/**/*.in"))
+        samples = [s for s in samples if s.with_suffix(".ans").exists()]
+        samples = samples[:3]
 
         base_path = problem.tmpdir / "invalid_data" / "output_validator_checks"
         test_cases = []
@@ -1384,13 +1387,13 @@ class Problem:
                 if not isinstance(data, str):
                     continue
 
-                short_path = sample.short_path.with_suffix("") / name
+                short_path = sample.relative_to(problem.path / "data").with_suffix("") / name
                 full_path = base_path / short_path / "testcase.in"
                 remove_path(full_path.parent)
                 full_path.parent.mkdir(parents=True, exist_ok=True)
 
-                shutil.copy(sample.in_path, full_path.with_suffix(".in"))
-                shutil.copy(sample.ans_path, full_path.with_suffix(".ans"))
+                for ext in [".in", ".ans"]:
+                    shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
                 full_path.with_name("submission.out").write_text(data)
 
                 verbose(f"Generating {short_path}")
@@ -1413,27 +1416,35 @@ class Problem:
             localbar = bar.start(test_case)
 
             submission = test_case.in_path.with_name("submission.out")
-            data = f"Input: {repr(submission.read_text())}"
+            raw_submission = submission.read_text()
 
             feedbackdir = submission.with_suffix(".feedbackdir")
             feedbackdir.mkdir(parents=True, exist_ok=True)
             nextpass = feedbackdir / "nextpass.in" if problem.multi_pass else None
             for pass_id in itertools.count(1):
-                result = output_validator.run(test_case, submission)
+                ret = output_validator.run(test_case, submission)
 
-                if result.status == ExecStatus.REJECTED:
+                data = ret.err or ""
+                if config.args.error:
+                    data += (
+                        f"{Style.RESET_ALL}-> {shorten_path(problem, test_case.in_path.parent)}\n"
+                    )
+
+                if ret.status == ExecStatus.REJECTED:
                     if nextpass and nextpass.is_file():
                         success = False
                         localbar.error(
                             "Output Validator gave WRONG_ANSWER but created nextpass.in", data
                         )
                         return
-                    break
-                if result.status == ExecStatus.TIMEOUT:
+                    else:
+                        localbar.done(True, "rejected", data)
+                        return
+                if ret.status == ExecStatus.TIMEOUT:
                     localbar.error("Output Validator got TIMEOUT", data)
                     return
-                if result.status == ExecStatus.ERROR:
-                    if result.returncode == 0:
+                if ret.status == ExecStatus.ERROR:
+                    if ret.returncode == 0:
                         success = False
                         localbar.error(
                             "Output Validator exited with exit code 0, did you forget to exit with WA or AC?",
@@ -1442,12 +1453,16 @@ class Problem:
                     else:
                         success = False
                         localbar.error(
-                            f"Output Validator crashed (exit code: {result.returncode})", data
+                            f"Output Validator crashed (exit code: {ret.returncode})", data
                         )
                     return
-                assert result.status == ExecStatus.ACCEPTED
+                assert ret.status == ExecStatus.ACCEPTED
                 if not nextpass or not nextpass.is_file():
-                    break
+                    localbar.error(
+                        f"Output Validator accepted submission only printing: {raw_submission}",
+                        data,
+                    )
+                    return
 
                 assert problem.limits.validation_passes is not None
                 if pass_id >= problem.limits.validation_passes:
@@ -1456,8 +1471,6 @@ class Problem:
                     return
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
-
-            localbar.done(True, "properly rejected", data)
 
         parallel.run_tasks(run, test_cases, pin=True)
         bar.finalize(print_done=True)
@@ -1588,8 +1601,9 @@ class Problem:
 
         base_path = p.tmpdir / "valid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
-        samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3]
-        samples = [p for p in samples if p.with_suffix(".ans").exists()]
+        samples = sorted(glob(p.path, "data/sample/**/*.in"))
+        samples = [s for s in samples if s.with_suffix(".ans").exists()]
+        samples = samples[:3]
 
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):

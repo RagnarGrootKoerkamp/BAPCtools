@@ -487,7 +487,7 @@ class TestCase:
             data = ""
             if not (ret.status or expect_rejection) or config.args.error:
                 if ret.err and ret.out:
-                    ret.out = (
+                    data = (
                         ret.err
                         + f"\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n"
                         + Fore.YELLOW

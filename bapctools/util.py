@@ -1578,6 +1578,7 @@ def exec_command(
         raise KeyboardInterrupt()
 
     def maybe_crop(s: str) -> str:
+        s = s.rstrip()
         return crop_output(s) if crop else s
 
     status = exec_code_map(process.returncode)
