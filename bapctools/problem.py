@@ -1423,12 +1423,28 @@ class Problem:
             nextpass = feedbackdir / "nextpass.in" if problem.multi_pass else None
             for pass_id in itertools.count(1):
                 ret = output_validator.run(test_case, submission)
+                if problem.interactive:
+                    ret.out = None
 
-                data = ret.err or ""
+                data = ""
                 if config.args.error:
+                    if ret.err and ret.out:
+                        data = (
+                            ret.err
+                            + f"\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n"
+                            + Fore.YELLOW
+                            + ret.out
+                        )
+                    elif ret.err:
+                        data = ret.err
+                    elif ret.out:
+                        data = ret.out
+
                     data += (
                         f"{Style.RESET_ALL}-> {shorten_path(problem, test_case.in_path.parent)}\n"
                     )
+                elif ret.err:
+                    data = ret.err
 
                 if ret.status == ExecStatus.REJECTED:
                     if nextpass and nextpass.is_file():
