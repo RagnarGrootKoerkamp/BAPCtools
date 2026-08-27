@@ -570,7 +570,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
 
     log("Updating problems.yaml")
     path = Path("problems.yaml")
-    data = path.is_file() and read_yaml(path) or []
+    data = path.is_file() and read_yaml(path, empty=[])
     assert isinstance(data, list)
 
     change = False

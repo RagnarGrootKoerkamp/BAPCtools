@@ -117,7 +117,7 @@ class ProblemsYamlEntry:
 def contest_yaml() -> ContestYaml:
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
-        raw_yaml = read_yaml(contest_yaml_path)
+        raw_yaml = read_yaml(contest_yaml_path, empty={})
         if not isinstance(raw_yaml, dict):
             fatal("could not parse contest.yaml, must be a dict.")
     else:
@@ -131,7 +131,7 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
     problems_yaml_path = Path("problems.yaml")
     raw_yaml: object = []
     if problems_yaml_path.is_file():
-        raw_yaml = read_yaml(problems_yaml_path)
+        raw_yaml = read_yaml(problems_yaml_path, empty=[])
     if not isinstance(raw_yaml, list):
         fatal("could not parse problems.yaml, must be a list.")
 

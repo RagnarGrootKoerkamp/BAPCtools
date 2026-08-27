@@ -2216,19 +2216,16 @@ class GeneratorConfig:
                 if program_type is Generator and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
                     programs.append(Generator(self.problem, path, deps=deps))
+                elif program_type is Submission:
+                    programs.append(Submission(self.problem, path, skip_double_build_warning=True))
                 else:
-                    if program_type is Submission:
-                        programs.append(
-                            Submission(self.problem, path, skip_double_build_warning=True)
+                    programs.append(
+                        program_type(
+                            self.problem,
+                            path,
+                            skip_double_build_warning=skip_double_build_warning,
                         )
-                    else:
-                        programs.append(
-                            program_type(
-                                self.problem,
-                                path,
-                                skip_double_build_warning=skip_double_build_warning,
-                            )
-                        )
+                    )
 
             bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
 

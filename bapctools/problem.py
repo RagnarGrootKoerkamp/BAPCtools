@@ -587,7 +587,7 @@ class Problem:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
-            yaml_data = read_yaml(yaml_path) or {}
+            yaml_data = read_yaml(yaml_path, empty={})
         except ScannerError:
             bar.fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
 
@@ -1866,9 +1866,7 @@ class Problem:
 
         if config.args.write:
             yaml_path = problem.path / "problem.yaml"
-            problem_yaml = read_yaml(yaml_path)
-            if problem_yaml is None:
-                problem_yaml = CommentedMap()
+            problem_yaml = read_yaml(yaml_path, empty=CommentedMap())
             if not isinstance(problem_yaml, CommentedMap):
                 warn("could not parse problem.yaml")
             else:

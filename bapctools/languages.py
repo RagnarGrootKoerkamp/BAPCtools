@@ -261,7 +261,7 @@ def languages() -> Sequence[Language]:
     languages_path = Path("languages.yaml")
     raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / languages_path)
     assert isinstance(raw_languages, dict)
-    raw_overrides = read_yaml(languages_path) if languages_path.is_file() else {}
+    raw_overrides = read_yaml(languages_path, empty={}) if languages_path.is_file() else {}
     if not isinstance(raw_overrides, dict):
         fatal("could not parse languages.yaml.")
 

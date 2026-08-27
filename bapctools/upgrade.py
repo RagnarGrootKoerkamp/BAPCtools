@@ -5,7 +5,7 @@ import shutil
 from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast, Optional
+from typing import Any, Optional
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
@@ -139,9 +139,9 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     test_case_yamls = defaultdict[Path, CommentedMap](CommentedMap)
     for f in (problem_path / "data").rglob("*.yaml"):
         if f.with_suffix(".in").exists():  # Prevent reading test_group.yaml, which has no *.in file
-            test_case_yaml = read_yaml(f)
+            test_case_yaml = read_yaml(f, empty=CommentedMap())
             if not isinstance(test_case_yaml, CommentedMap):
-                bar.warn(f"cannot not parse {f}. SKIPPED.")
+                bar.error(f"can't not parse {f}. SKIPPED.", resume=True)
                 continue
             test_case_yamls[f] = test_case_yaml
 
@@ -200,7 +200,10 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
     ]
 
     for f in (problem_path / "data").rglob("test_group.yaml"):
-        data = cast(CommentedMap, read_yaml(f))
+        data = read_yaml(f, empty=CommentedMap())
+        if not isinstance(data, CommentedMap):
+            bar.error(f"can't not parse {f}. SKIPPED.", resume=True)
+            continue
 
         for old, new in rename:
             if old in data:
@@ -226,14 +229,14 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if yaml_data is None:
         return
     if not isinstance(yaml_data, CommentedMap):
-        bar.error("cannot not parse generators.yaml. SKIPPED.")
+        bar.error("can't not parse generators.yaml. SKIPPED.", resume=True)
         return
 
     changed = False
 
     if "visualizer" in yaml_data:
         bar.warn(
-            "Cannot automatically upgrade 'visualizer'.\n - move visualizer to 'input_visualizer/'\n - first argument is the in_file\n - second argument is the ans_file"
+            "Can't automatically upgrade 'visualizer'.\n - move visualizer to 'input_visualizer/'\n - first argument is the in_file\n - second argument is the ans_file"
         )
 
     if "data" in yaml_data and isinstance(yaml_data["data"], CommentedMap):
@@ -249,7 +252,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if old_name in data:
                 if new_name in data:
                     bar.error(
-                        f"cannot rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
+                        f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
                         resume=True,
                     )
                     continue
@@ -305,7 +308,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         child_name = '""'
                     if generate.is_directory(child_data):
                         assert isinstance(child_data, CommentedMap)
-                        changed |= apply_recursively(operation, child_data, path + "." + child_name)
+                        changed |= apply_recursively(operation, child_data, f"{path}.{child_name}")
         return changed
 
     def drop_type_entry(data: CommentedMap, path: str) -> bool:
@@ -331,8 +334,12 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     def upgrade_generated_test_group_yaml(data: CommentedMap, path: str) -> bool:
         changed = False
         if "test_group.yaml" in data:
-            test_group_yaml = cast(CommentedMap, data["test_group.yaml"])
-            print_path = f" ({path[1:]})" if len(path) > 1 else ""
+            test_group_yaml = data["test_group.yaml"]
+            cur_path = f"{path}.test_group.yaml"
+            print_path = f" ({cur_path})"
+            if not isinstance(test_group_yaml, CommentedMap):
+                bar.error(f"can't parse generators.yaml{print_path}. SKIPPED.", resume=True)
+                return False
 
             rename = [
                 ("output_validator_flags", OutputValidator.args_key),
@@ -389,7 +396,9 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         problem_yaml = problem_path / "problem.yaml"
         if not problem_yaml.is_file():
             return False
-        data = cast(CommentedMap, read_yaml(problem_yaml))
+        data = read_yaml(problem_yaml)
+        if not isinstance(data, CommentedMap):
+            return False
 
         for key in ["validation", "type"]:
             if key not in data:
@@ -526,7 +535,7 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
             bar.log(f"renaming '{old_path.name}/{content[0].name}' to '{new_path.name}/'")
             _move_dir(content[0], problem_path / OutputValidator.source_dir)
             if any(old_path.iterdir()):
-                bar.warn(f"cannot remove '{old_path.name}/', contains unknown files")
+                bar.warn(f"can't remove '{old_path.name}/', contains unknown files")
             else:
                 old_path.rmdir()
         else:
@@ -538,7 +547,10 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     assert is_problem_directory(problem_path)
-    data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
+    data = read_yaml(problem_path / "problem.yaml", empty=CommentedMap())
+    if not isinstance(data, CommentedMap):
+        bar.error("can't not parse problem.yaml. SKIPPED.")
+        return
 
     if data.get("problem_format_version") != config.SPEC_VERSION:
         bar.log("set 'problem_format_version' in problem.yaml")
@@ -644,27 +656,30 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         if data["validator_flags"]:
             generators_path = problem_path / "generators" / "generators.yaml"
             if generators_path.exists():
-                generators_data = cast(CommentedMap, read_yaml(generators_path))
-
-                if "test_group.yaml" not in generators_data:
-                    if "data" in generators_data:
-                        # insert before data
-                        pos = list(generators_data.keys()).index("data")
-                        generators_data.insert(pos, "test_group.yaml", CommentedMap())
-                    else:
-                        # insert at end
-                        generators_data["test_group.yaml"] = CommentedMap()
-                if add_args(generators_data["test_group.yaml"]):
-                    write_yaml(generators_data, generators_path)
+                generators_data = read_yaml(generators_path, empty=CommentedMap())
+                if not isinstance(generators_data, CommentedMap):
+                    bar.error(f"can't not parse {generators_path}. SKIPPED.", resume=True)
+                else:
+                    if "test_group.yaml" not in generators_data:
+                        if "data" in generators_data:
+                            # insert before data
+                            pos = list(generators_data.keys()).index("data")
+                            generators_data.insert(pos, "test_group.yaml", CommentedMap())
+                        else:
+                            # insert at end
+                            generators_data["test_group.yaml"] = CommentedMap()
+                    if add_args(generators_data["test_group.yaml"]):
+                        write_yaml(generators_data, generators_path)
             else:
                 test_group_path = problem_path / "data" / "test_group.yaml"
-                test_group_data = (
-                    cast(CommentedMap, read_yaml(test_group_path))
-                    if test_group_path.exists()
-                    else CommentedMap()
-                )
+                if test_group_path.is_file():
+                    test_group_data = read_yaml(test_group_path, empty=CommentedMap())
+                else:
+                    test_group_data = CommentedMap()
 
-                if add_args(test_group_data):
+                if not isinstance(test_group_data, CommentedMap):
+                    bar.error(f"can't not parse {test_group_path}. SKIPPED.", resume=True)
+                elif add_args(test_group_data):
                     write_yaml(test_group_data, test_group_path)
         else:
             ryaml_filter(data, "validator_flags")

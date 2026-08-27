@@ -1,11 +1,10 @@
 import re
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
 from bapctools import config
 from bapctools.test_case import TestCase
-from bapctools.util import BAR_TYPE, error, fatal, read_yaml, warn, YamlParser
+from bapctools.util import BAR_TYPE, error, fatal, once_per_instance, read_yaml, warn, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -215,7 +214,6 @@ class SubmissionExpectation:
         if test_case is None:
             return self.expectations
         matching = [e for e in self.expectations if e.matches(test_case)]
-        assert matching
         return matching
 
     def all_permitted(self, test_case: Optional[TestCase] = None) -> set[Verdict]:
@@ -234,11 +232,10 @@ class SubmissionExpectation:
         return any(e.permitted == {Verdict.ACCEPTED} for e in self.root_expectations())
 
 
-# This store all data in the submissions.yaml
+# This stores all data in the submissions.yaml
 class Expectations:
     def __init__(self, problem: "Problem") -> None:
         self.expectations: dict[str, SubmissionExpectation] = {}
-        self._combined: dict[Path, SubmissionExpectation] = {}
 
         files = [
             config.RESOURCES_ROOT / "config" / "submissions.yaml",
@@ -247,7 +244,7 @@ class Expectations:
         for file in files:
             if not file.is_file():
                 continue
-            yaml_data = read_yaml(file)
+            yaml_data = read_yaml(file, empty={})
             if not isinstance(yaml_data, dict):
                 fatal("could not parse submissions.yaml.")
             for submission_glob, expectation in yaml_data.items():
@@ -261,10 +258,8 @@ class Expectations:
                     submission_glob, expectation
                 )
 
+    @once_per_instance
     def all_matches(self, submission: "Submission") -> SubmissionExpectation:
-        if submission.path in self._combined:
-            return self._combined[submission.path]
-
         languages = set()
         entrypoints = set()
         authors = set()
@@ -300,7 +295,5 @@ class Expectations:
 
         if not found_match:
             warn(f"{submission.name} not covered by submissions.yaml")
-            combined.expectations.append(TestCaseExpectation(None))
 
-        self._combined[submission.path] = combined
         return combined

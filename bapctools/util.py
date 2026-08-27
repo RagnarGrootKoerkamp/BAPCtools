@@ -768,9 +768,13 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
         fatal(f"Failed to parse {path}.")
 
 
-def read_yaml(path: Path, *, suppress_errors: bool = False) -> object:
+def read_yaml(
+    path: Path, *, empty: Optional[object] = None, suppress_errors: bool = False
+) -> object:
     assert path.is_file(), f"File {path} does not exist"
-    return parse_yaml(path.read_text(), path=path, suppress_errors=suppress_errors)
+    assert suppress_errors is False or empty is None, "cannot use `empty` with suppress_errors"
+    ret = parse_yaml(path.read_text(), path=path, suppress_errors=suppress_errors)
+    return empty if ret is None else ret
 
 
 def normalize_yaml_value(value: object, t: type[object]) -> object:
@@ -1765,6 +1769,7 @@ def once_per_instance(method: Callable[Concatenate[T, P], R]) -> Callable[Concat
             (name, value) for name, value in bound.arguments.items() if name != instance_parameter
         )
         if key not in cache:
+            assert threading.current_thread() is threading.main_thread()
             cache[key] = method(self, *args, **kwargs)
         return cache[key]
 

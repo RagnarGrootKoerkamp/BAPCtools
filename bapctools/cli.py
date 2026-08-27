@@ -222,7 +222,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 if ask_variable_bool("Update order in contest.yaml"):
                     contest_yaml_path = Path("contest.yaml")
-                    data = read_yaml(contest_yaml_path) or {}
+                    data = read_yaml(contest_yaml_path, empty={})
                     if not isinstance(data, dict):
                         error("could not parse contest.yaml.")
                     else:

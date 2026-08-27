@@ -174,7 +174,7 @@ def new_problem() -> None:
     problems_yaml = target_dir / "problems.yaml"
 
     if problems_yaml.is_file():
-        data = read_yaml(problems_yaml) or []
+        data = read_yaml(problems_yaml, empty=[])
         assert isinstance(data, list)
         prev_label = data[-1]["label"] if data else None
         next_label = (
@@ -245,7 +245,7 @@ def rename_problem(problem: Problem) -> None:
     shutil.move(problem.name, dirname)
 
     problem_yaml = Path(dirname) / "problem.yaml"
-    data = read_yaml(problem_yaml)
+    data = read_yaml(problem_yaml, empty={})
     if not isinstance(data, dict):
         error("could not parse problem.yaml.")
         return
@@ -254,7 +254,7 @@ def rename_problem(problem: Problem) -> None:
 
     problems_yaml = Path("problems.yaml")
     if problems_yaml.is_file():
-        data = read_yaml(problems_yaml) or []
+        data = read_yaml(problems_yaml, empty=[])
         if not isinstance(data, list) or not all(isinstance(p, dict) for p in data):
             error("could not parse problems.yaml. Must be a list of problems.")
         else:
