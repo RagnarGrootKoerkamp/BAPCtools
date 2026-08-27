@@ -1459,7 +1459,7 @@ class Problem:
                 assert ret.status == ExecStatus.ACCEPTED
                 if not nextpass or not nextpass.is_file():
                     localbar.error(
-                        f"Output Validator accepted submission only printing: {raw_submission}",
+                        f"Output Validator did not reject submission only printing: {raw_submission}",
                         data,
                     )
                     return
