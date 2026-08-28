@@ -71,7 +71,8 @@ def create_aliases() -> None:
 
         alias_path = tmpdir / alias
         ensure_symlink(alias_path, Path(exe))
-        bar.debug(f"Adding alias {alias}: {alias_path.as_posix()} -> {exe}")
+        if config.args.verbose >= 2:
+            bar.debug(f"Adding alias {alias}: {alias_path.as_posix()} -> {exe}")
 
     remove_path(tmpdir)
     tmpdir.mkdir(parents=True, exist_ok=True)
