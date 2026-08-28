@@ -451,6 +451,7 @@ class ProgressBar:
         success: bool = True,
         message: str = "",
         data: Optional[str] = None,
+        *,
         print_item: bool = True,
     ) -> None:
         with self:
@@ -1556,11 +1557,8 @@ def exec_command(
             process = ResourcePopen(command, **kwargs)
             cleanup.enter_context(process)
             cleanup.callback(process.kill)
-        except PermissionError as e:
-            # File is likely not executable.
-            return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
-        except OSError as e:
-            # File probably doesn't exist.
+        except (PermissionError, OSError) as e:
+            # File is likely not executable / probably doesn't exist.
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
         try:

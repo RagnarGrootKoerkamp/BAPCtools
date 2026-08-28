@@ -7,7 +7,7 @@ import sys
 from collections.abc import Callable, Sequence
 from contextlib import ExitStack, nullcontext
 from pathlib import Path
-from typing import Optional
+from typing import IO, Optional
 
 from colorama import Fore, Style
 
@@ -82,7 +82,7 @@ class Run:
         submission_args = self.test_case.get_test_case_yaml(bar).args
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
-                self, interaction=interaction, submission_args=submission_args, bar=bar
+                self, bar=bar, interaction=interaction, submission_args=submission_args
             )
             if result is None:
                 bar.error(
@@ -409,26 +409,35 @@ class Submission(Program):
         cwd: Optional[Path] = None,
         generator_timeout: bool = False,
     ) -> ExecResult:
+        with in_path.open("rb") as in_file, out_path.open("wb") as out_file:
+            return self._run(in_file, out_file, crop, args, cwd, generator_timeout)
+
+    def _run(
+        self,
+        in_file: IO[bytes],
+        out_file: IO[bytes],
+        crop: bool,
+        args: Sequence[str | Path],
+        cwd: Optional[Path] = None,
+        generator_timeout: bool = False,
+    ) -> ExecResult:
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
-        with in_path.open("rb") as in_file, out_path.open("wb") as out_file:
-            # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = self._exec_command(
-                [*self.run_command, *args],
-                crop=crop,
-                stdin=in_file,
-                stdout=out_file,
-                stderr=None if out_file is None else True,
-                cwd=cwd,
-                timeout=(
-                    self.problem.limits.generator_time
-                    if generator_timeout
-                    else self.problem.limits.timeout
-                ),
-            )
-        return result
+        return self._exec_command(
+            [*self.run_command, *args],
+            crop=crop,
+            stdin=in_file,
+            stdout=out_file,
+            stderr=True,
+            cwd=cwd,
+            timeout=(
+                self.problem.limits.generator_time
+                if generator_timeout
+                else self.problem.limits.timeout
+            ),
+        )
 
     # Run this submission on all test_cases that are given.
     # Returns (OK verdict, printed newline)
@@ -669,58 +678,109 @@ class Submission(Program):
         return passed_permitted and passed_required, printed_newline
 
     def test(self) -> None:
-        eprint(ProgressBar.action("Running", str(self.name)))
-
-        test_cases = self.problem.test_cases(needans=False)
-
         if not self.problem.validators(OutputValidator):
             return
+        test_cases = self.problem.test_cases()
+        if not test_cases:
+            return
 
+        bar = ProgressBar(self.name, items=test_cases)
         for test_case in test_cases:
-            header = ProgressBar.action("Running " + str(self.name), test_case.name)
-            eprint(header)
-
+            run = Run(self.problem, self, test_case)
+            localbar = bar.start(test_case)
             if not self.problem.interactive:
-                assert self.run_command is not None
-                with test_case.in_path.open("rb") as inf:
-                    result = self._exec_command(
-                        self.run_command,
-                        crop=False,
-                        stdin=inf,
-                        stdout=None,
-                        stderr=None,
-                    )
+                passmsg = "(pass 1)" if self.problem.multi_pass else ""
+                localbar.log(passmsg, color="")
 
-                assert result.err is None and result.out is None
-                if result.duration >= self.problem.limits.timeout:
-                    status = f"{Fore.RED}Aborted!"
-                    config.n_error += 1
-                elif not result.status and result.status != ExecStatus.TIMEOUT:
-                    config.n_error += 1
-                    status = None
-                    eprint(
-                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
-                elif (
-                    result.duration > self.problem.limits.time_limit
-                    or result.status == ExecStatus.TIMEOUT
-                ):
-                    status = f"{Fore.YELLOW}Done (TLE):"
-                    config.n_warn += 1
-                else:
-                    status = f"{Fore.GREEN}Done:"
+                # we want to directly see the output of the submission
+                # => we cannot reuse the interaciton file
+                TEE_CODE = R"""
+import sys
+while True:
+    l = sys.stdin.buffer.read(1)
+    if l==b'': break
+    sys.stdout.buffer.write(l)
+    sys.stdout.buffer.flush()
+    sys.stderr.buffer.write(l)
+"""
+                submission_args = test_case.get_test_case_yaml(localbar).args or []
+                nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
+                for pass_id in itertools.count(1):
 
-                if status:
-                    eprint(
-                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
-                eprint()
+                    def run_submission() -> ExecResult:
+                        if config.args.verbose:
+                            data = run.in_path.read_text().removesuffix("\n")
+                            eprint(Fore.YELLOW, data, Style.RESET_ALL, sep="")
+                        with ExitStack() as cleanup:
+                            out_file = run.out_path.open("wb")
+                            cleanup.enter_context(out_file)
+                            tee = subprocess.Popen(
+                                [sys.executable, "-c", TEE_CODE],
+                                stdin=subprocess.PIPE,
+                                stdout=None,
+                                stderr=out_file,
+                            )
+                            cleanup.enter_context(tee)
+                            assert tee.stdin is not None
+                            cleanup.callback(tee.stdin.close)
 
+                            in_file = run.in_path.open("rb")
+                            cleanup.enter_context(in_file)
+                            result = self._run(in_file, tee.stdin, False, submission_args)
+                            tee.stdin.close()
+                            tee.wait()
+
+                        assert result.status != ExecStatus.REJECTED
+                        if result.duration >= self.problem.limits.time_limit:
+                            result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                        elif result.status == ExecStatus.ERROR:
+                            result.verdict = Verdict.RUNTIME_ERROR
+                            msg = f"Exited with code {result.returncode}"
+                            if config.args.error and result.err:
+                                result.err = f"{msg}:\n{result.err}"
+                            else:
+                                result.err = msg
+                        return result
+
+                    result = run_submission()
+                    if result.verdict is None:
+                        val_result = run._validate_output(localbar)
+                        if val_result is None:
+                            result.verdict = Verdict.JUDGE_ERROR
+                            result.err = f"No output validator found for test case {test_case.name}"
+                        elif val_result.status:
+                            result.verdict = Verdict.ACCEPTED
+                        elif val_result.status == ExecStatus.REJECTED:
+                            result.verdict = Verdict.WRONG_ANSWER
+                        elif result.duration > self.problem.limits.validation_time:
+                            result.verdict = Verdict.JUDGE_ERROR
+                            result.err = f"Validator TIMEOUT after {result.duration:.1f}s"
+                        else:
+                            config.n_error += 1
+                            result.verdict = Verdict.JUDGE_ERROR
+
+                    if result.err:
+                        eprint(Fore.YELLOW, result.err, Style.RESET_ALL, sep="")
+
+                    if result.verdict != Verdict.ACCEPTED:
+                        config.n_error += 1
+                        msg = f"{Fore.RED}{result.verdict}{Style.RESET_ALL}"
+                    else:
+                        msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
+                    eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}\n")
+
+                    if result.verdict != Verdict.ACCEPTED:
+                        break
+
+                    if not run._prepare_nextpass(nextpass):
+                        break
+                    passmsg = f" (pass {pass_id + 1})" if self.problem.multi_pass else ""
+                    eprint(ProgressBar.action(f"Running {self.name}", test_case.name + passmsg))
             else:
                 # Interactive problem.
-                run = Run(self.problem, self, test_case)
+                localbar.log("(logging interaction)", color="")
                 optional_result = interactive.run_interactive_test_case(
-                    run, interaction=True, validator_error=True, team_error=True
+                    run, bar=localbar, interaction=True, validator_error=True, team_error=True
                 )
                 if optional_result is None:
                     config.n_error += 1
@@ -731,13 +791,12 @@ class Submission(Program):
                 result = optional_result
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
-                    eprint(
-                        f"{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
+                    msg = f"{Fore.RED}{result.verdict}{Style.RESET_ALL}"
                 else:
-                    eprint(
-                        f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
-                    )
+                    msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
+                eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}")
+            localbar.done()
+        bar.finalize(suppress_newline=True)
 
     # Run the submission using stdin as input.
     def test_interactive(self) -> None:
@@ -750,7 +809,7 @@ class Submission(Program):
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            name = f"run {tc}"
+            name = f"Pass {tc}" if self.problem.multi_pass else f"Run {tc}"
             bar.update(1, len(name))
             localbar = bar.start(name)
             # Reinitialize the underlying program, so that changes to the source
@@ -767,10 +826,10 @@ class Submission(Program):
             TEE_CODE = R"""
 import sys
 while True:
-    l = sys.stdin.read(1)
+    l = sys.stdin.buffer.read(1)
     if l=='': break
-    sys.stdout.write(l)
-    sys.stdout.flush()
+    sys.stdout.buffer.write(l)
+    sys.stdout.buffer.flush()
 """
             closed = []
 
@@ -793,7 +852,7 @@ while True:
                     return
                 os.write(w, read)
 
-                writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
+                writer = subprocess.Popen([sys.executable, "-c", TEE_CODE], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
                 cleanup.callback(writer.kill)
 
