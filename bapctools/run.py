@@ -818,7 +818,7 @@ while True:
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            name = f"Pass {tc}" if self.problem.multi_pass else f"Run {tc}"
+            name = f"Run {tc}"
             bar.update(1, len(name))
             localbar = bar.start(name)
             # Reinitialize the underlying program, so that changes to the source
