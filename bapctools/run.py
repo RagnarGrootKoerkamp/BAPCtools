@@ -733,6 +733,7 @@ while True:
                             tee.stdin.close()
                             tee.wait()
 
+                        assert result.err is None
                         assert result.status != ExecStatus.REJECTED
                         if result.duration >= self.problem.limits.time_limit:
                             result.verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -748,6 +749,8 @@ while True:
                     result = run_submission()
                     if result.verdict is None:
                         val_result = run._validate_output(localbar)
+                        if val_result is not None and config.args.error:
+                            result.err = val_result.err
                         if val_result is None:
                             result.verdict = Verdict.JUDGE_ERROR
                             result.err = f"No output validator found for test case {test_case.name}"
@@ -761,9 +764,10 @@ while True:
                         else:
                             config.n_error += 1
                             result.verdict = Verdict.JUDGE_ERROR
+                            result.err = val_result.err
 
                     if result.err:
-                        eprint(Fore.YELLOW, result.err, Style.RESET_ALL, sep="")
+                        eprint(Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep="")
 
                     if result.verdict != Verdict.ACCEPTED:
                         config.n_error += 1
@@ -792,6 +796,8 @@ while True:
                     )
                     continue
                 result = optional_result
+                if config.args.error and result.err:
+                    eprint(Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep="")
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     msg = f"{Fore.RED}{result.verdict}{Style.RESET_ALL}"
