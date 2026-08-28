@@ -121,6 +121,7 @@ Use the `test` command to run a single submission on some test cases.
 The submission `stdout` and `stderr` are printed to the terminal instead of being verified as an answer file.
 Use `--samples` to run on the samples, or pass a list of test cases or directories containing test cases.
 Use `--interactive`/`-i` to run in interactive mode, where console input is forwarded to the submission.
+In interactive mode the output is **not** validated.
 This rebuilds and reruns the program until either `control-C` or `control-D` is pressed.
 It's also possible to supply the test case on the command line directly using e.g. `< /path/to/file.in` or `<<< "10 20"`.
 

@@ -124,9 +124,9 @@ Use `bt run -v` to show results for all test cases.
 bt test <submission> [<test_cases>].
 ```
 
-It runs the given submission against the specified test cases (or all test cases if not set) and prints the submission `stdout` and `stderr` to the terminal. The submission output is not validated or checked for correctness. However, time limits and timeouts will be reported. For interactive problems, the interaction is shown.
+It runs the given submission against the specified test cases (or all test cases if not set) and prints the submission `stdout` and `stderr` to the terminal. Additionally, time limits and timeouts will be reported. For interactive problems, the interaction is shown.
 
-This is useful for running submissions without having to compile them manually. Also, it doesn't give away whether the submission is ACCEPTED or WRONG_ANSWER, which may be useful when trying to solve a problem before looking at the solutions.
+This is useful for running submissions without having to compile them manually.
 
 **Flags**
 

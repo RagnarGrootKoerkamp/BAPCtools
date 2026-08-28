@@ -182,7 +182,7 @@ or you can run the program in interactive mode with `-i`, in which case the cons
 After running the submission, its output and running time is printed.
 
 > [!IMPORTANT]
-> Note that the output is only printed, it is **not** validated!
+> Note that with `-i` the output is only printed, it is **not** validated!
 
 #### `bt run [-G] [submissions/...] [data/...]`
 This command will run the selected submission on a given test case.
