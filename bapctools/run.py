@@ -698,7 +698,7 @@ class Submission(Program):
                 TEE_CODE = R"""
 import sys
 while True:
-    l = sys.stdin.buffer.read(1)
+    l = sys.stdin.buffer.read1(8096)
     if l==b'': break
     sys.stdout.buffer.write(l)
     sys.stdout.buffer.flush()
@@ -835,7 +835,7 @@ while True:
             TEE_CODE = R"""
 import sys
 while True:
-    l = sys.stdin.buffer.read(1)
+    l = sys.stdin.buffer.read1(8096)
     if l=='': break
     sys.stdout.buffer.write(l)
     sys.stdout.buffer.flush()
