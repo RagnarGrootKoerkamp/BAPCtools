@@ -236,7 +236,8 @@ class Relay(threading.Thread):
                 for connection in (self.vs, self.sv):
                     if connection.read in readable:
                         connection.attemp_read()
-                    if connection.write in writeable:
+                        connection.attemp_write()
+                    elif connection.write in writeable:
                         connection.attemp_write()
         except (KeyboardInterrupt, Exception) as e:
             self.first_exception = e
@@ -542,7 +543,7 @@ def run_interactive_test_case(
                     team_err = submission.stderr.read().decode("utf-8", "replace")
 
             if not config.args.no_test_case_sanity_checks and relay is not None:
-                transmission_limit = 10  # in MiB
+                transmission_limit = 2  # in MiB
                 MiB = 1024**2
                 if relay.vs.transmitted >= transmission_limit * MiB:
                     bar.warn(f"Validator wrote over {transmission_limit}MiB")
