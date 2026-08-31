@@ -56,7 +56,7 @@ class Connection:
 
         self.prefix: str = prefix
         self.log: Optional[IO[str]] = log
-        self.log_buffer: str = ""
+        self.log_buffer: list[str] = []
         self.read: io.RawIOBase = read
         self.write: io.RawIOBase = write
         self.propagate_eof: bool = propagate_eof
@@ -81,14 +81,22 @@ class Connection:
             return
         if data is None:
             if self.log_buffer:
-                print(self.prefix, self.log_buffer, sep="", file=self.log)
+                print(self.prefix, *self.log_buffer, sep="", file=self.log, flush=True)
+                self.log_buffer.clear()
             self.log = None
         else:
-            lines = data.decode(errors="replace").split("\n")
-            lines[0] = self.log_buffer + lines[0]
-            self.log_buffer = lines.pop()
-            if lines:
-                print(self.prefix, f"\n{self.prefix}".join(lines), sep="", file=self.log)
+            first, *remainig = data.decode(errors="replace").split("\n")
+            self.log_buffer.append(first)
+            if remainig:
+                *complete, incomplete = "".join(self.log_buffer), *remainig
+                print(
+                    self.prefix,
+                    f"\n{self.prefix}".join(complete),
+                    sep="",
+                    file=self.log,
+                    flush=False,
+                )
+                self.log_buffer = [incomplete] if incomplete else []
 
     def _try_propagate_eof(self) -> None:
         if self.read.closed and not self.buffer and not self.write.closed and self.propagate_eof:
