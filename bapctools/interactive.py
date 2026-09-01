@@ -558,9 +558,8 @@ def run_interactive_test_case(
                     team_err = submission.stderr.read().decode("utf-8", "replace")
 
             if not config.args.no_test_case_sanity_checks and relay is not None:
-                switch_limit = 10**5
-                if relay.switches > switch_limit:
-                    bar.warn("observed over 10^5 context switches between submission and validator")
+                if relay.switches > 200007:
+                    bar.warn("observed over 200'000 switches between submission and validator")
                 transmission_limit = 10  # in MiB
                 MiB = 1024**2
                 if relay.vs.transmitted > transmission_limit * MiB:
