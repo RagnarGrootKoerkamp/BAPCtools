@@ -199,6 +199,8 @@ class Relay(threading.Thread):
         os.set_blocking(self._wait, False)
         os.set_blocking(self._notify, False)
         self.first_exception: Optional[KeyboardInterrupt | Exception] = None
+        self.switches = 0
+        self._last = (False, False)
 
     def run(self) -> None:
         try:
@@ -209,7 +211,6 @@ class Relay(threading.Thread):
                 if exit and not read and not write:
                     break
                 try:
-                    # we always have self._wait => not all three lists can be empty
                     readable, writeable, _ = select.select(read + [self._wait], write, [])
                 except (ValueError, OSError):
                     # some stream in the select is/was broken -> check all
@@ -220,7 +221,7 @@ class Relay(threading.Thread):
                     continue
 
                 if self._wait in readable:
-                    notification = os.read(self._wait, 4096)
+                    notification = os.read(self._wait, 4)
 
                     for c in notification:
                         assert not exit
@@ -240,6 +241,12 @@ class Relay(threading.Thread):
                             exit = True
                         else:
                             assert False
+                if self.vs.read in read and self.sv.read in read:
+                    val = self.vs.read in readable
+                    sub = self.sv.read in readable
+                    if val != sub and (val, sub) != self._last:
+                        self.switches += 1
+                        self._last = (val, sub)
 
                 for connection in (self.vs, self.sv):
                     if connection.read in readable:
@@ -551,13 +558,16 @@ def run_interactive_test_case(
                     team_err = submission.stderr.read().decode("utf-8", "replace")
 
             if not config.args.no_test_case_sanity_checks and relay is not None:
-                transmission_limit = 2  # in MiB
+                switch_limit = 10**5
+                if relay.switches > switch_limit:
+                    bar.warn("observed over 10^5 context switches between submission and validator")
+                transmission_limit = 10  # in MiB
                 MiB = 1024**2
-                if relay.vs.transmitted >= transmission_limit * MiB:
+                if relay.vs.transmitted > transmission_limit * MiB:
                     bar.warn(f"Validator wrote over {transmission_limit}MiB")
                 if (
                     validator_status == config.RTV_AC
-                    and relay.sv.transmitted >= transmission_limit * MiB
+                    and relay.sv.transmitted > transmission_limit * MiB
                 ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
 
