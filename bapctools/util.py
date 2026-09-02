@@ -54,7 +54,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 # we delay this import since it is quite time consuming
 # lazy import questionary
-use_questionary = importlib.util.find_spec("questionary") is None
+use_questionary = importlib.util.find_spec("questionary") is not None
 
 
 def is_windows() -> bool:
