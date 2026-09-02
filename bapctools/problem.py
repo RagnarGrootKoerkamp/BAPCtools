@@ -1231,7 +1231,7 @@ class Problem:
                     time_sensitive |= time_sensitive_lower < max(durations) < time_sensitive_upper
             if time_sensitive:
                 bar.warn(
-                    f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f} and {time_sensitive_upper:.1f})"
+                    f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f}s and {time_sensitive_upper:.1f}s)"
                 )
 
         if config.args.table:
