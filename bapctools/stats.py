@@ -258,16 +258,9 @@ def problem_stats(problems: list[Problem]) -> None:
     eprint(*(c.format(v, plain=True) for c, v in zip(columns, total_row)))
 
 
-try:
-    import pygments
-    from pygments import lexers
-
-    has_pygments = True
-except Exception:
-    has_pygments = False
-
-
 def _is_code(language: str, type: Any, text: str) -> bool:
+    import pygments
+
     if type in pygments.token.Comment and type not in (
         pygments.token.Comment.Preproc,  # pygments treats preprocessor statements as comments
         pygments.token.Comment.PreprocFile,
@@ -294,6 +287,9 @@ def loc(file: Path) -> Optional[int]:
     if file.is_dir():
         return sum(loc(f) or 0 for f in glob(file, "*"))
     try:
+        import pygments
+        from pygments import lexers
+
         content = file.read_text()
         lexer = lexers.guess_lexer_for_filename(file, content)
         assert isinstance(lexer, pygments.lexer.Lexer)
@@ -317,10 +313,6 @@ def loc(file: Path) -> Optional[int]:
 
 
 def stats_all(problems: list[Problem]) -> None:
-    if not has_pygments:
-        error("stats --all needs pygments. Install python[3]-pygments.")
-        return
-
     if not Path("submissions").is_dir():
         eprint()
         log(
