@@ -1027,6 +1027,15 @@ class Problem:
         bar.finalize(print_done=False)
         return visualizer if visualizer.ok else None
 
+    def output_validator(problem) -> Optional[OutputValidator]:
+        output_validators = problem.validators(OutputValidator)
+        if not output_validators:
+            return None
+        assert len(output_validators) == 1
+        output_validator = output_validators[0]
+        assert isinstance(output_validator, OutputValidator)
+        return output_validator
+
     def validators(
         problem,
         cls: type[AnyValidator],
@@ -1136,7 +1145,7 @@ class Problem:
             return False
 
         # Pre build the output validator to prevent nested ProgressBars.
-        if not problem.validators(OutputValidator):
+        if not problem.output_validator():
             return False
 
         # Pre build the output visualizer to prevent nested ProgressBars.
@@ -1402,11 +1411,9 @@ class Problem:
             return True
 
         # Pre-build the output validator
-        output_validators = problem.validators(OutputValidator)
-        if not output_validators:
+        output_validator = problem.output_validator()
+        if not output_validator:
             return False
-        output_validator = output_validators[0]
-        assert isinstance(output_validator, OutputValidator)
 
         success = True
         bar = ProgressBar("Output Validator checks", items=test_cases)
@@ -1605,7 +1612,7 @@ class Problem:
             return True
         if p.interactive or p.multi_pass:
             return True
-        if not p.validators(OutputValidator, strict=True, print_warn=False):
+        if not p.output_validator():
             return True
 
         args = p.get_test_group_yaml(

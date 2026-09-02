@@ -969,7 +969,7 @@ def ryaml_replace(
 
 # The @overload definitions are purely here for static typing reasons.
 @overload
-def write_yaml(data: object, path: None = None) -> str: ...
+def write_yaml(data: object) -> str: ...
 @overload
 def write_yaml(data: object, path: Path) -> None: ...
 def write_yaml(data: object, path: Optional[Path] = None) -> Optional[str]:
@@ -1008,7 +1008,7 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
         val = input(msg)
         print(Style.RESET_ALL, end="")
         val = val or default or ""
-        if val != "" or allow_empty:
+        if val or allow_empty:
             return val
 
 

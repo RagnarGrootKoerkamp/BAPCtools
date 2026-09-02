@@ -36,7 +36,6 @@ from bapctools.util import (
     shorten_path,
     warn,
 )
-from bapctools.validate import OutputValidator
 from bapctools.verdicts import (
     from_string_domjudge,
     RunUntil,
@@ -245,11 +244,9 @@ class Run:
         return True
 
     def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
-        output_validators = self.problem.validators(OutputValidator)
-        if not output_validators:
+        output_validator = self.problem.output_validator()
+        if not output_validator:
             return None
-        output_validator = output_validators[0]
-        assert isinstance(output_validator, OutputValidator)
         return output_validator.run(
             self.test_case,
             self,
@@ -679,7 +676,7 @@ class Submission(Program):
         return passed_permitted and passed_required, printed_newline
 
     def test(self) -> None:
-        if not self.problem.validators(OutputValidator):
+        if not self.problem.output_validator():
             return
         test_cases = self.problem.test_cases()
         if not test_cases:
@@ -809,7 +806,7 @@ while True:
 
     # Run the submission using stdin as input.
     def test_interactive(self) -> None:
-        if not self.problem.validators(OutputValidator):
+        if not self.problem.output_validator():
             return
 
         bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)

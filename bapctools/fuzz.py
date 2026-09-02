@@ -21,7 +21,7 @@ from bapctools.util import (
     ryaml_get_or_add,
     write_yaml,
 )
-from bapctools.validate import Mode, OutputValidator
+from bapctools.validate import Mode
 from bapctools.verdicts import Verdict
 
 # STEPS:
@@ -237,7 +237,7 @@ class Fuzz:
         generator_config.build(build_visualizers=False)
 
         # BUILD VALIDATORS
-        self.problem.validators(OutputValidator)
+        self.problem.output_validator()
 
         # SUBMISSIONS
         self.submissions = self.problem.selected_or_accepted_submissions()

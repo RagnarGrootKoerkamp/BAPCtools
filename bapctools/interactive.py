@@ -26,7 +26,6 @@ from bapctools.util import (
     PrintBar,
     remove_path,
 )
-from bapctools.validate import OutputValidator
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -331,10 +330,9 @@ def run_interactive_test_case(
     interaction: bool | Path = False,
     submission_args: Optional[Sequence[str | Path]] = None,
 ) -> Optional[ExecResult]:
-    output_validators = run.problem.validators(OutputValidator)
-    if not output_validators:
+    output_validator = run.problem.output_validator()
+    if not output_validator:
         return None
-    output_validator = output_validators[0]
 
     # Set limits
     validation_time = run.problem.limits.validation_time
@@ -687,10 +685,9 @@ def _feedback(run: "Run", err: bytes) -> str:
 def interactor_prints_unprompted(
     problem: "Problem", test_case: "TestCase", wait: float = 0.1
 ) -> Optional[bool]:
-    output_validators = problem.validators(OutputValidator)
-    if not output_validators:
+    output_validator = problem.output_validator()
+    if not output_validator:
         return None
-    output_validator = output_validators[0]
     assert output_validator.run_command
 
     validator_dir = output_validator.tmpdir
