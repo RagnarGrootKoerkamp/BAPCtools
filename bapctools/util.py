@@ -1005,8 +1005,8 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
         return default or ""
     while True:
         msg = f"{Style.DIM}{Fore.BLUE}?{Style.RESET_ALL} {Style.BRIGHT}{name}:{Style.RESET_ALL} {Fore.YELLOW}"
-        print(Style.RESET_ALL, end="")
         val = input(msg)
+        print(Style.RESET_ALL, end="")
         val = val or default or ""
         if val != "" or allow_empty:
             return val
