@@ -233,7 +233,7 @@ def new_queue(f: Callable[[T], Any], pin: bool = False) -> AbstractQueue[T]:
 
     pin: whether to pin the threads to (physical) CPU cores.
     """
-    pin = pin and not util.is_windows() and not util.is_bsd()
+    pin = pin and hasattr(os, "sched_setaffinity")
 
     num_threads = config.args.jobs
     if num_threads:

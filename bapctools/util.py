@@ -1429,7 +1429,7 @@ def limit_setter(
         if timeout is not None:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
-        # Increase the max stack size from default to the max available.
+        # disable the max stack size
         if disable_stack_limit:
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
@@ -1441,7 +1441,7 @@ def limit_setter(
         if group is not None:
             os.setpgid(0, group)
 
-        # Disable coredumps.
+        # disable coredumps
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
     return setlimits
