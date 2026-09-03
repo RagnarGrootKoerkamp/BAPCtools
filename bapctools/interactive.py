@@ -435,7 +435,6 @@ def run_interactive_test_case(
                         bufsize=0,
                         stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE,
-                        # TODO: Make a flag to pass validator error directly to terminal.
                         stderr=None if validator_error else subprocess.PIPE,
                         cwd=validator_dir,
                         preexec_fn=limit_setter(

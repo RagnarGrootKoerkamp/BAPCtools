@@ -417,7 +417,7 @@ class Submission(Program):
         args: Sequence[str | Path],
         cwd: Optional[Path] = None,
         generator_timeout: bool = False,
-        show_stderr: bool = False,
+        team_error: bool = False,
     ) -> ExecResult:
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
@@ -428,7 +428,7 @@ class Submission(Program):
             crop=crop,
             stdin=in_file,
             stdout=out_file,
-            stderr=None if show_stderr else True,
+            stderr=None if team_error else True,
             cwd=cwd,
             timeout=(
                 self.problem.limits.generator_time
@@ -725,7 +725,7 @@ while True:
                             in_file = run.in_path.open("rb")
                             cleanup.enter_context(in_file)
                             result = self._run(
-                                in_file, tee.stdin, False, submission_args, show_stderr=True
+                                in_file, tee.stdin, False, submission_args, team_error=True
                             )
                             tee.stdin.close()
                             tee.wait()
