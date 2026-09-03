@@ -399,7 +399,7 @@ def run_interactive_test_case(
         assert threading.current_thread() is threading.main_thread()
 
     with (
-        interaction.open("a")
+        interaction.open("w")
         if isinstance(interaction, Path)
         else nullcontext(sys.stderr if interaction else None) as interaction_file  # type: ignore[attr-defined]
     ):
