@@ -777,8 +777,8 @@ class TestCaseRule(Rule):
             self.ok = False
             generator_config.n_test_case_error += 1
 
-    def _has_required_in(t, infile: Path) -> bool:
-        for required in t.required_in:
+    def _has_required_in(self, infile: Path) -> bool:
+        for required in self.required_in:
             if all(infile.with_suffix(ext).is_file() for ext in required):
                 return True
         return False
@@ -811,18 +811,18 @@ class TestCaseRule(Rule):
             write_yaml(data, self._path)
 
     def link(
-        t,
+        self,
         problem: Problem,
         generator_config: "GeneratorConfig",
         bar: ProgressBar,
         dst: Path,
     ) -> None:
-        assert t.process
+        assert self.process
 
         identical_exts = set()
 
-        src_dir = problem.path / "data" / t.path.parent
-        src = src_dir / (t.name + ".in")
+        src_dir = problem.path / "data" / self.path.parent
+        src = src_dir / (self.name + ".in")
 
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = src.with_suffix(ext)
@@ -864,15 +864,15 @@ class TestCaseRule(Rule):
                 pass
 
     def validate_in(
-        t,
+        self,
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
-        assert t.process
+        assert self.process
 
-        infile = problem.tmpdir / "data" / t.hash / "testcase.in"
+        infile = problem.tmpdir / "data" / self.hash / "testcase.in"
         assert infile.is_file()
 
         if test_case.root == "testing_tool_test":
@@ -889,8 +889,9 @@ class TestCaseRule(Rule):
             warn_instead_of_error=config.args.no_validators,
         ):
             if not config.args.no_validators:
-                if t.generator:
-                    command = t.generator.cache_command(t.seed if t.generator.uses_seed else None)
+                if self.generator:
+                    seed = self.seed if self.generator.uses_seed else None
+                    command = self.generator.cache_command(seed)
                     bar.warn(f"Failed generator command: {command}")
                 bar.debug("Use generate --no-validators to ignore validation results.")
                 bar.done(False)
@@ -902,15 +903,15 @@ class TestCaseRule(Rule):
         return True
 
     def validate_ans_and_out(
-        t,
+        self,
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
-        assert t.process
+        assert self.process
 
-        infile = problem.tmpdir / "data" / t.hash / "testcase.in"
+        infile = problem.tmpdir / "data" / self.hash / "testcase.in"
         assert infile.is_file()
 
         if test_case.root in ["invalid_input", "testing_tool_test"]:
@@ -962,45 +963,45 @@ class TestCaseRule(Rule):
         return True
 
     def generate(
-        t,
+        self,
         problem: Problem,
         generator_config: "GeneratorConfig",
         parent_bar: ProgressBar,
     ) -> None:
-        assert t.process
+        assert self.process
 
-        bar = parent_bar.start(str(t.path))
+        bar = parent_bar.start(str(self.path))
         generator_config.failed += 1
 
-        if t.copy_of is not None and not t.intended_copy:
+        if self.copy_of is not None and not self.intended_copy:
             bar.warn(
-                f'Found identical rule at {t.copy_of.path}. Use "count: <int>" if you want identical test cases (do not use {{seed}} or {{count}}).'
+                f'Found identical rule at {self.copy_of.path}. Use "count: <int>" if you want identical test cases (do not use {{seed}} or {{count}}).'
             )
 
         # Some early checks.
-        if t.copy_of is not None and not t.copy_of.generate_success:
-            bar.done(False, f"See {t.copy_of.path}. SKIPPED.")
+        if self.copy_of is not None and not self.copy_of.generate_success:
+            bar.done(False, f"See {self.copy_of.path}. SKIPPED.")
             return
-        if not t.ok:
+        if not self.ok:
             bar.done(False, "Rule contained errors. SKIPPED.")
             return
-        if t.generator and t.generator.program is None:
+        if self.generator and self.generator.program is None:
             bar.done(False, "Generator didn't build. SKIPPED.")
             return
 
-        target_dir = problem.path / "data" / t.path.parent
-        target_infile = target_dir / (t.name + ".in")
+        target_dir = problem.path / "data" / self.path.parent
+        target_infile = target_dir / (self.name + ".in")
 
         # E.g. bapctmp/problem/data/<hash>.in
-        cwd = problem.tmpdir / "data" / t.hash
+        cwd = problem.tmpdir / "data" / self.hash
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / "testcase.in"
         ansfile = cwd / "testcase.ans"
-        meta_yaml = TestCaseRule.MetaYaml(problem, t)
+        meta_yaml = TestCaseRule.MetaYaml(problem, self)
 
         def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
-            assert t.generator is not None
-            result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
+            assert self.generator is not None
+            result = self.generator.run(bar, tmp, tmp_infile.stem, self.seed, self.config.retries)
             if not result.status:
                 return
 
@@ -1011,16 +1012,18 @@ class TestCaseRule(Rule):
             else:
                 bar.part_done(
                     False,
-                    f"Generator `{t.generator.command_string}` is not deterministic.",
+                    f"Generator `{self.generator.command_string}` is not deterministic.",
                 )
 
             # If {seed} is used, check that the generator depends on it.
-            if t.generator.uses_seed:
+            if self.generator.uses_seed:
                 depends_on_seed = False
                 assert config.SEED_DEPENDENCY_RETRIES > 0
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
-                    new_seed = (t.seed + 1 + run) % (2**31)
-                    result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
+                    new_seed = (self.seed + 1 + run) % (2**31)
+                    result = self.generator.run(
+                        bar, tmp, tmp_infile.stem, new_seed, self.config.retries
+                    )
                     if not result.status:
                         return
 
@@ -1034,8 +1037,8 @@ class TestCaseRule(Rule):
                         bar.debug("Generator depends on seed.")
                 else:
                     bar.log(
-                        f"Generator `{t.generator.command_string}` likely does not depend on seed:",
-                        f"All values in [{t.seed}, {new_seed}] give the same result.",
+                        f"Generator `{self.generator.command_string}` likely does not depend on seed:",
+                        f"All values in [{self.seed}, {new_seed}] give the same result.",
                     )
 
         # For each generated .in file check that they
@@ -1047,7 +1050,7 @@ class TestCaseRule(Rule):
         def check_deterministic(force: bool = False) -> None:
             if not force and not config.args.check_deterministic:
                 return
-            if t.generator is None:
+            if self.generator is None:
                 return
 
             # Check that the generator is deterministic.
@@ -1062,7 +1065,7 @@ class TestCaseRule(Rule):
 
         def generate_linked(type: str) -> bool:
             # cache entries are already set in generate_from_rule
-            for source_ext, target_ext in t.linked.items():
+            for source_ext, target_ext in self.linked.items():
                 source_type = source_ext.split(".", 2)[1]
                 if source_type != type:
                     continue
@@ -1080,35 +1083,37 @@ class TestCaseRule(Rule):
 
             # create expected cache entry for generate
             rule_hashes = dict[object, object]()
-            if t.copy:
-                rule_hashes["source_hash"] = t.hash
-            for ext, string in t.hardcoded.items():
+            if self.copy:
+                rule_hashes["source_hash"] = self.hash
+            for ext, string in self.hardcoded.items():
                 rule_hashes["hardcoded_" + ext[1:]] = hash_string(string)
-            for link, target in t.linked.items():
+            for link, target in self.linked.items():
                 rule_hashes["linked_" + link[1:]] = hash_string(target)
-            if t.generator:
-                rule_hashes["generator_hash"] = t.generator.hash(seed=t.seed)
-                rule_hashes["generator"] = t.generator.cache_command(seed=t.seed)
+            if self.generator:
+                rule_hashes["generator_hash"] = self.generator.hash(seed=self.seed)
+                rule_hashes["generator"] = self.generator.cache_command(seed=self.seed)
 
             if not infile.is_file() or meta_yaml.rule_hashes != rule_hashes:
                 # clear all generated files
                 remove_path(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
-                meta_yaml = TestCaseRule.MetaYaml(problem, t)
+                meta_yaml = TestCaseRule.MetaYaml(problem, self)
 
                 # Step 1: run `generate:` if present.
-                if t.generator:
-                    result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
+                if self.generator:
+                    result = self.generator.run(
+                        bar, cwd, infile.stem, self.seed, self.config.retries
+                    )
                     if result.err is not None:
                         bar.debug("generator:", result.err)
                     if not result.status:
                         return False
 
                 # Step 2: Copy `copy:` files for all known extensions.
-                if t.copy:
+                if self.copy:
                     copied = False
                     for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = t.copy.with_suffix(ext)
+                        ext_file = self.copy.with_suffix(ext)
                         file = infile.with_suffix(ext)
                         if is_local_symlink(ext_file):
                             dest_ext = "".join(ext_file.readlink().suffixes)
@@ -1118,10 +1123,10 @@ class TestCaseRule(Rule):
                             shutil.copy(ext_file, file, follow_symlinks=True)
                             copied = True
                     if not copied:
-                        bar.warn(f"No files copied from {t.copy}.")
+                        bar.warn(f"No files copied from {self.copy}.")
 
                 # Step 3: Write hardcoded files.
-                for ext, contents in t.hardcoded.items():
+                for ext, contents in self.hardcoded.items():
                     file = infile.with_suffix(ext)
                     if file.exists():
                         file.unlink()
@@ -1134,8 +1139,8 @@ class TestCaseRule(Rule):
                     return False
 
                 # Step 5: Error if infile was not generated.
-                if not t._has_required_in(infile):
-                    msg = ", ".join(" and ".join(required) for required in t.required_in)
+                if not self._has_required_in(infile):
+                    msg = ", ".join(" and ".join(required) for required in self.required_in)
                     bar.error(f"No {msg} file was generated!")
                     return False
 
@@ -1153,7 +1158,7 @@ class TestCaseRule(Rule):
             else:
                 check_deterministic(False)
 
-            assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
+            assert self._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
         def check_match(test_case: TestCase, ext: str) -> bool:
@@ -1167,7 +1172,7 @@ class TestCaseRule(Rule):
                 updated = True
 
             text: Optional[str] = None
-            for pattern in t.patterns[ext]:
+            for pattern in self.patterns[ext]:
                 name = pattern.pattern.encode("unicode_escape").decode()
 
                 if name not in cache:
@@ -1202,10 +1207,10 @@ class TestCaseRule(Rule):
             if config.args.no_solution:
                 return True
 
-            if t.config.solution is not None:
+            if self.config.solution is not None:
                 solution_hash: dict[object, object] = {
-                    "solution_hash": t.config.solution.hash(),
-                    "solution": t.config.solution.cache_command(),
+                    "solution_hash": self.config.solution.hash(),
+                    "solution": self.config.solution.cache_command(),
                 }
             else:
                 solution_hash = {
@@ -1236,15 +1241,15 @@ class TestCaseRule(Rule):
                 if problem.interactive or problem.multi_pass:
                     interactor_hash = test_case.validator_hashes(OutputValidator, bar)
                     if (
-                        t.config.solution
+                        self.config.solution
                         and (test_case.root == "sample" or config.args.interaction)
                         and needed(".interaction", interactor_hash)
                         and not any(
-                            infile.with_suffix(ext).is_file() or ext in t.linked
+                            infile.with_suffix(ext).is_file() or ext in self.linked
                             for ext in [".out", ".in.statement", ".ans.statement"]
                         )
                     ):
-                        if not t.config.solution.generate_interaction(bar, cwd, t):
+                        if not self.config.solution.generate_interaction(bar, cwd, self):
                             return False
                         used_solution = True
                         # We need the cast, because key/value types in dicts are invariant,
@@ -1260,8 +1265,8 @@ class TestCaseRule(Rule):
                 # Generate a .ans if not already generated by earlier steps.
                 if needed(".ans"):
                     # Run the solution if available.
-                    if t.config.solution:
-                        if not t.config.solution.run(bar, cwd).status:
+                    if self.config.solution:
+                        if not self.config.solution.run(bar, cwd).status:
                             return False
                         used_solution = True
                         changed_ans = True
@@ -1384,7 +1389,7 @@ class TestCaseRule(Rule):
             return True
 
         def generate_empty_interactive_sample_ans() -> bool:
-            if not t.sample:
+            if not self.sample:
                 return True
             if not problem.interactive and not problem.multi_pass:
                 return True
@@ -1402,10 +1407,10 @@ class TestCaseRule(Rule):
                 ".ans.download",
             ]
             has_sample_only = any(infile.with_suffix(ext).is_file() for ext in sample_only)
-            if t.root not in ["sample", "fuzz"] and has_sample_only:
+            if self.root not in ["sample", "fuzz"] and has_sample_only:
                 bar.warn("overrides should only be used for samples")
             elif (
-                t.root not in ["sample", "fuzz", "invalid_output", "valid_output"]
+                self.root not in ["sample", "fuzz", "invalid_output", "valid_output"]
                 and infile.with_suffix(".out").is_file()
             ):
                 bar.warn("overrides should only be used for samples")
@@ -1505,21 +1510,21 @@ class TestCaseRule(Rule):
             # check for duplicates
             test_hash = test_case.core_hash(bar)
             if test_hash not in generator_config.generated_test_cases:
-                generator_config.generated_test_cases[test_hash] = t
+                generator_config.generated_test_cases[test_hash] = self
             else:
                 bar.warn(
-                    f"Test case {t.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
+                    f"Test case {self.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
                 )
 
         # Step 1: handle non unique generate entry
-        if t.copy_of is not None:
-            if t.intended_copy:
+        if self.copy_of is not None:
+            if self.intended_copy:
                 # This was generated by count: so we can simply link
-                t.copy_of.link(problem, generator_config, bar, target_infile)
+                self.copy_of.link(problem, generator_config, bar, target_infile)
             else:
                 # This is a duplicated rule, we copy to show this
                 copy_generated()
-            t.generate_success = True
+            self.generate_success = True
             generator_config.failed -= 1
             generator_config.copied += 1
             bar.done(message="SKIPPED: up to date")
@@ -1532,8 +1537,8 @@ class TestCaseRule(Rule):
         test_case: Optional[TestCase] = None
         if infile.is_file():
             # Step 3: check .in if needed
-            test_case = TestCase(problem, infile, short_path=t.path / t.name)
-            if not t.validate_in(problem, test_case, meta_yaml, bar):
+            test_case = TestCase(problem, infile, short_path=self.path / self.name)
+            if not self.validate_in(problem, test_case, meta_yaml, bar):
                 return
 
             # Step 3.1: check patterns
@@ -1551,7 +1556,7 @@ class TestCaseRule(Rule):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
-            if not t.validate_ans_and_out(problem, test_case, meta_yaml, bar):
+            if not self.validate_ans_and_out(problem, test_case, meta_yaml, bar):
                 return
 
             # Step 5.1: check patterns
@@ -1573,7 +1578,7 @@ class TestCaseRule(Rule):
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
-        t.generate_success = True
+        self.generate_success = True
         generator_config.failed -= 1
         generator_config.generated += 1
         if infile.is_file():
@@ -1684,7 +1689,7 @@ class DirectoryRule(Rule):
                 assert False
 
     def generate(
-        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
     ) -> None:
         # Generate the current directory:
         # - Create the directory.
@@ -1692,17 +1697,17 @@ class DirectoryRule(Rule):
         # - Link included test cases.
         #   - Input of included test cases are re-validated with the
         #     directory-specific input validator flags.
-        bar.start(str(d.path))
+        bar.start(str(self.path))
 
         # Create the directory.
-        dir_path = problem.path / "data" / d.path
+        dir_path = problem.path / "data" / self.path
         dir_path.mkdir(parents=True, exist_ok=True)
 
         # Write the test_group.yaml, or remove it when the key is set but empty.
         test_group_yaml_path = dir_path / "test_group.yaml"
-        if d.test_group_yaml:
+        if self.test_group_yaml:
             generator_config.known_files.add(test_group_yaml_path)
-            yaml_text = write_yaml(d.test_group_yaml)
+            yaml_text = write_yaml(self.test_group_yaml)
 
             if test_group_yaml_path.is_file():
                 if yaml_text == test_group_yaml_path.read_text():
@@ -1717,19 +1722,19 @@ class DirectoryRule(Rule):
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
                 bar.log("NEW: test_group.yaml")
-        elif d.test_group_yaml is None and test_group_yaml_path.is_file():
+        elif self.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
             bar.log("REMOVED: test_group.yaml")
         bar.done()
 
     def generate_includes(
-        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
     ) -> None:
-        for key in d.includes:
-            t = d.includes[key]
+        for key in self.includes:
+            t = self.includes[key]
             target = t.path
-            new_case = d.path / target.name
+            new_case = self.path / target.name
 
             if not generator_config.process_test_case(new_case):
                 continue
@@ -1738,7 +1743,7 @@ class DirectoryRule(Rule):
             generator_config.failed += 1
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
-            new_infile = problem.path / "data" / d.path / (target.name + ".in")
+            new_infile = problem.path / "data" / self.path / (target.name + ".in")
 
             if not t.process:
                 bar.warn(f"Included case {target} was not processed.")

@@ -612,10 +612,10 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    def register_program_callback(p, path: Path, c: Callable[["Program"], None]) -> None:
-        p.program_callbacks[path].append(c)
+    def register_program_callback(self, path: Path, c: Callable[["Program"], None]) -> None:
+        self.program_callbacks[path].append(c)
 
-    def get_test_group_yaml(p, path: Path, bar: BAR_TYPE) -> TestGroup:
+    def get_test_group_yaml(self, path: Path, bar: BAR_TYPE) -> TestGroup:
         """
         Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
@@ -630,7 +630,7 @@ class Problem:
         --------
         A TestGroup object
         """
-        assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
+        assert path.is_relative_to(self.path / "data"), f"{path} is not in data"
 
         paths = []
         for f in [path, *path.parents]:
@@ -638,54 +638,55 @@ class Problem:
             if f.is_file():
                 continue
             # Do not go above the data directory.
-            if f == p.path:
+            if f == self.path:
                 break
             paths.append(f)
 
         # create a root TestGroup object
-        if p._root_test_group_yaml is None:
-            with p._test_group_lock:
-                if p._root_test_group_yaml is None:
-                    p._root_test_group_yaml = TestGroup(p, None, {}, None, bar)
+        if self._root_test_group_yaml is None:
+            with self._test_group_lock:
+                if self._root_test_group_yaml is None:
+                    self._root_test_group_yaml = TestGroup(self, None, {}, None, bar)
 
-        test_group_yaml = p._root_test_group_yaml
+        test_group_yaml = self._root_test_group_yaml
         for f in reversed(paths):
             f = f / "test_group.yaml"
             if not f.is_file():
                 continue
-            if f not in p._test_group_yamls:
-                with p._test_group_lock:
+            if f not in self._test_group_yamls:
+                with self._test_group_lock:
                     # handle race conditions
-                    if f not in p._test_group_yamls:
-                        p._test_group_yamls[f] = TestGroup.parse_yaml(p, f, test_group_yaml, bar)
-            assert f in p._test_group_yamls
-            test_group_yaml = p._test_group_yamls[f]
+                    if f not in self._test_group_yamls:
+                        parsed = TestGroup.parse_yaml(self, f, test_group_yaml, bar)
+                        self._test_group_yamls[f] = parsed
+            assert f in self._test_group_yamls
+            test_group_yaml = self._test_group_yamls[f]
         return test_group_yaml
 
     @once_per_instance
-    def _warn_once(p, test_name: str, msg: str) -> None:
+    def _warn_once(self, test_name: str, msg: str) -> None:
         # Because Problem.test_cases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
         # this cache makes sure that some warnings (like malformed test case names) only appear once.
         warn(msg)
 
-    def _valid_test_group(p, path: Path) -> bool:
+    def _valid_test_group(self, path: Path) -> bool:
         for group in reversed(path.parents[:-1]):
             if not config.FILE_NAME_REGEX.fullmatch(group.name):
-                p._warn_once(
+                self._warn_once(
                     group.as_posix(), f"Test group name {group.name} is not valid. Skipping."
                 )
                 return False
         return True
 
     def test_cases(
-        p,
+        self,
         *,
         mode: Optional[validate.Mode] = None,
         needans: bool = True,
         only_samples: bool = False,
         testing_tool_test: bool = False,
     ) -> Sequence[TestCase]:
-        return p._test_cases(
+        return self._test_cases(
             mode=mode,
             needans=needans,
             only_samples=config.args.samples or only_samples,
@@ -694,7 +695,7 @@ class Problem:
 
     @once_per_instance
     def _test_cases(
-        p,
+        self,
         *,
         mode: Optional[validate.Mode],
         needans: bool,
@@ -707,10 +708,10 @@ class Problem:
             # Deduplicate test cases with both .in and .ans.
             in_paths = []
             for path in config.args.test_cases:
-                res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
+                res_path = resolve_path_argument(self, path, "data", suffixes=[".in"])
                 if res_path:
                     # When running from contest level, the test case must be inside the problem.
-                    if config.level != "problemset" or res_path.is_relative_to(p.path):
+                    if config.level != "problemset" or res_path.is_relative_to(self.path):
                         if res_path.is_dir():
                             in_paths += glob(res_path, "**/*.in")
                         else:
@@ -728,46 +729,46 @@ class Problem:
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
                 validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
-                in_paths += glob(p.path, f"data/{prefix}/**/*.in")
+                in_paths += glob(self.path, f"data/{prefix}/**/*.in")
         elif testing_tool_test:
-            in_paths = list(glob(p.path, "data/testing_tool_test/**/*.in"))
+            in_paths = list(glob(self.path, "data/testing_tool_test/**/*.in"))
         else:
-            in_paths = list(glob(p.path, "data/sample/**/*.in"))
+            in_paths = list(glob(self.path, "data/sample/**/*.in"))
             if not only_samples:
-                in_paths += list(glob(p.path, "data/secret/**/*.in"))
+                in_paths += list(glob(self.path, "data/secret/**/*.in"))
 
         test_cases = []
         for f in in_paths:
-            t = TestCase(p, f)
-            if not p._valid_test_group(t.short_path):
+            t = TestCase(self, f)
+            if not self._valid_test_group(t.short_path):
                 continue
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
-                p._warn_once(t.name, f"Test case name {t.name} is not valid. Skipping.")
+                self._warn_once(t.name, f"Test case name {t.name} is not valid. Skipping.")
                 continue
             if f.with_suffix("").name == "test_group":
-                p._warn_once(
+                self._warn_once(
                     t.name,
                     "Test case must not be named 'test_group', this clashes with the group-level 'test_group.yaml'. Skipping.",
                 )
                 continue
             if (
-                (p.interactive or p.multi_pass)
+                (self.interactive or self.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
                 and t.root in ["invalid_output", "valid_output"]
             ):
-                p._warn_once(
+                self._warn_once(
                     t.name,
-                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping.",
+                    f"Found file {f} for {mode} validation in {self.settings.type_name()} problem. Skipping.",
                 )
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
-                    p._warn_once(t.name, f"Found input file {f} without a .ans file. Skipping.")
+                    self._warn_once(t.name, f"Found input file {f} without a .ans file. Skipping.")
                     continue
             if t.root in ["valid_output", "invalid_output"]:
                 assert t.out_path is not None
                 if not t.out_path.is_file():
-                    p._warn_once(t.name, f"Found input file {f} without a .out file. Skipping.")
+                    self._warn_once(t.name, f"Found input file {f} without a .out file. Skipping.")
                     continue
             if mode == validate.Mode.VALID_OUTPUT:
                 if t.out_path is None:
@@ -787,13 +788,13 @@ class Problem:
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
             (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT] else warn)(
-                f"Didn't find any test cases{ans}{val} in problem {p.name}. Skipping."
+                f"Didn't find any test cases{ans}{val} in problem {self.name}. Skipping."
             )
 
         return tuple(test_cases)
 
     @once_per_instance
-    def overrides(p, *, only_samples: bool = False) -> Sequence[TestCaseOverrides]:
+    def overrides(self, *, only_samples: bool = False) -> Sequence[TestCaseOverrides]:
         """
         Find the test case overrides of the problem
 
@@ -819,7 +820,7 @@ class Problem:
         dirs = ["sample"] if only_samples else ["sample", "secret"]
         for prefix in dirs:
             for ext in [".in", ".in.statement", ".interaction"]:
-                for file in glob(p.path, f"data/{prefix}/**/*{ext}"):
+                for file in glob(self.path, f"data/{prefix}/**/*{ext}"):
                     if not file.is_file():
                         continue
                     base = drop_suffix(file, [ext])
@@ -829,7 +830,7 @@ class Problem:
 
         has_raw = False
         for file in files:
-            name = file.with_suffix("").relative_to(p.path / "data").as_posix()
+            name = file.with_suffix("").relative_to(self.path / "data").as_posix()
             in_found = [ext for ext in in_extensions if file.with_suffix(ext).is_file()]
             ans_found = [ext for ext in ans_extensions if file.with_suffix(ext).is_file()]
             has_override = len(in_found) == 0 and len(ans_found) == 0
@@ -838,7 +839,7 @@ class Problem:
             download: Optional[tuple[Path, Path]] = None
 
             # overrides are only defined for samples
-            if has_override and not file.is_relative_to(p.path / "data" / "sample"):
+            if has_override and not file.is_relative_to(self.path / "data" / "sample"):
                 warn(f"Found override for non sample file: {name}")
 
             # check for inconsistencies
@@ -861,7 +862,7 @@ class Problem:
 
             # .interaction files get highest priority
             if file.with_suffix(".interaction").is_file():
-                if not p.interactive and not p.multi_pass:
+                if not self.interactive and not self.multi_pass:
                     warn(
                         f"Found {name}.interaction for non-interactive/non-multi-pass problem. IGNORED."
                     )
@@ -907,7 +908,7 @@ class Problem:
                 TestCaseOverrides(name, statement if len(statement) > 1 else statement[0], download)
             )
 
-        if has_raw and not p.settings.ans_is_output and only_samples:
+        if has_raw and not self.settings.ans_is_output and only_samples:
             warn(
                 "It is advised to override .ans for samples if it does not represent a valid output."
                 + "\n\tUse .ans.statement+.ans.download or .out for this."
@@ -917,24 +918,24 @@ class Problem:
         return tuple(overrides)
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> Sequence[Submission]:
-        submissions = problem.submissions()
+    def selected_or_accepted_submissions(self) -> Sequence[Submission]:
+        submissions = self.submissions()
         if config.args.submissions:
             return submissions
         else:
             return tuple(s for s in submissions if s.expectations.is_accepted())
 
     @once_per_instance
-    def expectations(problem) -> Expectations:
-        return Expectations(problem)
+    def expectations(self) -> Expectations:
+        return Expectations(self)
 
     # Returns a list of all submissions the submissions might or might not have already
     # been compiled depending on other calls
     # No function except problem.submissions() should attempt to build these!
     @once_per_instance
-    def raw_submissions(problem) -> Sequence[Submission]:
+    def raw_submissions(self) -> Sequence[Submission]:
         # ensure that expectations are cached
-        problem.expectations()
+        self.expectations()
 
         paths = []
         if config.args.submissions:
@@ -946,19 +947,19 @@ class Problem:
                 paths.append(s)
 
             for submission in config.args.submissions:
-                s = resolve_path_argument(problem, submission, "submissions")
+                s = resolve_path_argument(self, submission, "submissions")
                 if s:
-                    if s == problem.path / "submissions":
+                    if s == self.path / "submissions":
                         paths += glob(s, "*/*")
-                    elif s.parent == problem.path / "submissions":
+                    elif s.parent == self.path / "submissions":
                         for s in glob(s, "*"):
                             add(s)
                     else:
                         # If running from a contest, the submission must be inside a problem.
-                        if config.level == "problem" or s.is_relative_to(problem.path):
+                        if config.level == "problem" or s.is_relative_to(self.path):
                             add(s)
         else:
-            for s in glob(problem.path / "submissions", "*/*"):
+            for s in glob(self.path / "submissions", "*/*"):
                 if (
                     s.parent.name == "time_limit_exceeded"
                     and config.RUNNING_TEST
@@ -986,13 +987,13 @@ class Problem:
             group_key = order.index(group if group in order else None)
             return group_key, x.subdir, x.name
 
-        programs = [Submission(problem, path) for path in paths]
+        programs = [Submission(self, path) for path in paths]
         programs.sort(key=submissions_key)
         return tuple(programs)
 
     @once_per_instance
-    def submissions(problem) -> Sequence[Submission]:
-        programs = problem.raw_submissions()
+    def submissions(self) -> Sequence[Submission]:
+        programs = self.raw_submissions()
 
         bar = ProgressBar("Build submissions", items=programs)
 
@@ -1010,16 +1011,16 @@ class Problem:
 
     @overload
     @once_per_instance
-    def visualizer(problem, cls: type[InputVisualizer]) -> Optional[InputVisualizer]: ...
+    def visualizer(self, cls: type[InputVisualizer]) -> Optional[InputVisualizer]: ...
     @overload
     @once_per_instance
-    def visualizer(problem, cls: type[OutputVisualizer]) -> Optional[OutputVisualizer]: ...
+    def visualizer(self, cls: type[OutputVisualizer]) -> Optional[OutputVisualizer]: ...
     @once_per_instance
-    def visualizer(problem, cls: type[AnyVisualizer]) -> Optional[AnyVisualizer]:
-        path = problem.path / cls.source_dir
+    def visualizer(self, cls: type[AnyVisualizer]) -> Optional[AnyVisualizer]:
+        path = self.path / cls.source_dir
         if not path.is_dir():
             return None
-        visualizer = cls(problem, path)
+        visualizer = cls(self, path)
         bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
         localbar = bar.start(visualizer)
         visualizer.build(localbar)
@@ -1027,8 +1028,8 @@ class Problem:
         bar.finalize(print_done=False)
         return visualizer if visualizer.ok else None
 
-    def output_validator(problem) -> Optional[OutputValidator]:
-        output_validators = problem.validators(OutputValidator)
+    def output_validator(self) -> Optional[OutputValidator]:
+        output_validators = self.validators(OutputValidator)
         if not output_validators:
             return None
         assert len(output_validators) == 1
@@ -1037,7 +1038,7 @@ class Problem:
         return output_validator
 
     def validators(
-        problem,
+        self,
         cls: type[AnyValidator],
         check_constraints: bool = False,
         strict: bool = False,
@@ -1054,23 +1055,23 @@ class Problem:
             singleton list(OutputValidator) if cls is OutputValidator
             list(Validator) otherwise, maybe empty
         """
-        validators = problem._validators(cls, check_constraints)
-        if not strict and cls == AnswerValidator and problem.settings.ans_is_output:
+        validators = self._validators(cls, check_constraints)
+        if not strict and cls == AnswerValidator and self.settings.ans_is_output:
             validators = (
                 *validators,
-                *problem._validators(OutputValidator, check_constraints),
+                *self._validators(OutputValidator, check_constraints),
             )
 
         # Check that the proper number of validators is present
         # do this after handling the strict flag but do not warn every time
         if print_warn:
             key = (cls, check_constraints)
-            if key not in problem._validators_warn_cache:
+            if key not in self._validators_warn_cache:
                 constraints_msg = " for constraints checking" if check_constraints else ""
-                problem._validators_warn_cache.add(key)
+                self._validators_warn_cache.add(key)
                 if cls == InputValidator and not validators:
                     warn(f"No input validators{constraints_msg} found.")
-                if cls == AnswerValidator and not validators and not problem.interactive:
+                if cls == AnswerValidator and not validators and not self.interactive:
                     # for interactive problems, the .ans file should be empty
                     warn(f"No answer validators{constraints_msg} found.")
 
@@ -1082,15 +1083,15 @@ class Problem:
 
     @once_per_instance
     def _validators(
-        problem, cls: type[AnyValidator], check_constraints: bool = False
+        self, cls: type[AnyValidator], check_constraints: bool = False
     ) -> Sequence[AnyValidator]:
         if cls == OutputValidator:
-            if problem.custom_output:
-                paths = [problem.path / OutputValidator.source_dir]
+            if self.custom_output:
+                paths = [self.path / OutputValidator.source_dir]
             else:
                 paths = [config.RESOURCES_ROOT / "support" / "default_output_validator.cpp"]
         else:
-            paths = list(glob(problem.path / cls.source_dir, "*"))
+            paths = list(glob(self.path / cls.source_dir, "*"))
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f: Path) -> bool:
@@ -1118,7 +1119,7 @@ class Problem:
         )
         validators = tuple(
             cls(
-                problem,
+                self,
                 path,
                 skip_double_build_warning=skip_double_build_warning,
                 check_constraints=check_constraints,
@@ -1137,22 +1138,20 @@ class Problem:
         return validators
 
     # get all test cases and submissions and prepare the output validator and visualizer
-    def prepare_run(
-        problem,
-    ) -> Literal[False] | tuple[Sequence[TestCase], Sequence[Submission]]:
-        test_cases = problem.test_cases()
+    def prepare_run(self) -> Literal[False] | tuple[Sequence[TestCase], Sequence[Submission]]:
+        test_cases = self.test_cases()
         if not test_cases:
             return False
 
         # Pre build the output validator to prevent nested ProgressBars.
-        if not problem.output_validator():
+        if not self.output_validator():
             return False
 
         # Pre build the output visualizer to prevent nested ProgressBars.
         if not config.args.no_visualizer:
-            problem.visualizer(OutputVisualizer)
+            self.visualizer(OutputVisualizer)
 
-        submissions = problem.submissions()
+        submissions = self.submissions()
         if not submissions:
             return False
 
@@ -1182,7 +1181,7 @@ class Problem:
             ok &= submission_ok
         return ok, verdict_table
 
-    def run_until(problem) -> verdicts.RunUntil:
+    def run_until(self) -> verdicts.RunUntil:
         if config.args.all == 2 or config.args.reorder:
             return verdicts.RunUntil.ALL
         if (
@@ -1194,8 +1193,8 @@ class Problem:
         return verdicts.RunUntil.FIRST_ERROR
 
     # called by bt run
-    def run_submissions(problem) -> bool:
-        ts_pair = problem.prepare_run()
+    def run_submissions(self) -> bool:
+        ts_pair = self.prepare_run()
         if not ts_pair:
             return False
         test_cases, submissions = ts_pair
@@ -1206,7 +1205,7 @@ class Problem:
             else ""
         )
         bar = PrintBar("Run")
-        bar.log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
+        bar.log(f"using {msg}timelimit: {self.limits.time_limit:.1f}s\n", color="")
 
         ok, verdict_table = Problem.run_some(test_cases, submissions)
 
@@ -1214,16 +1213,16 @@ class Problem:
             len(test_cases) * len(submissions) > 1
             and not config.args.verbose
             and not config.args.no_visualizer
-            and problem.visualizer(OutputVisualizer)
+            and self.visualizer(OutputVisualizer)
         ):
             log("use -v with --visualize to see the paths to the generated images")
 
         if config.args.overview and not config.args.tree:
             verdict_table.print(new_lines=1)
 
-        if problem.run_until() in [verdicts.RunUntil.DURATION, verdicts.RunUntil.ALL]:
-            time_sensitive_lower = problem.limits.time_limit / problem.limits.ac_to_time_limit
-            time_sensitive_upper = problem.limits.time_limit * problem.limits.time_limit_to_tle
+        if self.run_until() in [verdicts.RunUntil.DURATION, verdicts.RunUntil.ALL]:
+            time_sensitive_lower = self.limits.time_limit / self.limits.ac_to_time_limit
+            time_sensitive_upper = self.limits.time_limit * self.limits.time_limit_to_tle
             time_sensitive = False
             for row in verdict_table.results:
                 durations = [d for d in row.duration.values() if d is not None]
@@ -1243,8 +1242,8 @@ class Problem:
     # Instead of validating the output, this function just prints all output to the
     # terminal.
     # Note: The CLI only accepts one submission.
-    def test_submissions(problem) -> bool:
-        submissions = problem.submissions()
+    def test_submissions(self) -> bool:
+        submissions = self.submissions()
         if not submissions:
             return False
 
@@ -1337,30 +1336,30 @@ class Problem:
             eprint()
 
     # called by bt check_testing_tool
-    def check_testing_tool(problem) -> bool:
-        test_cases = problem.test_cases(needans=False, testing_tool_test=True)
+    def check_testing_tool(self) -> bool:
+        test_cases = self.test_cases(needans=False, testing_tool_test=True)
         testinputs = [
-            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in test_cases
+            check_testing_tool.TestInput(self, t.in_path, t.short_path) for t in test_cases
         ]
         if not config.args.test_cases:
             sampleinputs = []
-            for sample in problem.overrides(only_samples=True):
+            for sample in self.overrides(only_samples=True):
                 in_path = sample.download[0]
                 sampleinput = check_testing_tool.TestInput(
-                    problem, in_path, in_path.relative_to(problem.path / "data")
+                    self, in_path, in_path.relative_to(self.path / "data")
                 )
                 if sampleinput not in testinputs:
                     sampleinputs.append(sampleinput)
             testinputs = sampleinputs + testinputs
         if not testinputs:
             warn(
-                f"Didn't find any test cases to run the testing tool in problem {problem.name}. Skipping."
+                f"Didn't find any test cases to run the testing tool in problem {self.name}. Skipping."
             )
             return False
-        submissions = problem.selected_or_accepted_submissions()
+        submissions = self.selected_or_accepted_submissions()
         if not submissions:
             return False
-        return check_testing_tool.run(problem, testinputs, submissions)
+        return check_testing_tool.run(self, testinputs, submissions)
 
     def reset_test_case_hashes(self) -> None:
         self._test_case_hashes: dict[str, TestCase] = {}
@@ -1373,20 +1372,20 @@ class Problem:
         self._test_case_hashes[h] = t
         return None
 
-    def check_output_validator(problem) -> bool:
+    def check_output_validator(self) -> bool:
         assert config.args.generic is not None
         if "invalid_output" not in config.args.generic:
             return True
-        if not problem.interactive and not problem.multi_pass:
+        if not self.interactive and not self.multi_pass:
             # standart problems can just use valid_output
             return True
 
         # pick at most first 3 samples (assuming they are valid and have .ans)
-        samples = sorted(glob(problem.path, "data/sample/**/*.in"))
+        samples = sorted(glob(self.path, "data/sample/**/*.in"))
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
         samples = samples[:3]
 
-        base_path = problem.tmpdir / "invalid_data" / "output_validator_checks"
+        base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
         test_cases = []
         for i, sample in enumerate(samples):
             for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
@@ -1396,7 +1395,7 @@ class Problem:
                 if not isinstance(data, str):
                     continue
 
-                short_path = sample.relative_to(problem.path / "data").with_suffix("") / name
+                short_path = sample.relative_to(self.path / "data").with_suffix("") / name
                 full_path = base_path / short_path / "testcase.in"
                 remove_path(full_path.parent)
                 full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1406,12 +1405,12 @@ class Problem:
                 full_path.with_name("submission.out").write_text(data)
 
                 verbose(f"Generating {short_path}")
-                test_cases.append(TestCase(problem, full_path, short_path=short_path))
+                test_cases.append(TestCase(self, full_path, short_path=short_path))
         if not test_cases:
             return True
 
         # Pre-build the output validator
-        output_validator = problem.output_validator()
+        output_validator = self.output_validator()
         if not output_validator:
             return False
 
@@ -1427,10 +1426,10 @@ class Problem:
 
             feedbackdir = submission.with_suffix(".feedbackdir")
             feedbackdir.mkdir(parents=True, exist_ok=True)
-            nextpass = feedbackdir / "nextpass.in" if problem.multi_pass else None
+            nextpass = feedbackdir / "nextpass.in" if self.multi_pass else None
             for pass_id in itertools.count(1):
                 ret = output_validator.run(test_case, submission)
-                if problem.interactive:
+                if self.interactive:
                     ret.out = None
 
                 data = ""
@@ -1447,9 +1446,7 @@ class Problem:
                     elif ret.out:
                         data = ret.out
 
-                    data += (
-                        f"{Style.RESET_ALL}-> {shorten_path(problem, test_case.in_path.parent)}\n"
-                    )
+                    data += f"{Style.RESET_ALL}-> {shorten_path(self, test_case.in_path.parent)}\n"
                 elif ret.err:
                     data = ret.err
 
@@ -1487,8 +1484,8 @@ class Problem:
                     )
                     return
 
-                assert problem.limits.validation_passes is not None
-                if pass_id >= problem.limits.validation_passes:
+                assert self.limits.validation_passes is not None
+                if pass_id >= self.limits.validation_passes:
                     success = False
                     localbar.error("Output Validator exceeded limit of validation_passes", data)
                     return
@@ -1500,7 +1497,7 @@ class Problem:
         return success
 
     def validate_data(
-        problem,
+        self,
         mode: validate.Mode,
         constraints: Optional[ConstraintsDict | Literal[True]] = None,
     ) -> bool:
@@ -1523,15 +1520,15 @@ class Problem:
         else:
             action = f"{str(mode).capitalize()} validation"
 
-        test_cases = problem.test_cases(mode=mode)
-        return problem._validate_data(mode, constraints, action, test_cases)
+        test_cases = self.test_cases(mode=mode)
+        return self._validate_data(mode, constraints, action, test_cases)
 
-    def validate_invalid_extra_data(p) -> bool:
+    def validate_invalid_extra_data(self) -> bool:
         assert config.args.generic is not None
-        base_path = p.tmpdir / "invalid_data"
+        base_path = self.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid test case
-        samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3] + [None]
+        samples = sorted(glob(self.path, "data/sample/**/*.in"))[:3] + [None]
 
         # validator, dir, read, write, copy
         validators: list[tuple[type[AnyValidator], str, str, str, list[str]]] = [
@@ -1540,7 +1537,7 @@ class Problem:
             (
                 OutputValidator,
                 "invalid_output",
-                ".ans" if p.settings.ans_is_output else ".out",
+                ".ans" if self.settings.ans_is_output else ".out",
                 ".out",
                 [".in", ".ans"],
             ),
@@ -1552,11 +1549,11 @@ class Problem:
             for cls, directory, read, write, copy in validators:
                 if directory not in config.args.generic:
                     continue
-                if p.interactive and cls != InputValidator:
+                if self.interactive and cls != InputValidator:
                     continue
-                if p.multi_pass and cls == OutputValidator:
+                if self.multi_pass and cls == OutputValidator:
                     continue
-                if not p.validators(cls, strict=True, print_warn=False):
+                if not self.validators(cls, strict=True, print_warn=False):
                     continue
                 if any(sample is None or not sample.with_suffix(ext).exists() for ext in copy):
                     continue
@@ -1594,37 +1591,37 @@ class Problem:
                     full_path.with_suffix(write).write_text(content)
 
                     verbose(f"Generating {short_path}")
-                    test_cases.append(TestCase(p, full_path, short_path=short_path))
+                    test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
-                sample_name = sample.relative_to(p.path / "data").with_suffix("")
+                sample_name = sample.relative_to(self.path / "data").with_suffix("")
                 log(f"Generated invalid test cases based on: {sample_name}")
         if test_cases:
             verbose(f"writing generated invalid test cases to: {base_path}")
 
-        return p._validate_data(
+        return self._validate_data(
             validate.Mode.INVALID, None, "Generic Invalidation", test_cases, True
         )
 
-    def validate_valid_extra_data(p) -> bool:
+    def validate_valid_extra_data(self) -> bool:
         assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
             return True
-        if p.interactive or p.multi_pass:
+        if self.interactive or self.multi_pass:
             return True
-        if not p.output_validator():
+        if not self.output_validator():
             return True
 
-        args = p.get_test_group_yaml(
-            p.path / "data" / "valid_output",
+        args = self.get_test_group_yaml(
+            self.path / "data" / "valid_output",
             PrintBar("Generic Output Validation"),
         ).output_validator_args
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
 
-        base_path = p.tmpdir / "valid_data"
+        base_path = self.tmpdir / "valid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
-        samples = sorted(glob(p.path, "data/sample/**/*.in"))
+        samples = sorted(glob(self.path, "data/sample/**/*.in"))
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
         samples = samples[:3]
 
@@ -1656,20 +1653,20 @@ class Problem:
                 full_path.with_suffix(".out").write_text(content)
 
                 verbose(f"Generating {short_path}")
-                test_cases.append(TestCase(p, full_path, short_path=short_path))
+                test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
-                sample_name = sample.relative_to(p.path / "data").with_suffix("")
+                sample_name = sample.relative_to(self.path / "data").with_suffix("")
                 log(f"Generated valid test cases based on: {sample_name}")
         if test_cases:
             verbose(f"writing generated valid test cases to: {base_path}")
 
-        return p._validate_data(
+        return self._validate_data(
             validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", test_cases, True
         )
 
     def _validate_data(
-        problem,
+        self,
         mode: validate.Mode,
         constraints: Optional[ConstraintsDict | Literal[True]],
         action: str,
@@ -1687,23 +1684,23 @@ class Problem:
         # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
-                problem.validators(InputValidator, check_constraints=check_constraints)
+                self.validators(InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                problem.validators(AnswerValidator, check_constraints=check_constraints)
+                self.validators(AnswerValidator, check_constraints=check_constraints)
             case validate.Mode.INVALID:
-                problem.validators(InputValidator)
-                problem.validators(AnswerValidator)
-                problem.validators(OutputValidator)
+                self.validators(InputValidator)
+                self.validators(AnswerValidator)
+                self.validators(OutputValidator)
             case validate.Mode.VALID_OUTPUT:
-                problem.validators(InputValidator)
-                problem.validators(AnswerValidator)
-                problem.validators(OutputValidator)
+                self.validators(InputValidator)
+                self.validators(AnswerValidator)
+                self.validators(OutputValidator)
             case _:
                 raise ValueError(mode)
 
         success = True
 
-        problem.reset_test_case_hashes()
+        self.reset_test_case_hashes()
 
         # validate the test cases
         bar = ProgressBar(action, items=[t.name for t in test_cases])
@@ -1714,7 +1711,7 @@ class Problem:
             localbar = bar.start(test_case.name)
 
             if mode == validate.Mode.INPUT and not test_case.in_path.is_symlink() and not extra:
-                t2 = problem.matches_existing_test_case(test_case, localbar)
+                t2 = self.matches_existing_test_case(test_case, localbar)
                 if t2 is not None:
                     localbar.warn(
                         f"Duplicate test case: identical to {t2.name}. If this is intentional use symlinks/count/includes."
@@ -1750,8 +1747,8 @@ class Problem:
 
         return success
 
-    def validate_overrides(problem) -> bool:
-        overrides = problem.overrides()
+    def validate_overrides(self) -> bool:
+        overrides = self.overrides()
         if not overrides:
             return True
 
@@ -1774,17 +1771,17 @@ class Problem:
 
         # used to detect mixed up '<' and '>'
         def guess_prefix() -> Optional[bytes]:
-            if not problem.interactive:
+            if not self.interactive:
                 return None
             has_interaction = any(isinstance(o.statement, Path) for o in overrides)
             if not has_interaction:
                 return None
-            test_cases = problem.test_cases()
+            test_cases = self.test_cases()
             if not test_cases:
                 return None
             test_case = test_cases[0]
 
-            printed = interactive.interactor_prints_unprompted(problem, test_case)
+            printed = interactive.interactor_prints_unprompted(self, test_case)
             if printed is None:
                 return None
             return b"<" if printed else b">"
@@ -1794,7 +1791,7 @@ class Problem:
             verbose(f"guessing that interactions must start with {prefix.decode()}")
 
         success = True
-        data = problem.path / "data"
+        data = self.path / "data"
         bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
 
         def process_file(file: Path) -> None:
@@ -1804,11 +1801,11 @@ class Problem:
             localbar = bar.start(name)
 
             if file.name.endswith(".interaction"):
-                if not validate.check_interaction(problem, file, localbar, startswith=prefix):
+                if not validate.check_interaction(self, file, localbar, startswith=prefix):
                     success = False
                     return
             else:
-                validate.sanity_check_override(problem, file, localbar)
+                validate.sanity_check_override(self, file, localbar)
 
             localbar.done()
 
@@ -1816,15 +1813,15 @@ class Problem:
         bar.finalize(print_done=True)
         return True
 
-    def determine_time_limit(problem) -> bool:
-        ts_pair = problem.prepare_run()
+    def determine_time_limit(self) -> bool:
+        ts_pair = self.prepare_run()
         if not ts_pair:
             return False
         test_cases, submissions = ts_pair
 
-        problem.limits.time_limit = config.args.timeout or 60
-        problem.limits.time_limit_is_default = False
-        problem.limits.timeout = problem.limits.time_limit + 1
+        self.limits.time_limit = config.args.timeout or 60
+        self.limits.time_limit_is_default = False
+        self.limits.timeout = self.limits.time_limit + 1
 
         ok = True
 
@@ -1869,47 +1866,47 @@ class Problem:
         assert slowest is not None
         assert duration is not None
 
-        raw_time_limit = duration * problem.limits.ac_to_time_limit
+        raw_time_limit = duration * self.limits.ac_to_time_limit
         if config.args.local_time_multiplier is not None:
             raw_time_limit /= config.args.local_time_multiplier
-        problem.limits.raw_time_limit = problem.limits.time_resolution * math.ceil(
-            raw_time_limit / problem.limits.time_resolution
+        self.limits.raw_time_limit = self.limits.time_resolution * math.ceil(
+            raw_time_limit / self.limits.time_resolution
         )
-        problem.limits.time_limit = problem.limits.raw_time_limit
+        self.limits.time_limit = self.limits.raw_time_limit
         if config.args.local_time_multiplier is not None:
-            problem.limits.time_limit *= config.args.local_time_multiplier
-        safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
-        problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
+            self.limits.time_limit *= config.args.local_time_multiplier
+        safety_time_limit = self.limits.time_limit * self.limits.time_limit_to_tle
+        self.limits.timeout = int(safety_time_limit * self.limits.time_limit_to_tle + 1)
 
         eprint()
         PrintBar("slowest").log(f"     {duration:.3f}s @ {slowest} ({submission})", color="")
         PrintBar("time limit").log(
-            f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
+            f"  {self.limits.time_limit:.1f}s >= {duration:.3f}s * {self.limits.ac_to_time_limit}",
             color="",
         )
         if config.args.local_time_multiplier is not None:
             warn(
-                f"local_time_multiplier = {config.args.local_time_multiplier:.1f} => time_limit should be set as {problem.limits.raw_time_limit}s"
+                f"local_time_multiplier = {config.args.local_time_multiplier:.1f} => time_limit should be set as {self.limits.raw_time_limit}s"
             )
         PrintBar("safety limit").log(
-            f"{safety_time_limit:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}",
+            f"{safety_time_limit:.1f}s >= {self.limits.time_limit:.1f}s * {self.limits.time_limit_to_tle}",
             color="",
         )
         PrintBar("timeout").log(
-            f"     {problem.limits.timeout:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}²",
+            f"     {self.limits.timeout:.1f}s >= {self.limits.time_limit:.1f}s * {self.limits.time_limit_to_tle}²",
             color="",
         )
         eprint()
 
         if config.args.write:
-            yaml_path = problem.path / "problem.yaml"
+            yaml_path = self.path / "problem.yaml"
             problem_yaml = read_yaml(yaml_path, empty=CommentedMap())
             if not isinstance(problem_yaml, CommentedMap):
                 warn("could not parse problem.yaml")
             else:
                 limits = ryaml_get_or_add(problem_yaml, "limits")
-                limits["time_limit"] = problem.limits.time_limit
-                write_yaml(problem_yaml, problem.path / "problem.yaml")
+                limits["time_limit"] = self.limits.time_limit
+                write_yaml(problem_yaml, self.path / "problem.yaml")
 
         # determine/check upper bound for time limit
         submission, fastest, duration = run_all(
@@ -1921,12 +1918,12 @@ class Problem:
             assert duration is not None
             eprint()
             PrintBar("fastest TLE").log(f" {duration:.3f}s @ {fastest} ({submission})", color="")
-            if duration <= problem.limits.time_limit:
+            if duration <= self.limits.time_limit:
                 error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
                 warn("TLE submission runs within safety margin")
-            elif duration >= problem.limits.timeout:
-                log(f"No TLE submission finished within {problem.limits.timeout}s")
+            elif duration >= self.limits.timeout:
+                log(f"No TLE submission finished within {self.limits.timeout}s")
             eprint()
         else:
             log("No TLE submissions found")
