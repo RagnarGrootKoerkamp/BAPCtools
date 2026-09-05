@@ -173,13 +173,12 @@ class TestingTool(Program):
     def run(self, in_path: Path, submission: WrappedSubmission) -> ExecResult:
         assert self.run_command is not None
         assert submission.run_command is not None
-        exec_res = self._exec_command(
+        return self._exec_command(
             [*self.run_command, "-f", in_path, *submission.run_command],
             cwd=in_path.parent,
             crop=True,
             memory=self.limits["memory"] if submission.supports_memory_limit() else None,
         )
-        return exec_res
 
     # this only works for single file python 3 files
     def check_python_version(self, bar: ProgressBar) -> None:

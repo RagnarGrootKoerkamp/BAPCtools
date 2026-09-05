@@ -121,9 +121,9 @@ class TestCaseExpectation:
         if test_case_glob is not None:
             self.test_case_regex = _compile_glob(test_case_glob)
 
-        def extract_verdicts(
-            key: str, default: set[Verdict] = set(EXPECTATION_VERDICTS)
-        ) -> set[Verdict]:
+        def extract_verdicts(key: str, default: Optional[set[Verdict]] = None) -> set[Verdict]:
+            if default is None:
+                default = set(EXPECTATION_VERDICTS)
             verdicts = parser.extract_optional_list(key, str)
             if not verdicts:
                 return default
@@ -213,8 +213,7 @@ class SubmissionExpectation:
     def all_matches(self, test_case: Optional[TestCase] = None) -> list[TestCaseExpectation]:
         if test_case is None:
             return self.expectations
-        matching = [e for e in self.expectations if e.matches(test_case)]
-        return matching
+        return [e for e in self.expectations if e.matches(test_case)]
 
     def all_permitted(self, test_case: Optional[TestCase] = None) -> set[Verdict]:
         permitted = set(EXPECTATION_VERDICTS)

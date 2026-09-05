@@ -18,5 +18,5 @@ command = " ".join(sys.argv[3:]).encode("ascii").decode("unicode_escape")
 
 print("encrypt")
 print(n)
-for i in range(n):
+for _ in range(n):
     print(eval(command))

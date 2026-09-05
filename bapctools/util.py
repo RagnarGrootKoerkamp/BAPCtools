@@ -696,11 +696,11 @@ def home_config_dir() -> Path:
 
 
 def resolve_path_argument(
-    problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
+    problem: "Problem", path: Path, type: str | Path, suffixes: Sequence[str] = tuple()
 ) -> Optional[Path]:
     if path.is_absolute():
         return path
-    for suffix in suffixes + [None]:
+    for suffix in [*suffixes, None]:
         suffixed_path = path if suffix is None else path.with_suffix(suffix)
         for basedir in get_basedirs(problem, type):
             p = basedir / suffixed_path
@@ -1020,7 +1020,7 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
             return True if allow_empty or text else "Please enter a value"
 
         return cast(
-            str,
+            "str",
             questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
         )
     else:
@@ -1033,7 +1033,7 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
         import questionary
 
         return cast(
-            bool,
+            "bool",
             questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
         )
     else:
@@ -1047,7 +1047,7 @@ def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str
 
         plain = questionary.Style([("selected", "noreverse")])
         return cast(
-            str,
+            "str",
             questionary.select(
                 name + ":", choices=choices, default=default, style=plain
             ).unsafe_ask(),
@@ -1174,9 +1174,9 @@ def has_substitute(
 def substitute(
     data: str,
     variables: Optional[Mapping[str, Optional[object]]],
+    bar: BAR_TYPE = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
-    bar: BAR_TYPE = PrintBar(),
 ) -> str:
     if variables is None:
         variables = {}
@@ -1197,9 +1197,9 @@ def copy_and_substitute(
     inpath: Path,
     outpath: Path,
     variables: Optional[Mapping[str, Optional[object]]],
+    bar: BAR_TYPE = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
-    bar: BAR_TYPE = PrintBar(),
 ) -> None:
     try:
         data = inpath.read_text()
@@ -1207,7 +1207,7 @@ def copy_and_substitute(
         # skip this file
         bar.log(f'File "{inpath}" is not a text file.')
         return
-    data = substitute(data, variables, pattern=pattern, bar=bar)
+    data = substitute(data, variables, bar, pattern=pattern)
     if outpath.is_symlink():
         outpath.unlink()
     outpath.write_text(data)
@@ -1216,23 +1216,23 @@ def copy_and_substitute(
 def substitute_file_variables(
     path: Path,
     variables: Optional[Mapping[str, Optional[object]]],
+    bar: BAR_TYPE = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
-    bar: BAR_TYPE = PrintBar(),
 ) -> None:
-    copy_and_substitute(path, path, variables, pattern=pattern, bar=bar)
+    copy_and_substitute(path, path, variables, bar, pattern=pattern)
 
 
 def substitute_dir_variables(
     dirname: Path,
     variables: Optional[Mapping[str, Optional[object]]],
+    bar: BAR_TYPE = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
-    bar: BAR_TYPE = PrintBar(),
 ) -> None:
     for path in dirname.rglob("*"):
         if path.is_file():
-            substitute_file_variables(path, variables, pattern=pattern, bar=bar)
+            substitute_file_variables(path, variables, bar, pattern=pattern)
 
 
 # copies a directory recursively and substitutes {%key%} by their value in text files
@@ -1241,13 +1241,13 @@ def copytree_and_substitute(
     src: Path,
     dst: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    exist_ok: bool = True,
+    bar: BAR_TYPE = PrintBar(),
     *,
+    exist_ok: bool = True,
     preserve_symlinks: bool = True,
     base: Optional[Path] = None,
     skip: Optional[Iterable[Path]] = None,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
-    bar: BAR_TYPE = PrintBar(),
 ) -> None:
     if base is None:
         base = src
@@ -1276,12 +1276,12 @@ def copytree_and_substitute(
                     src_file,
                     dst_file,
                     variables,
-                    exist_ok,
+                    bar,
+                    exist_ok=exist_ok,
                     preserve_symlinks=preserve_symlinks,
                     base=base,
                     skip=skip,
                     pattern=pattern,
-                    bar=bar,
                 )
             except OSError as why:
                 errors.append((src_file, dst_file, str(why)))
@@ -1600,8 +1600,7 @@ def exec_command(
 def inc_label(label: str) -> str:
     for x in range(len(label) - 1, -1, -1):
         if label[x] != "Z":
-            label = label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
-            return label
+            return label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
         label = label[:x] + "A" + label[x + 1 :]
     return "A" + label
 
@@ -1733,7 +1732,7 @@ class OnceWrapper(Generic[R]):
             if not self._done:
                 self._result = self._function()
                 self._done = True
-            return cast(R, self._result)
+            return cast("R", self._result)
 
     def reset(self) -> None:
         with self._lock:
@@ -1774,4 +1773,4 @@ def once_per_instance(method: Callable[Concatenate[T, P], R]) -> Callable[Concat
             cache[key] = method(self, *args, **kwargs)
         return cache[key]
 
-    return cast(Callable[Concatenate[T, P], R], wrapped)
+    return cast("Callable[Concatenate[T, P], R]", wrapped)

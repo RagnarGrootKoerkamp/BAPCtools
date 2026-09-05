@@ -187,7 +187,7 @@ Run this from one of:
         "--defaults",
         action="store_true",
         help="Assume the defaults for fields not passed as arguments."
-        + " This skips input-prompts but fails when defaults cannot be assumed.",
+        " This skips input-prompts but fails when defaults cannot be assumed.",
     )
 
     # Copy directory from skel.

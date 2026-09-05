@@ -164,13 +164,11 @@ def parse_count(yaml: YAML_TYPE) -> list[int]:
 def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -> Path:
     assert isinstance(path_str, str)
     path = PurePosixPath(path_str)
-    if not allow_absolute:
-        if path.is_absolute():
-            raise ParseError(f"Path must not be absolute: {path}")
+    if not allow_absolute and path.is_absolute():
+        raise ParseError(f"Path must not be absolute: {path}")
 
-    if not allow_relative:
-        if not path.is_absolute():
-            raise ParseError(f"Path must be absolute: {path}")
+    if not allow_relative and not path.is_absolute():
+        raise ParseError(f"Path must be absolute: {path}")
 
     # Make all paths relative to the problem root.
     if path.is_absolute():
@@ -632,6 +630,7 @@ class TestCaseRule(Rule):
                 command_string = substitute(
                     command_string,
                     problem.settings.constants,
+                    parser.bar,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                 )
 
@@ -685,10 +684,9 @@ class TestCaseRule(Rule):
                     continue
 
                 # yaml can only be hardcoded (convert dict back to string)
-                if key == "yaml":
-                    if isinstance(value, dict):
-                        value = write_yaml(value)
-                        assert value is not None
+                if key == "yaml" and isinstance(value, dict):
+                    value = write_yaml(value)
+                    assert value is not None
 
                 # 3. linked
                 if (
@@ -1250,7 +1248,7 @@ class TestCaseRule(Rule):
                         used_solution = True
                         # We need the cast, because key/value types in dicts are invariant,
                         # but it is safe to cast a dict with more specific types to a dict with less specific types.
-                        meta_yaml.interactor_hash = cast(dict[object, object], interactor_hash)
+                        meta_yaml.interactor_hash = cast("dict[object, object]", interactor_hash)
                     interaction = infile.with_suffix(".interaction")
                     if interaction.is_file():
                         if not validate.check_interaction(problem, interaction, bar):
@@ -1669,7 +1667,7 @@ class DirectoryRule(Rule):
         skip_restricted: bool = True,
     ) -> None:
         if dir_f is True:
-            dir_f = cast(Optional[Callable[["TestCaseRule | DirectoryRule"], object]], test_case_f)
+            dir_f = cast("Optional[Callable[[TestCaseRule | DirectoryRule], object]]", test_case_f)
         if dir_f:
             dir_f(self)
 
@@ -1860,7 +1858,7 @@ class GeneratorConfig:
 
     def _parse_root(self, raw_yaml: object, bar: BAR_TYPE) -> DirectoryRule:
         if raw_yaml is None:
-            raw_yaml = dict()
+            raw_yaml = {}
 
         if not isinstance(raw_yaml, dict):
             raise ParseError("could not parse generators.yaml, must be a dict.")
@@ -1966,7 +1964,7 @@ class GeneratorConfig:
             padding = max(len(str(v)) for v in count_list) if is_consecutive else 0
 
             ts: list[TestCaseRule] = []
-            for i, count_value in enumerate(count_list):
+            for count_value in count_list:
                 parser = YamlParser("generators.yaml", parser_yaml, bar=bar)
                 name = next(name_gen)
                 if has_count(parser.remaining):
@@ -2082,7 +2080,7 @@ class GeneratorConfig:
                         sub_parser.extract_deprecated(deprecated_key, deprecated_key[:-1])
                 else:
                     valid_keys = [
-                        k for k in sub_parser.remaining.keys() if isinstance(k, (type(None), str))
+                        k for k in sub_parser.remaining if isinstance(k, (type(None), str))
                     ]
                     valid_keys.sort(key=lambda k: k or "")
 
@@ -2188,9 +2186,8 @@ class GeneratorConfig:
         default_solution: Optional[SolutionInvocation] = None
 
         def collect_programs(t: TestCaseRule) -> None:
-            if isinstance(t, TestCaseRule):
-                if t.generator:
-                    generators_used.add(t.generator.program_path)
+            if isinstance(t, TestCaseRule) and t.generator:
+                generators_used.add(t.generator.program_path)
             if config.args.no_solution:
                 t.config.solution = None
             elif t.config.needs_default_solution:

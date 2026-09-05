@@ -167,6 +167,7 @@ class TestGroup:
         raw = substitute(
             file.read_text(),
             problem.settings.constants,
+            bar,
             pattern=config.CONSTANT_SUBSTITUTE_REGEX,
         )
         yaml_data = parse_yaml(raw, path=filename or file)
@@ -333,7 +334,7 @@ class TestCase:
         assert cls in [InputValidator, AnswerValidator, OutputValidator]
         validators = self.problem.validators(cls)
 
-        d = dict()
+        d = {}
 
         for validator in validators:
             flags = self.get_test_case_yaml(bar).get_args(validator)

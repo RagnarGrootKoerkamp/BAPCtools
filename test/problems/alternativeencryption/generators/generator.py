@@ -20,7 +20,7 @@ def randomstring(len):
 strings = []
 
 # Single letter
-strings.extend(letter(i) for i in range(0, 26))
+strings.extend(letter(i) for i in range(26))
 
 # Fixed strings
 strings.append("aaaaaaaaaa")

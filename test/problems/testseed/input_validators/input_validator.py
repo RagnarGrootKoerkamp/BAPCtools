@@ -8,7 +8,7 @@ import sys
 random_salt = sys.argv[1]
 command_string = sys.argv[2]
 count_indices = [None]
-if 3 < len(sys.argv):
+if len(sys.argv) > 3:
     count_str = sys.argv[3].strip()
     if "..=" in count_str:
         first, last = count_str.split("..=")

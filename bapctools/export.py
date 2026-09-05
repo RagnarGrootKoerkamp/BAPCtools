@@ -120,9 +120,9 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
                     if destination in contents:
                         bar.error(
                             f"Cannot overwrite {destination} from attachments/"
-                            + f" (sourced from {contents[destination]})."
-                            + "\n\tDo not include samples in attachments/,"
-                            + " use .{in,ans}.statement or .{in,ans}.download instead."
+                            f" (sourced from {contents[destination]})."
+                            "\n\tDo not include samples in attachments/,"
+                            " use .{in,ans}.statement or .{in,ans}.download instead."
                         )
                     else:
                         contents[destination] = f
@@ -634,8 +634,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
                 label = inc_label(label)
 
     if config.args.number:
-        n = 0
-        for d in data:
+        for n, d in enumerate(data, start=1):
             n += 1
             newlabel = f"S{n:>02}"
             if d["label"] != newlabel:

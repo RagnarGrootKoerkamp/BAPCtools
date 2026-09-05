@@ -155,8 +155,8 @@ def generate_solve_stats(post_freeze: bool) -> None:
 
     def plot_activity() -> None:
         ac_teams: dict[str, set[str]] = {p: set() for p in problems}
-        stats = {p: [{j: 0 for j in judgement_types} for _ in range(BINS)] for p in problems}
-        stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
+        stats = {p: [dict.fromkeys(judgement_types, 0) for _ in range(BINS)] for p in problems}
+        stats_sum = {p: dict.fromkeys(judgement_types, 0) for p in problems}
         for s in contest_submissions:
             if s.pending_judgement_type == "AC":
                 ac_teams[s.problem].add(s.team)
@@ -189,7 +189,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         Path("solve_stats/problem_stats.tex").write_text("\n".join(macros) + "\n")
 
     def plot_language_stats() -> None:
-        language_stats = {lang: {j: 0 for j in judgement_types} for lang in languages}
+        language_stats = {lang: dict.fromkeys(judgement_types, 0) for lang in languages}
         for s in contest_submissions:
             language_stats[s.language][s.pending_judgement_type] += 1
 

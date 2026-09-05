@@ -130,7 +130,7 @@ class Program:
         deps: Optional[list[Path]] = None,
         *,
         skip_double_build_warning: bool = False,
-        limits: dict[str, int] = {},
+        limits: Optional[dict[str, int]] = None,
         substitute_constants: bool = False,
     ) -> None:
         if deps is not None:
@@ -170,7 +170,7 @@ class Program:
         self.run_command: Optional[Sequence[str | Path]] = None
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
-        self.limits: dict[str, int] = limits
+        self.limits: dict[str, int] = {} if limits is None else limits
         self.substitute_constants: bool = substitute_constants
 
         self.ok = True

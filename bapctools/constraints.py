@@ -33,7 +33,7 @@ def check_validators(
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
 
     def f(cs: ConstraintsDict) -> None:
-        for loc, value in sorted(cs.items()):
+        for _, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
             validator_defs.append((low, name, high))
             validator_values.add(low)

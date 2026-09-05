@@ -213,7 +213,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 # Sort the problems
                 problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
-                verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
+                verbose(f"order: {', '.join(str(p.label) for p in problems)}")
 
                 if ask_variable_bool("Update order in contest.yaml"):
                     contest_yaml_path = Path("contest.yaml")
@@ -233,14 +233,12 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
         def keep_problem(problem: Problem) -> bool:
             for s in submissions:
                 x = resolve_path_argument(problem, s, "submissions")
-                if x:
-                    if x.is_relative_to(problem.path):
-                        return True
+                if x and x.is_relative_to(problem.path):
+                    return True
             for t in test_cases:
                 x = resolve_path_argument(problem, t, "data", suffixes=[".in"])
-                if x:
-                    if x.is_relative_to(problem.path):
-                        return True
+                if x and x.is_relative_to(problem.path):
+                    return True
             return False
 
         problems = [p for p in problems if keep_problem(p)]

@@ -293,7 +293,7 @@ def loc(file: Path) -> Optional[int]:
         content = file.read_text()
         lexer = lexers.guess_lexer_for_filename(file, content)
         assert isinstance(lexer, pygments.lexer.Lexer)
-        language = getattr(lexer, "name").lower()
+        language = lexer.name.lower()
         tokens = lexer.get_tokens(content)
 
         count = 0
@@ -437,7 +437,7 @@ def stats_all(problems: list[Problem]) -> None:
                 if not isinstance(best_jury[i], (int, float)):
                     leq_jury = True
                 elif isinstance(values[i], (int, float)):
-                    if cast(int | float, values[i]) <= cast(int | float, best_jury[i]):
+                    if cast("int | float", values[i]) <= cast("int | float", best_jury[i]):
                         leq_jury = True
                 if values[i] == best_team[i] and leq_jury:
                     values[i] = format_value(values[i], Fore.CYAN)

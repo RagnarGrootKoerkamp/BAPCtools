@@ -2,5 +2,5 @@
 import sys
 
 print(sys.argv[1])
-if 2 < len(sys.argv):
+if len(sys.argv) > 2:
     print(sys.argv[2], file=sys.stderr)

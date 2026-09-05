@@ -59,7 +59,7 @@ class TestProblemYaml:
         config.n_warn = 0
 
         parser = YamlParser("problem.yaml", test_data["yaml"])
-        p = problem.ProblemSettings(parser, cast(problem.Problem, MockProblem()))
+        p = problem.ProblemSettings(parser, cast("problem.Problem", MockProblem()))
         assert config.n_error == 0 and config.n_warn == 0, (
             f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
         )
@@ -91,7 +91,7 @@ class TestProblemYaml:
 
         try:
             parser = YamlParser("problem.yaml", test_data["yaml"])
-            problem.ProblemSettings(parser, cast(problem.Problem, MockProblem()))
+            problem.ProblemSettings(parser, cast("problem.Problem", MockProblem()))
         except SystemExit as e:
             assert e.code == -42
 

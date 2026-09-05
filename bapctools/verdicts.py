@@ -190,11 +190,11 @@ class Verdicts:
         self.timeout = timeout
 
         # (test_case | test_group) -> Optional[Verdict | Literal[False]]
-        self.verdict: dict[str, Optional[Verdict | Literal[False]]] = {
-            g: None for g in test_cases | test_groups
-        }
+        self.verdict: dict[str, Optional[Verdict | Literal[False]]] = dict.fromkeys(
+            test_cases | test_groups
+        )
         # test_case -> Optional[float]
-        self.duration: dict[str, Optional[float]] = {g: None for g in test_cases}
+        self.duration: dict[str, Optional[float]] = dict.fromkeys(test_cases)
         # test_case
         self.ignored: set[str] = {t.name for t in ignored}
         assert all(x not in test_cases for x in self.ignored)
@@ -297,7 +297,7 @@ class Verdicts:
             [AC, None, RTE] is not (the first error cannot be determined).
         """
         with self:
-            child_verdicts = list(self.verdict[c] for c in self.children[test_group])
+            child_verdicts = [self.verdict[c] for c in self.children[test_group]]
             if all(v == Verdict.ACCEPTED for v in child_verdicts):
                 return Verdict.ACCEPTED
             else:
@@ -401,7 +401,7 @@ class VerdictTable:
     ) -> None:
         self.submissions: list[str] = [s.name for s in submissions]
         self.test_cases: list[str] = [t.name for t in test_cases]
-        self.samples: set[str] = set(t.name for t in test_cases if t.root == "sample")
+        self.samples: set[str] = {t.name for t in test_cases if t.root == "sample"}
         self.results: list[Verdicts] = []
         self.current_test_cases: set[str] = set()
         self.last_printed: list[int] = []

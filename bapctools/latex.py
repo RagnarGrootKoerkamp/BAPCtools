@@ -255,13 +255,12 @@ def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
     if command is None and tex_path.is_file():
         # try to guess the right tex command from a magic comment
         # https://tex.stackexchange.com/tags/magic-comment/info
-        with suppress(UnicodeDecodeError):
-            with tex_path.open() as f:
-                for line in f:
-                    match = TEX_MAGIC_REGEX.match(line)
-                    if match:
-                        command = match.group(1).strip()
-                        break
+        with suppress(UnicodeDecodeError), tex_path.open() as f:
+            for line in f:
+                match = TEX_MAGIC_REGEX.match(line)
+                if match:
+                    command = match.group(1).strip()
+                    break
     if command is None:
         command = "pdflatex"
 
@@ -480,7 +479,7 @@ def build_problem_pdfs(
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
         fatal("--watch does not work with multiple languages. Please use --lang")
-    return all([build_problem_pdf(problem, lang, build_type, web) for lang in languages])
+    return all(build_problem_pdf(problem, lang, build_type, web) for lang in languages)
 
 
 def find_logo() -> Path:

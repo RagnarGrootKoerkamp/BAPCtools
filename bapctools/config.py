@@ -196,8 +196,7 @@ class ARGS:
         def get_arg(key: str, default: T, constraint: Optional[str] = None) -> T:
             self._known_keys.add(key)
             value = get_optional_arg(key, type(default), constraint)
-            result = default if value is None else value
-            return result
+            return default if value is None else value
 
         # public keys
         setattr(self, "1", get_arg("1", False))

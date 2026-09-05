@@ -150,7 +150,7 @@ def new_problem() -> None:
         variables["source"] = ""
 
     variables["license"] = ask_variable_choice(
-        "license", config.KNOWN_LICENSES, variables.get("license", None)
+        "license", config.KNOWN_LICENSES, variables.get("license")
     )
     variables["rights_owner"] = ask_variable_string(
         f"rights owner{'' if variables.get('rights_owner', '') else ' (if left empty, defaults to problem author)'}",

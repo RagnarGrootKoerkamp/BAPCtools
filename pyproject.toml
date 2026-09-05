@@ -67,7 +67,8 @@ extend-select = [
     "PERF", # Enable perf checks
     "E", # Enable codestyle checks
     "W", # Enable codestyle checks
-
+    "TC", # Enable some type checking related rules
+    "ISC", # Enable implicit string cocatenation
 ]
 ignore = [
     "UP036", # Allow Python version checks

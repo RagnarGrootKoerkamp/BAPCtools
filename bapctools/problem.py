@@ -408,11 +408,7 @@ class ProblemSettings:
                 if sub == "value" and isinstance(variant, (int, float)):
                     variant = str(variant)
 
-                if not isinstance(sub, str):
-                    parser.bar.warn(
-                        f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
-                    )
-                elif not config.CONSTANT_NAME_REGEX.fullmatch(sub):
+                if not isinstance(sub, str) or not config.CONSTANT_NAME_REGEX.fullmatch(sub):
                     parser.bar.warn(
                         f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
                     )
@@ -544,9 +540,9 @@ class Problem:
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
         yamllangs = set(self.settings.name)
-        texlangs = set(
+        texlangs = {
             path.suffixes[0][1:] for path in glob(self.path, str(latex.PdfType.PROBLEM.path("*")))
-        )
+        }
         for lang in texlangs - yamllangs:
             bar.error(
                 f"{self.name}: Found {latex.PdfType.PROBLEM.path(lang).name}, but no corresponding name in problem.yaml."
@@ -579,8 +575,8 @@ class Problem:
                     case s if s != yamlname:
                         bar.warn(
                             f"Problem titles in {texpath.name} ({texname})"
-                            + f" and problem.yaml ({yamlname}) differ;"
-                            + r" consider using \problemname{}."
+                            f" and problem.yaml ({yamlname}) differ;"
+                            r" consider using \problemname{}."
                         )
         return sorted(texlangs & yamllangs)
 
@@ -911,7 +907,7 @@ class Problem:
         if has_raw and not self.settings.ans_is_output and only_samples:
             warn(
                 "It is advised to override .ans for samples if it does not represent a valid output."
-                + "\n\tUse .ans.statement+.ans.download or .out for this."
+                "\n\tUse .ans.statement+.ans.download or .out for this."
             )
 
         overrides.sort(key=lambda t: t.name)
@@ -952,8 +948,8 @@ class Problem:
                     if s == self.path / "submissions":
                         paths += glob(s, "*/*")
                     elif s.parent == self.path / "submissions":
-                        for s in glob(s, "*"):
-                            add(s)
+                        for path in glob(s, "*"):
+                            add(path)
                     else:
                         # If running from a contest, the submission must be inside a problem.
                         if config.level == "problem" or s.is_relative_to(self.path):
@@ -1267,7 +1263,7 @@ class Problem:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
         def make_verdict(tc: TestCase) -> str:
-            return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
+            return "".join(single_verdict(row, tc) for row in verdict_table)
 
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
         special_id = 0
@@ -1309,12 +1305,7 @@ class Problem:
 
         for case in test_cases:
             # Skip all AC test cases
-            if all(
-                map(
-                    lambda row: row[case.name] == verdicts.Verdict.ACCEPTED,
-                    verdict_table,
-                )
-            ):
+            if all(row[case.name] == verdicts.Verdict.ACCEPTED for row in verdict_table):
                 continue
 
             name = case.name
@@ -1387,7 +1378,7 @@ class Problem:
 
         base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
         test_cases = []
-        for i, sample in enumerate(samples):
+        for sample in samples:
             for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
                 if OutputValidator not in supported_cls:
                     continue
@@ -1567,9 +1558,7 @@ class Problem:
                         if i > 0 and not copy:
                             continue
                         content = data
-                    elif sample is None:
-                        continue
-                    elif not sample.with_suffix(read).exists():
+                    elif sample is None or not sample.with_suffix(read).exists():
                         continue
                     else:
                         valid = sample.with_suffix(read).read_text()
@@ -1631,7 +1620,7 @@ class Problem:
             for name, data, space_change, case_change in validator_tests.VALID_GENERATORS:
                 if space_change and is_space_sensitive:
                     continue
-                elif case_change and is_case_sensitive:
+                if case_change and is_case_sensitive:
                     continue
 
                 if isinstance(data, str):
