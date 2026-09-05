@@ -64,10 +64,16 @@ extend-select = [
     "I", # Enable import sorting rules
     "UP", # Enable upgrade rules
     "N", # Enable PEP8 naming conventions
+    "PERF", # Enable perf checks
+    "E", # Enable codestyle checks
+    "W", # Enable codestyle checks
+
 ]
 ignore = [
     "UP036", # Allow Python version checks
     "UP045", # Allow Optional
+    "PERF203", # Allow try-except in a loop
+    "E501", # Allow too long lines
 ]
 
 [tool.ruff.lint.isort]

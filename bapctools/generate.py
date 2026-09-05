@@ -1915,7 +1915,7 @@ class GeneratorConfig:
             for elem in ds:
                 if not isinstance(elem, dict):
                     continue
-                for key, entry in elem.items():
+                for entry in elem.values():
                     if is_test_case(entry) and numbered:
                         total += len(parse_count(entry))
                     elif is_directory(entry):
@@ -2262,8 +2262,7 @@ class GeneratorConfig:
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
         def count_dir(d: DirectoryRule) -> None:
-            for name in d.includes:
-                item_names.append(d.path / name)
+            item_names.extend(d.path / name for name in d.includes)
 
         self.root_dir.walk(None, count_dir)
         bar = ProgressBar("Generate", items=item_names)

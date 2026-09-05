@@ -20,8 +20,7 @@ def randomstring(len):
 strings = []
 
 # Single letter
-for i in range(0, 26):
-    strings.append(letter(i))
+strings.extend(letter(i) for i in range(0, 26))
 
 # Fixed strings
 strings.append("aaaaaaaaaa")
@@ -36,8 +35,7 @@ for _ in range(100):
     strings.append(randomstring(n))
 
 # Random strings, max length
-for _ in range(20):
-    strings.append(randomstring(maxlen))
+strings.extend(randomstring(maxlen for _ in range(20)))
 
 
 # Print strings

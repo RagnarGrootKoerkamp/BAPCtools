@@ -2,7 +2,7 @@
 import re
 import sys
 
-integer = "(0|-?[1-9]\d*)"
+integer = r"(0|-?[1-9]\d*)"
 pat = "(fixed|random|adaptive) " + integer + "\n"
 
 line = sys.stdin.readline()
