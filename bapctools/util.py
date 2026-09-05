@@ -1269,12 +1269,12 @@ def copytree_and_substitute(
         dst.mkdir(parents=True, exist_ok=exist_ok)
         errors = []
         for d in src.iterdir():
-            srcFile = src / d.name
-            dstFile = dst / d.name
+            src_file = src / d.name
+            dst_file = dst / d.name
             try:
                 copytree_and_substitute(
-                    srcFile,
-                    dstFile,
+                    src_file,
+                    dst_file,
                     variables,
                     exist_ok,
                     preserve_symlinks=preserve_symlinks,
@@ -1284,7 +1284,7 @@ def copytree_and_substitute(
                     bar=bar,
                 )
             except OSError as why:
-                errors.append((srcFile, dstFile, str(why)))
+                errors.append((src_file, dst_file, str(why)))
             # catch the Error from the recursive copytree so that we can
             # continue with other files
             except Exception as err:
@@ -1485,7 +1485,7 @@ class ResourcePopen(subprocess.Popen[bytes]):
             return (pid, sts)
 
 
-class AbortException(Exception):
+class AbortError(Exception):
     pass
 
 

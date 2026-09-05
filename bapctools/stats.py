@@ -480,7 +480,7 @@ def stats_all(problems: list[Problem]) -> None:
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
-    def countCommits(problem: Problem) -> int:
+    def count_commits(problem: Problem) -> int:
         yaml_path = problem.path / "problem.yaml"
         paths = git(
             "log",
@@ -495,7 +495,7 @@ def stats_all(problems: list[Problem]) -> None:
         names = {Path(p).parent for p in paths if p.strip() != ""}
         return int(git("rev-list", "--all", "--count", "--", *names))
 
-    commits = [countCommits(p) for p in problems]
+    commits = [count_commits(p) for p in problems]
     commit_stats = get_stats(commits)
     commit_stats[-4] = None  # one commit can change multiple problems so the sum is meaningless...
     eprint(format_row("Commits", *commits, *commit_stats))

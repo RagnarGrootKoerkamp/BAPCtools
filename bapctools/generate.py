@@ -52,7 +52,7 @@ from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 YAML_TYPE = Optional[str | dict[object, object]]
 
 
-class ParseException(Exception):
+class ParseError(Exception):
     def __init__(self, message: str, path: Optional[Path | str] = None) -> None:
         super().__init__(message, path)
         self.message = message
@@ -70,7 +70,7 @@ def is_type(
 ) -> TypeIs[T]:
     if isinstance(obj, t):
         return True
-    raise ParseException(
+    raise ParseError(
         f"{name} must be of type {t.__name__}, found {obj.__class__.__name__}: {obj}",
         path,
     )
@@ -120,7 +120,7 @@ INCLUSIVE_RANGE_REGEX: Final[re.Pattern[str]] = re.compile(r"^(-?\d+)\.\.=(-?\d+
 
 def parse_count(yaml: YAML_TYPE) -> list[int]:
     """Raises:
-    ParseException: on invalid count specification. Since we can't determine
+    ParseError: on invalid count specification. Since we can't determine
     the correct numbering of subsequent test cases, we have to abort parsing.
     """
     if not has_count(yaml):
@@ -129,32 +129,28 @@ def parse_count(yaml: YAML_TYPE) -> list[int]:
     match yaml["count"]:
         case int(count):
             if not 1 <= count <= 100:
-                raise ParseException(f"{lineno}Invalid count {count}; must be between 1 and 100.")
+                raise ParseError(f"{lineno}Invalid count {count}; must be between 1 and 100.")
             count_list = list(range(1, count + 1))
         case list(items):
             seen = set()
             for item in items:
                 if not isinstance(item, int):
-                    raise ParseException(
-                        f"{lineno}Invalid count list; found {item} but expected int."
-                    )
+                    raise ParseError(f"{lineno}Invalid count list; found {item} but expected int.")
                 if item in seen:
-                    raise ParseException(f"{lineno}Invalid count list; duplicate element {item}.")
+                    raise ParseError(f"{lineno}Invalid count list; duplicate element {item}.")
                 seen.add(item)
             count_list = items
         case str(s):
             if m := INCLUSIVE_RANGE_REGEX.match(s):
                 lo, hi = int(m[1]), int(m[2])
                 if lo > hi:
-                    raise ParseException(
+                    raise ParseError(
                         f"{lineno}Invalid count range, start={lo} must be <= end={hi}."
                     )
                 if hi - lo + 1 > 100:
-                    raise ParseException(
-                        f"{lineno}Count range too large, length {hi - lo + 1} > 100."
-                    )
+                    raise ParseError(f"{lineno}Count range too large, length {hi - lo + 1} > 100.")
             else:
-                raise ParseException(
+                raise ParseError(
                     f"{lineno}Invalid count expression {s}; expected format is '-4..=5'."
                 )
             count_list = list(range(lo, hi + 1))
@@ -170,11 +166,11 @@ def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -
     path = PurePosixPath(path_str)
     if not allow_absolute:
         if path.is_absolute():
-            raise ParseException(f"Path must not be absolute: {path}")
+            raise ParseError(f"Path must not be absolute: {path}")
 
     if not allow_relative:
         if not path.is_absolute():
-            raise ParseException(f"Path must be absolute: {path}")
+            raise ParseError(f"Path must be absolute: {path}")
 
     # Make all paths relative to the problem root.
     if path.is_absolute():
@@ -221,7 +217,7 @@ class Invocation:
         command = commands[0]
         self.args = commands[1:]
         if not allow_args and self.args:
-            raise ParseException(f"{command} must not be invoked with arguments")
+            raise ParseError(f"{command} must not be invoked with arguments")
 
         # The name of the program to be executed, relative to the problem root.
         self.program_path = resolve_path(
@@ -233,7 +229,7 @@ class Invocation:
         for arg in self.args:
             seed_cnt += len(self.SEED_REGEX.findall(arg))
         if seed_cnt > 1:
-            raise ParseException("{seed(:[0-9]+)} may appear at most once.")
+            raise ParseError("{seed(:[0-9]+)} may appear at most once.")
 
         # NOTE: This is also used by `fuzz`.
         self.uses_seed = seed_cnt > 0
@@ -590,15 +586,15 @@ class TestCaseRule(Rule):
             # files to consider for hashing
             hashes = {}
             if not config.FILE_NAME_REGEX.fullmatch(name + ".in"):
-                raise ParseException("Test case does not have a valid name.")
+                raise ParseError("Test case does not have a valid name.")
 
             if name == "test_group":
-                raise ParseException(
+                raise ParseError(
                     "Test case must not be named 'test_group', this clashes with the group-level 'test_group.yaml'."
                 )
 
             if raw_yaml is None:
-                raise ParseException(
+                raise ParseError(
                     "Empty yaml entry (Test cases must be generated from entry not merely be mentioned)."
                 )
 
@@ -609,28 +605,28 @@ class TestCaseRule(Rule):
                 satisfied = satisfied or all(x[1:] in parser.remaining for x in required)
                 msg.append(" and ".join([x[1:] for x in required]))
             if not satisfied:
-                raise ParseException(f"Test case requires at least one of: {', '.join(msg)}.")
+                raise ParseError(f"Test case requires at least one of: {', '.join(msg)}.")
             if (
                 not problem.interactive
                 and not problem.multi_pass
                 and "interaction" in parser.remaining
             ):
-                raise ParseException(
+                raise ParseError(
                     "Test case cannot have 'interaction' key for non-interactive/non-multi-pass problem."
                 )
             if not self.sample:
                 for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
                     if ext[1:] in parser.remaining:
-                        raise ParseException(f"Non sample test case cannot use '{ext[1:]}")
+                        raise ParseError(f"Non sample test case cannot use '{ext[1:]}")
             if "submission" in parser.remaining and "ans" in parser.remaining:
-                raise ParseException("Test case cannot specify both 'submissions' and 'ans'.")
+                raise ParseError("Test case cannot specify both 'submissions' and 'ans'.")
 
             # 1. generate
             command_string = parser.pop("generate")
             if command_string is not None:
                 assert is_type(command_string, str, "generate")
                 if len(command_string) == 0:
-                    raise ParseException("'generate' must not be empty.")
+                    raise ParseError("'generate' must not be empty.")
 
                 # first replace {{constants}}
                 command_string = substitute(
@@ -706,25 +702,25 @@ class TestCaseRule(Rule):
                     if link not in ALLOWED_LINK_VALUES:
                         closest = difflib.get_close_matches(link, ALLOWED_LINK_VALUES, n=1)
                         hint = f" Did you mean: {closest[0]}?" if closest else ""
-                        raise ParseException(f"Unknown link target `{link}`.{hint}")
+                        raise ParseError(f"Unknown link target `{link}`.{hint}")
                     key_type = key.split(".", 1)[0]
                     link_type = link.split(".", 1)[0]
                     if key_type != link_type:
-                        raise ParseException(f"Crosslinking from {key} to {link} is not allowed.")
+                        raise ParseError(f"Crosslinking from {key} to {link} is not allowed.")
                     self.linked[ext] = f".{link}"
                 elif isinstance(value, str):  # 4. hardcoded
                     if value and not value.endswith("\n"):
                         value += "\n"
                     self.hardcoded[ext] = value
                 else:
-                    raise ParseException(
+                    raise ParseError(
                         f"{key} should either be a string or a map with only a link entry."
                     )
 
             for link, target in self.linked.items():
                 # do not allow links to other links to avoid cycles
                 if target in self.linked:
-                    raise ParseException(
+                    raise ParseError(
                         f"link from {link}->{target} is forbidden, {target} is also a link!"
                     )
 
@@ -771,7 +767,7 @@ class TestCaseRule(Rule):
             if not any(set(required) <= known_ext for required in self.required_in):
                 generator_config.n_test_case_error += 1
                 # An error is shown during generate.
-        except ParseException as e:
+        except ParseError as e:
             # For test cases we can handle the parse error locally since this does not influence much else
             parser.bar.error(e.message)
             self.ok = False
@@ -1612,7 +1608,7 @@ class DirectoryRule(Rule):
         # The root DirectoryRule object has name ''.
         if not isinstance(parent, RootDirectoryRule):
             if not config.FILE_NAME_REGEX.fullmatch(name):
-                raise ParseException("Directory does not have a valid name.", parent.path / name)
+                raise ParseError("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parser, parent)
 
@@ -1852,7 +1848,7 @@ class GeneratorConfig:
         bar = PrintBar("generators.yaml")
         try:
             self.root_dir = self._parse_root(self.yaml, bar)
-        except ParseException as e:
+        except ParseError as e:
             self.n_parse_error += 1
             bar.start(e.path).error(e.message)
 
@@ -1867,11 +1863,9 @@ class GeneratorConfig:
             raw_yaml = dict()
 
         if not isinstance(raw_yaml, dict):
-            raise ParseException("could not parse generators.yaml, must be a dict.")
+            raise ParseError("could not parse generators.yaml, must be a dict.")
         if not is_directory(raw_yaml):
-            raise ParseException(
-                "could not parse generators.yaml, root must represent a directory."
-            )
+            raise ParseError("could not parse generators.yaml, root must represent a directory.")
 
         parser = YamlParser("generators.yaml", raw_yaml, bar=bar)
 
@@ -2006,7 +2000,7 @@ class GeneratorConfig:
             d = DirectoryRule(self.problem, key, next(name_gen), raw_yaml, parser, parent)
             add_known(parser, d)
             if isinstance(parent, RootDirectoryRule) and d.numbered:
-                raise ParseException("root directory must not be numbered.")
+                raise ParseError("root directory must not be numbered.")
 
             # 1. gather all includes
             # => prohibits including our own children

@@ -63,6 +63,7 @@ line-length = 100
 extend-select = [
     "I", # Enable import sorting rules
     "UP", # Enable upgrade rules
+    "N", # Enable PEP8 naming conventions
 ]
 ignore = [
     "UP036", # Allow Python version checks

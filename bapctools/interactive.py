@@ -558,12 +558,12 @@ def run_interactive_test_case(
                 if relay.switches > 200007:
                     bar.warn("observed over 200'000 switches between submission and validator")
                 transmission_limit = 10  # in MiB
-                MiB = 1024**2
-                if relay.vs.transmitted > transmission_limit * MiB:
+                mib = 1024**2
+                if relay.vs.transmitted > transmission_limit * mib:
                     bar.warn(f"Validator wrote over {transmission_limit}MiB")
                 if (
                     validator_status == config.RTV_AC
-                    and relay.sv.transmitted > transmission_limit * MiB
+                    and relay.sv.transmitted > transmission_limit * mib
                 ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
 

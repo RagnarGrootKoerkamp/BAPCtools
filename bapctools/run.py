@@ -39,6 +39,7 @@ from bapctools.util import (
 from bapctools.verdicts import (
     from_string_domjudge,
     RunUntil,
+    TableProgressBar,
     Verdict,
     Verdicts,
     VerdictTable,
@@ -473,7 +474,8 @@ class Submission(Program):
         )
 
         verdict_table.next_submission(verdicts)
-        bar = verdict_table.ProgressBar(
+        bar = TableProgressBar(
+            verdict_table,
             self.name,
             count=len(runs),
             max_len=max_item_len,
@@ -692,7 +694,7 @@ class Submission(Program):
 
                 # we want to directly see the output of the submission
                 # => we cannot reuse the interaciton file
-                TEE_CODE = R"""
+                tee_code = R"""
 import sys
 while True:
     l = sys.stdin.buffer.read1(8096)
@@ -713,7 +715,7 @@ while True:
                             out_file = run.out_path.open("wb")
                             cleanup.enter_context(out_file)
                             tee = subprocess.Popen(
-                                [sys.executable, "-c", TEE_CODE],
+                                [sys.executable, "-c", tee_code],
                                 stdin=subprocess.PIPE,
                                 stdout=None,
                                 stderr=out_file,
@@ -829,7 +831,7 @@ while True:
             )
             localbar.log("from stdin" if is_tty else "from file")
 
-            TEE_CODE = R"""
+            tee_code = R"""
 import sys
 while True:
     l = sys.stdin.buffer.read1(8096)
@@ -858,7 +860,7 @@ while True:
                     return
                 os.write(w, read)
 
-                writer = subprocess.Popen([sys.executable, "-c", TEE_CODE], stdin=None, stdout=w)
+                writer = subprocess.Popen([sys.executable, "-c", tee_code], stdin=None, stdout=w)
                 cleanup.enter_context(writer)
                 cleanup.callback(writer.kill)
 

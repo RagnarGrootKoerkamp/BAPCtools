@@ -62,7 +62,7 @@ from bapctools import (
 from bapctools.contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
 from bapctools.problem import Problem
 from bapctools.util import (
-    AbortException,
+    AbortError,
     ask_variable_bool,
     eprint,
     error,
@@ -761,7 +761,7 @@ def main() -> None:
             hint = f", did you mean '{closest[0]}'?" if closest else ""
             parser.error(f"argument action: invalid choice: '{action}'{hint}")
         run_parsed_arguments(parser.parse_args())
-    except (AbortException, KeyboardInterrupt):
+    except (AbortError, KeyboardInterrupt):
         fatal("Running interrupted")
 
 

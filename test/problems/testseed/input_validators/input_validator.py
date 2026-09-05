@@ -19,6 +19,9 @@ if 3 < len(sys.argv):
         count_indices = list(range(int(count_str)))
 
 
+SEED_REGEX = re.compile(r"\{seed(:[0-9]+)?\}")
+
+
 # emulate bt generate of stdout.py <command_string>
 def generate(random_salt, command_string, count_index):
     # 1. inject the count
@@ -41,7 +44,6 @@ def generate(random_salt, command_string, count_index):
     argv = shlex.split(command_string)
 
     # 4. inject the seed
-    SEED_REGEX = re.compile(r"\{seed(:[0-9]+)?\}")
     argv = [SEED_REGEX.sub(str(seed), arg) for arg in argv]
 
     # 5. emulate stdout.py

@@ -65,7 +65,7 @@ class AbstractQueue(Generic[T]):
 
     def ensure_alive(self) -> None:
         if self.aborted:
-            raise util.AbortException()
+            raise util.AbortError()
 
 
 class SequentialQueue(AbstractQueue[T]):

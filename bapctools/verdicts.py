@@ -636,24 +636,6 @@ class VerdictTable:
             eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
             self.last_printed = printed_lengths
 
-    def ProgressBar(
-        self,
-        prefix: str,
-        max_len: Optional[int] = None,
-        count: Optional[int] = None,
-        *,
-        items: Optional[Sequence[ITEM_TYPE]] = None,
-        needs_leading_newline: bool = False,
-    ) -> "TableProgressBar":
-        return TableProgressBar(
-            self,
-            prefix,
-            max_len,
-            count,
-            items=items,
-            needs_leading_newline=needs_leading_newline,
-        )
-
 
 class IOThread:
     def __init__(self, table: VerdictTable) -> None:
@@ -705,11 +687,11 @@ class TableProgressBar(ProgressBar):
         self,
         table: VerdictTable,
         prefix: str,
-        max_len: Optional[int],
-        count: Optional[int],
+        max_len: Optional[int] = None,
+        count: Optional[int] = None,
         *,
-        items: Optional[Sequence[ITEM_TYPE]],
-        needs_leading_newline: bool,
+        items: Optional[Sequence[ITEM_TYPE]] = None,
+        needs_leading_newline: bool = False,
     ) -> None:
         super().__init__(
             prefix,
