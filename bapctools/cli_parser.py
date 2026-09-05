@@ -16,15 +16,8 @@ from colorama import Fore, Style
 class SuppressingParser(argparse.ArgumentParser):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs, argument_default=argparse.SUPPRESS)
-        self._added_subparsers: list[argparse._SubParsersAction[Any]] = []
-
-    def add_subparsers(self, *args: Any, **kwargs: Any) -> argparse._SubParsersAction[Any]:
-        subparser = super().add_subparsers(*args, **kwargs)
-        self._added_subparsers.append(subparser)
-        return subparser
-
-    def known_actions(self) -> set[str]:
-        return {action for subparser in self._added_subparsers for action in subparser.choices}
+        # this is set during _build_parser
+        self.known_actions: list[str] = []
 
 
 # We use our own version action to lazily determine the version
@@ -823,6 +816,7 @@ Run this from one of:
     if hasattr(parser, "suggest_on_error"):
         parser.suggest_on_error = True
 
+    parser.known_actions = list(subparsers.choices.keys())
     return parser
 
 

@@ -753,11 +753,11 @@ def main() -> None:
         parser = cli_parser.PARSER
         if (
             len(sys.argv) >= 2
-            and sys.argv[1] not in parser.known_actions()
+            and sys.argv[1] not in parser.known_actions
             and not sys.argv[1].startswith("-")
         ):
             action = sys.argv[1]
-            closest = difflib.get_close_matches(action, parser.known_actions(), n=1)
+            closest = difflib.get_close_matches(action, parser.known_actions, n=1)
             hint = f", did you mean '{closest[0]}'?" if closest else ""
             parser.error(f"argument action: invalid choice: '{action}'{hint}")
         run_parsed_arguments(parser.parse_args())
