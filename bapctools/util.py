@@ -1598,11 +1598,10 @@ def exec_command(
 
 
 def inc_label(label: str) -> str:
-    for x in range(len(label) - 1, -1, -1):
-        if label[x] != "Z":
-            return label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
-        label = label[:x] + "A" + label[x + 1 :]
-    return "A" + label
+    prefix = label.rstrip("Z")
+    mid = chr(ord(prefix[-1]) + 1) if prefix else "A"
+    suffix = "A" * (len(label) - len(prefix))
+    return prefix[:-1] + mid + suffix
 
 
 # A path is a problem directory if it contains a `problem.yaml` file.
