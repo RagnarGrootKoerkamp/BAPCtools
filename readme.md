@@ -54,7 +54,6 @@ If you cannot or do not want to use WSL, you'll need the following in your `%PAT
 > - argparse auto completion
 > - Logging interactions for interactive problems
 > - maybe more
-Resource limits (memory limit/hard cpu time limit) are not supported.
 
 ### Docker
 
