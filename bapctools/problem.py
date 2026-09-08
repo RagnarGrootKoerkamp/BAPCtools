@@ -1383,7 +1383,7 @@ class Problem:
                 if OutputValidator not in supported_cls:
                     continue
 
-                if not isinstance(data, str):
+                if not isinstance(data, bytes):
                     continue
 
                 short_path = sample.relative_to(self.path / "data").with_suffix("") / name
@@ -1393,7 +1393,7 @@ class Problem:
 
                 for ext in [".in", ".ans"]:
                     shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
-                full_path.with_name("submission.out").write_text(data)
+                full_path.with_name("submission.out").write_bytes(data)
 
                 verbose(f"Generating {short_path}")
                 test_cases.append(TestCase(self, full_path, short_path=short_path))
@@ -1553,7 +1553,7 @@ class Problem:
                     if cls not in supported_cls:
                         continue
 
-                    if isinstance(data, str):
+                    if isinstance(data, bytes):
                         # generators that don't read or copy anything must only be run once
                         if i > 0 and not copy:
                             continue
@@ -1561,7 +1561,7 @@ class Problem:
                     elif sample is None or not sample.with_suffix(read).exists():
                         continue
                     else:
-                        valid = sample.with_suffix(read).read_text()
+                        valid = sample.with_suffix(read).read_bytes()
                         generated = data(valid)
                         if generated is None:
                             continue
@@ -1577,7 +1577,7 @@ class Problem:
                         assert sample.with_suffix(ext).exists()
                         shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
                         used_sample = True
-                    full_path.with_suffix(write).write_text(content)
+                    full_path.with_suffix(write).write_bytes(content)
 
                     verbose(f"Generating {short_path}")
                     test_cases.append(TestCase(self, full_path, short_path=short_path))
@@ -1623,10 +1623,10 @@ class Problem:
                 if case_change and is_case_sensitive:
                     continue
 
-                if isinstance(data, str):
+                if isinstance(data, bytes):
                     content = data
                 else:
-                    valid = sample.with_suffix(".ans").read_text()
+                    valid = sample.with_suffix(".ans").read_bytes()
                     generated = data(valid)
                     if generated is None:
                         continue
@@ -1639,7 +1639,7 @@ class Problem:
 
                 for ext in [".in", ".ans"]:
                     shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
-                full_path.with_suffix(".out").write_text(content)
+                full_path.with_suffix(".out").write_bytes(content)
 
                 verbose(f"Generating {short_path}")
                 test_cases.append(TestCase(self, full_path, short_path=short_path))
