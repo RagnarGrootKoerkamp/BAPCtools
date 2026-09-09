@@ -1367,13 +1367,18 @@ class Problem:
         assert config.args.generic is not None
         if "output_validator" not in config.args.generic:
             return True
-        # if not self.custom_output:
-        #    return True
+        if not self.custom_output:
+            return True
 
-        # pick at most first 2 samples (assuming they are valid and have .ans)
+        base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
+
+        # pick at sample (assumes that the .ans file is valid)
         samples = sorted(glob(self.path, "data/sample/**/*.in"))
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
-        samples = samples[:2]
+        if not samples:
+            return True
+        sample = samples[0]
+        sample_path = sample.relative_to(self.path / "data").with_suffix("")
 
         @dataclass(frozen=True)
         class CheckRun:
@@ -1381,29 +1386,26 @@ class Problem:
             test_case: TestCase
             allow_ac: bool
 
-        base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
         runs = []
-        for sample in samples:
-            sample_path = sample.relative_to(self.path / "data").with_suffix("")
-            for name, data, allow_ac in validator_tests.BAD_OUTPUTS:
-                if not allow_ac and not self.interactive and not self.multi_pass:
-                    # checked as invalid_output
-                    continue
+        for name, data, allow_ac in validator_tests.BAD_OUTPUTS:
+            if not allow_ac and not self.interactive and not self.multi_pass:
+                # already checked as invalid_output
+                continue
 
-                short_path = sample_path / name
-                full_path = base_path / short_path / "testcase.in"
-                remove_path(full_path.parent)
-                full_path.parent.mkdir(parents=True, exist_ok=True)
+            short_path = sample_path / name
+            full_path = base_path / short_path / "testcase.in"
+            remove_path(full_path.parent)
+            full_path.parent.mkdir(parents=True, exist_ok=True)
 
-                for ext in [".in", ".ans"]:
-                    shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
-                full_path.with_name("submission.out").write_bytes(data)
+            for ext in [".in", ".ans"]:
+                shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
+            full_path.with_name("submission.out").write_bytes(data)
 
-                if config.args.verbose > 1:
-                    verbose(f"Generating {short_path}")
+            if config.args.verbose > 1:
+                verbose(f"Generating {short_path}")
 
-                test_case = TestCase(self, full_path, short_path=short_path)
-                runs.append(CheckRun(f"{sample_path.as_posix()}:{name}", test_case, allow_ac))
+            test_case = TestCase(self, full_path, short_path=short_path)
+            runs.append(CheckRun(f"{sample_path.as_posix()}:{name}", test_case, allow_ac))
         if not runs:
             return True
 
