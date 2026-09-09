@@ -1384,6 +1384,7 @@ class Problem:
         class CheckRun:
             name: str
             test_case: TestCase
+            submission_data: bytes
             allow_ac: bool
 
         runs = []
@@ -1399,13 +1400,12 @@ class Problem:
 
             for ext in [".in", ".ans"]:
                 shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
-            full_path.with_name("submission.out").write_bytes(data)
 
             if config.args.verbose > 1:
                 verbose(f"Generating {short_path}")
 
             test_case = TestCase(self, full_path, short_path=short_path)
-            runs.append(CheckRun(f"{sample_path.as_posix()}:{name}", test_case, allow_ac))
+            runs.append(CheckRun(name, test_case, data, allow_ac))
         if not runs:
             return True
 
@@ -1415,6 +1415,7 @@ class Problem:
             return False
 
         success = True
+        log(f"Checking output validator on: {sample_path.as_posix()}")
         bar = ProgressBar("Output Validator checks", items=runs)
 
         def run(run: CheckRun) -> None:
@@ -1422,7 +1423,7 @@ class Problem:
             localbar = bar.start(run)
 
             submission = run.test_case.in_path.with_name("submission.out")
-            raw_submission = submission.read_text()
+            submission.write_bytes(run.submission_data)
 
             feedbackdir = submission.with_suffix(".feedbackdir")
             feedbackdir.mkdir(parents=True, exist_ok=True)
@@ -1485,7 +1486,7 @@ class Problem:
                     else:
                         success = False
                         localbar.error(
-                            f"Output Validator did not reject submission only printing: {raw_submission}",
+                            f"Output Validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
                             data,
                         )
                     return
