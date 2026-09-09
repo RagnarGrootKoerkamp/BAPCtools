@@ -1379,6 +1379,7 @@ class Problem:
             return True
         sample = samples[0]
         sample_path = sample.relative_to(self.path / "data").with_suffix("")
+        PrintBar("Output Validator checks").log(f"using test case: {sample_path.as_posix()}")
 
         @dataclass(frozen=True)
         class CheckRun:
@@ -1415,7 +1416,6 @@ class Problem:
             return False
 
         success = True
-        log(f"Checking output validator on: {sample_path.as_posix()}")
         bar = ProgressBar("Output Validator checks", items=runs)
 
         def run(run: CheckRun) -> None:
@@ -1550,6 +1550,7 @@ class Problem:
             ),
         ]
 
+        bar = PrintBar("Generic Invalidation")
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
@@ -1596,15 +1597,15 @@ class Problem:
                     full_path.with_suffix(write).write_bytes(content)
 
                     if config.args.verbose > 1:
-                        verbose(f"Generating {short_path}")
+                        bar.debug(f"Generating {short_path}")
 
                     test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(self.path / "data").with_suffix("")
-                log(f"Generated invalid test cases based on: {sample_name}")
+                bar.log(f"Generated invalid test cases based on: {sample_name}")
         if test_cases:
-            verbose(f"writing generated invalid test cases to: {base_path}")
+            bar.debug(f"writing generated invalid test cases to: {base_path}")
 
         return self._validate_data(
             validate.Mode.INVALID, None, "Generic Invalidation", test_cases, True
@@ -1632,6 +1633,7 @@ class Problem:
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
         samples = samples[:2]
 
+        bar = PrintBar("Generic Output Validation")
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
@@ -1660,15 +1662,15 @@ class Problem:
                 full_path.with_suffix(".out").write_bytes(content)
 
                 if config.args.verbose > 1:
-                    verbose(f"Generating {short_path}")
+                    bar.debug(f"Generating {short_path}")
 
                 test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
                 sample_name = sample.relative_to(self.path / "data").with_suffix("")
-                log(f"Generated valid test cases based on: {sample_name}")
+                bar.log(f"Generated valid test cases based on: {sample_name}")
         if test_cases:
-            verbose(f"writing generated valid test cases to: {base_path}")
+            bar.debug(f"writing generated valid test cases to: {base_path}")
 
         return self._validate_data(
             validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", test_cases, True
