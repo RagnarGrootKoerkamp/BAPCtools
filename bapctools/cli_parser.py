@@ -325,7 +325,13 @@ Run this from one of:
     )
     validate_parser.add_argument(
         "--generic",
-        choices=["invalid_input", "invalid_answer", "invalid_output", "valid_output"],
+        choices=[
+            "invalid_input",
+            "invalid_answer",
+            "invalid_output",
+            "valid_output",
+            "output_validator",
+        ],
         nargs="*",
         help="Generate generic (in)valid files based on the first three samples and validate them.",
     )

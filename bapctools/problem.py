@@ -1365,28 +1365,32 @@ class Problem:
 
     def check_output_validator(self) -> bool:
         assert config.args.generic is not None
-        if "invalid_output" not in config.args.generic:
+        if "output_validator" not in config.args.generic:
             return True
-        if not self.interactive and not self.multi_pass:
-            # standart problems can just use valid_output
-            return True
+        # if not self.custom_output:
+        #    return True
 
-        # pick at most first 3 samples (assuming they are valid and have .ans)
+        # pick at most first 2 samples (assuming they are valid and have .ans)
         samples = sorted(glob(self.path, "data/sample/**/*.in"))
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
-        samples = samples[:3]
+        samples = samples[:2]
+
+        @dataclass(frozen=True)
+        class CheckRun:
+            name: str
+            test_case: TestCase
+            allow_ac: bool
 
         base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
-        test_cases = []
+        runs = []
         for sample in samples:
-            for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
-                if OutputValidator not in supported_cls:
+            sample_path = sample.relative_to(self.path / "data").with_suffix("")
+            for name, data, allow_ac in validator_tests.BAD_OUTPUTS:
+                if not allow_ac and not self.interactive and not self.multi_pass:
+                    # checked as invalid_output
                     continue
 
-                if not isinstance(data, bytes):
-                    continue
-
-                short_path = sample.relative_to(self.path / "data").with_suffix("") / name
+                short_path = sample_path / name
                 full_path = base_path / short_path / "testcase.in"
                 remove_path(full_path.parent)
                 full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1395,9 +1399,12 @@ class Problem:
                     shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
                 full_path.with_name("submission.out").write_bytes(data)
 
-                verbose(f"Generating {short_path}")
-                test_cases.append(TestCase(self, full_path, short_path=short_path))
-        if not test_cases:
+                if config.args.verbose > 1:
+                    verbose(f"Generating {short_path}")
+
+                test_case = TestCase(self, full_path, short_path=short_path)
+                runs.append(CheckRun(f"{sample_path.as_posix()}:{name}", test_case, allow_ac))
+        if not runs:
             return True
 
         # Pre-build the output validator
@@ -1406,20 +1413,20 @@ class Problem:
             return False
 
         success = True
-        bar = ProgressBar("Output Validator checks", items=test_cases)
+        bar = ProgressBar("Output Validator checks", items=runs)
 
-        def run(test_case: TestCase) -> None:
+        def run(run: CheckRun) -> None:
             nonlocal success
-            localbar = bar.start(test_case)
+            localbar = bar.start(run)
 
-            submission = test_case.in_path.with_name("submission.out")
+            submission = run.test_case.in_path.with_name("submission.out")
             raw_submission = submission.read_text()
 
             feedbackdir = submission.with_suffix(".feedbackdir")
             feedbackdir.mkdir(parents=True, exist_ok=True)
             nextpass = feedbackdir / "nextpass.in" if self.multi_pass else None
             for pass_id in itertools.count(1):
-                ret = output_validator.run(test_case, submission)
+                ret = output_validator.run(run.test_case, submission)
                 if self.interactive:
                     ret.out = None
 
@@ -1437,7 +1444,9 @@ class Problem:
                     elif ret.out:
                         data = ret.out
 
-                    data += f"{Style.RESET_ALL}-> {shorten_path(self, test_case.in_path.parent)}\n"
+                    data += (
+                        f"{Style.RESET_ALL}-> {shorten_path(self, run.test_case.in_path.parent)}\n"
+                    )
                 elif ret.err:
                     data = ret.err
 
@@ -1469,10 +1478,14 @@ class Problem:
                     return
                 assert ret.status == ExecStatus.ACCEPTED
                 if not nextpass or not nextpass.is_file():
-                    localbar.error(
-                        f"Output Validator did not reject submission only printing: {raw_submission}",
-                        data,
-                    )
+                    if run.allow_ac:
+                        localbar.done(True, "accepted", data, force_log=True)
+                    else:
+                        success = False
+                        localbar.error(
+                            f"Output Validator did not reject submission only printing: {raw_submission}",
+                            data,
+                        )
                     return
 
                 assert self.limits.validation_passes is not None
@@ -1483,7 +1496,7 @@ class Problem:
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
 
-        parallel.run_tasks(run, test_cases, pin=True)
+        parallel.run_tasks(run, runs, pin=True)
         bar.finalize(print_done=True)
         return success
 
@@ -1517,9 +1530,9 @@ class Problem:
     def validate_invalid_extra_data(self) -> bool:
         assert config.args.generic is not None
         base_path = self.tmpdir / "invalid_data"
-        # pick at most first 3 samples (assuming they are valid and have .ans)
+        # pick at most first 2 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid test case
-        samples = sorted(glob(self.path, "data/sample/**/*.in"))[:3] + [None]
+        samples = sorted(glob(self.path, "data/sample/**/*.in"))[:2] + [None]
 
         # validator, dir, read, write, copy
         validators: list[tuple[type[AnyValidator], str, str, str, list[str]]] = [
@@ -1579,7 +1592,9 @@ class Problem:
                         used_sample = True
                     full_path.with_suffix(write).write_bytes(content)
 
-                    verbose(f"Generating {short_path}")
+                    if config.args.verbose > 1:
+                        verbose(f"Generating {short_path}")
+
                     test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None
@@ -1609,10 +1624,10 @@ class Problem:
         is_case_sensitive = "case_sensitive" in args
 
         base_path = self.tmpdir / "valid_data"
-        # pick at most first 3 samples (assuming they are valid and have .ans)
+        # pick at most first 2 samples (assuming they are valid and have .ans)
         samples = sorted(glob(self.path, "data/sample/**/*.in"))
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
-        samples = samples[:3]
+        samples = samples[:2]
 
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
@@ -1641,7 +1656,9 @@ class Problem:
                     shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
                 full_path.with_suffix(".out").write_bytes(content)
 
-                verbose(f"Generating {short_path}")
+                if config.args.verbose > 1:
+                    verbose(f"Generating {short_path}")
+
                 test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
                 assert sample is not None

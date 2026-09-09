@@ -589,6 +589,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                         "invalid_answer",
                         "invalid_output",
                         "valid_output",
+                        "output_validator",
                     ]
                 success &= problem.validate_invalid_extra_data()
                 success &= problem.validate_valid_extra_data()

@@ -453,6 +453,7 @@ class ProgressBar:
         data: Optional[str] = None,
         *,
         print_item: bool = True,
+        force_log: bool = False,
     ) -> None:
         with self:
             self.clearline()
@@ -463,7 +464,7 @@ class ProgressBar:
             if not self.logged:
                 if not success:
                     config.n_error += 1
-                if config.args.verbose or not success:
+                if config.args.verbose or not success or force_log:
                     self.log(
                         message,
                         data,
