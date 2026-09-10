@@ -458,10 +458,8 @@ INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
 
 
 def _has_invalid_byte(file_bytes: bytes, *, other_whitespaces: bool = False) -> bool:
-    if other_whitespaces:
-        return INVALID_BYTES_WITH_OTHER.search(file_bytes) is not None
-    else:
-        return INVALID_BYTES.search(file_bytes) is not None
+    bad = INVALID_BYTES_WITH_OTHER if other_whitespaces else INVALID_BYTES
+    return bad.search(file_bytes) is not None
 
 
 # assumes that the only possible whitespaces are space and newline
