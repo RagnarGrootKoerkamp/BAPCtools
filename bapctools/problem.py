@@ -1695,19 +1695,23 @@ class Problem:
         # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
-                self.validators(InputValidator, check_constraints=check_constraints)
+                required = self.validators(InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                self.validators(AnswerValidator, check_constraints=check_constraints)
+                required = self.validators(AnswerValidator, check_constraints=check_constraints)
             case validate.Mode.INVALID:
                 self.validators(InputValidator)
                 self.validators(AnswerValidator)
-                self.validators(OutputValidator)
+                required = self.validators(OutputValidator)
             case validate.Mode.VALID_OUTPUT:
                 self.validators(InputValidator)
                 self.validators(AnswerValidator)
-                self.validators(OutputValidator)
+                required = self.validators(OutputValidator)
             case _:
                 raise ValueError(mode)
+
+        if not required:
+            PrintBar(action).error("No validator found\n")
+            return False
 
         success = True
 
