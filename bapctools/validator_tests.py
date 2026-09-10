@@ -1,5 +1,5 @@
 from collections.abc import Callable, Sequence
-from typing import Final, Optional, TypeAlias, TypeVar
+from typing import Final, Optional, TypeVar
 
 from bapctools.validate import AnswerValidator, AnyValidator, InputValidator, OutputValidator
 
@@ -9,11 +9,11 @@ ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
     OutputValidator,
 ]
 IN_ANS_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [InputValidator, AnswerValidator]
-INVALID_GENERATOR_TYPE: TypeAlias = tuple[
+INVALID_GENERATOR_TYPE = tuple[
     str, bytes | Callable[[bytes], Optional[bytes]], Sequence[type[AnyValidator]]
 ]
-VALID_GENERATOR_TYPE: TypeAlias = tuple[str, bytes | Callable[[bytes], Optional[bytes]], bool, bool]
-BAD_OUTPUTS_TYPE: TypeAlias = tuple[str, bytes, bool]
+VALID_GENERATOR_TYPE = tuple[str, bytes | Callable[[bytes], Optional[bytes]], bool, bool]
+BAD_OUTPUTS_TYPE = tuple[str, bytes, bool]
 T = TypeVar("T", bound=bytes | Callable[[bytes], Optional[bytes]])
 
 

@@ -36,7 +36,6 @@ from typing import (
     ParamSpec,
     Protocol,
     TYPE_CHECKING,
-    TypeAlias,
     TypeVar,
 )
 from uuid import UUID
@@ -138,7 +137,7 @@ class Named(Protocol):
     def name(self) -> str: ...
 
 
-ITEM_TYPE: TypeAlias = str | Path | Named
+ITEM_TYPE = str | Path | Named
 
 
 # A class that draws a progressbar.
