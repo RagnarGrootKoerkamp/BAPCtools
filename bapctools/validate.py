@@ -457,20 +457,18 @@ INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(b"[^\t\r\v\f\n\x
 INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
 
 
-def _has_invalid_byte(bytes: bytes, *, other_whitespaces: bool = False) -> bool:
+def _has_invalid_byte(file_bytes: bytes, *, other_whitespaces: bool = False) -> bool:
     if other_whitespaces:
-        return INVALID_BYTES_WITH_OTHER.search(bytes) is not None
+        return INVALID_BYTES_WITH_OTHER.search(file_bytes) is not None
     else:
-        return INVALID_BYTES.search(bytes) is not None
+        return INVALID_BYTES.search(file_bytes) is not None
 
 
 # assumes that the only possible whitespaces are space and newline
 # allows \n\n
-def _has_consecutive_whitespaces(bytes: bytes) -> bool:
-    for bad in [b" \n", b"  ", b"\n "]:
-        if bytes.find(bad) >= 0:
-            return True
-    return False
+def _has_consecutive_whitespaces(file_bytes: bytes) -> bool:
+    # Note: this is more efficient then a regex search
+    return any(bad in file_bytes for bad in (b" \n", b"  ", b"\n "))
 
 
 def sanity_check(
