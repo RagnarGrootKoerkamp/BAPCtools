@@ -1067,14 +1067,18 @@ class Problem:
                 self._validators_warn_cache.add(key)
                 if cls == InputValidator and not validators:
                     warn(f"No input validators{constraints_msg} found.")
-                if cls == AnswerValidator and not validators and not self.interactive:
-                    # for interactive problems, the .ans file should be empty
-                    warn(f"No answer validators{constraints_msg} found.")
+                if cls == AnswerValidator:
+                    if self.interactive:
+                        # for interactive problems, the .ans file should be empty anyway
+                        pass
+                    elif not validators:
+                        warn(f"No answer validators{constraints_msg} found.")
+                    elif not any(isinstance(v, AnswerValidator) for v in validators):
+                        warn(f"No dedicated answer validators{constraints_msg} found.")
 
         build_ok = all(v.ok for v in validators)
 
-        # All validators must build.
-        # TODO Really? Why not at least return those that built?
+        # Validators might depend on each other => All validators must build.
         return validators if build_ok else tuple()
 
     @once_per_instance
@@ -1369,6 +1373,10 @@ class Problem:
             return True
         if not self.custom_output:
             return True
+        # Pre-build the output validator
+        output_validator = self.output_validator()
+        if not output_validator:
+            return True
 
         base_path = self.tmpdir / "invalid_data" / "output_validator_checks"
 
@@ -1409,11 +1417,6 @@ class Problem:
             runs.append(CheckRun(name, test_case, data, allow_ac))
         if not runs:
             return True
-
-        # Pre-build the output validator
-        output_validator = self.output_validator()
-        if not output_validator:
-            return False
 
         success = True
         bar = ProgressBar("Output Validator checks", items=runs)
@@ -1695,23 +1698,15 @@ class Problem:
         # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
-                required = self.validators(InputValidator, check_constraints=check_constraints)
+                self.validators(InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                required = self.validators(AnswerValidator, check_constraints=check_constraints)
-            case validate.Mode.INVALID:
+                self.validators(AnswerValidator, check_constraints=check_constraints)
+            case validate.Mode.INVALID | validate.Mode.VALID_OUTPUT:
                 self.validators(InputValidator)
                 self.validators(AnswerValidator)
-                required = self.validators(OutputValidator)
-            case validate.Mode.VALID_OUTPUT:
-                self.validators(InputValidator)
-                self.validators(AnswerValidator)
-                required = self.validators(OutputValidator)
+                self.validators(OutputValidator)
             case _:
                 raise ValueError(mode)
-
-        if not required:
-            PrintBar(action).error("No validator found\n")
-            return False
 
         success = True
 
@@ -1741,7 +1736,6 @@ class Problem:
             localbar.done(ok)
 
         parallel.run_tasks(process_test_case, test_cases)
-
         bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
