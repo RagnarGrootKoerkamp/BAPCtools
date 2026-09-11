@@ -1067,14 +1067,16 @@ class Problem:
                 self._validators_warn_cache.add(key)
                 if cls == InputValidator and not validators:
                     warn(f"No input validators{constraints_msg} found.")
-                if cls == AnswerValidator:
-                    if self.interactive:
-                        # for interactive problems, the .ans file should be empty anyway
-                        pass
-                    elif not validators:
+                # for interactive problems, the .ans file should be empty anyway
+                if cls == AnswerValidator and not self.interactive:
+                    if not validators:
                         warn(f"No answer validators{constraints_msg} found.")
                     elif not any(isinstance(v, AnswerValidator) for v in validators):
-                        warn(f"No dedicated answer validators{constraints_msg} found.")
+                        message = f"No dedicated answer validators{constraints_msg} found."
+                        if self.custom_output:
+                            log(message)
+                        else:
+                            warn(message)
 
         build_ok = all(v.ok for v in validators)
 
@@ -1700,15 +1702,22 @@ class Problem:
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant test cases
+        missing = False
         match mode:
             case validate.Mode.INPUT:
-                self.validators(InputValidator, check_constraints=constraints_dict is not None)
+                missing |= not self.validators(
+                    InputValidator, check_constraints=constraints_dict is not None
+                )
             case validate.Mode.ANSWER:
-                self.validators(AnswerValidator, check_constraints=constraints_dict is not None)
+                if not self.validators(
+                    AnswerValidator, check_constraints=constraints_dict is not None
+                ):
+                    missing |= not self.interactive
             case validate.Mode.INVALID | validate.Mode.VALID_OUTPUT:
-                self.validators(InputValidator)
-                self.validators(AnswerValidator)
-                self.validators(OutputValidator)
+                missing |= not self.validators(InputValidator)
+                if not self.validators(AnswerValidator):
+                    missing |= not self.interactive
+                missing |= not self.validators(OutputValidator)
             case _:
                 raise ValueError(mode)
 
@@ -1740,7 +1749,11 @@ class Problem:
             localbar.done(ok)
 
         parallel.run_tasks(process_test_case, test_cases)
-        bar.finalize(print_done=True)
+        if missing:
+            bar.item_width = 0
+            bar.finalize(message=f"{Fore.YELLOW}Done (partially){Style.RESET_ALL}")
+        else:
+            bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
         if constraints_dict is not None:
