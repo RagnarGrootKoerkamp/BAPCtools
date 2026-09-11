@@ -326,18 +326,15 @@ class Program:
 
     # Return True on success.
     def _compile(self, bar: ProgressBar) -> bool:
-        meta_path = self.tmpdir / "meta_.yaml"
-
         # Remove all non-source files.
         for f in self.tmpdir.glob("*"):
-            if f not in (self.input_files + [meta_path]):
+            if f not in self.input_files:
                 remove_path(f)
 
         # The case where compile_command='{build}' will result in an empty list here.
         if not self.compile_command:
             return True
 
-        remove_path(meta_path)
         try:
             ret = exec_command(
                 self.compile_command,
@@ -363,7 +360,7 @@ class Program:
             bar.error("Failed", data)
             return False
 
-        write_yaml({"hash": self.hash, "command": self.compile_command}, meta_path)
+        write_yaml({"hash": self.hash, "command": self.compile_command}, self.tmpdir / "meta_.yaml")
         return True
 
     # Return True on success, False on failure.
