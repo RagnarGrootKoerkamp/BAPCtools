@@ -309,6 +309,13 @@ def languages() -> Sequence[Language]:
             )
         priorities[lang.priority] = lang.code
 
+    if config.args.error:
+        # not compiling ctd results in nicer error messages
+        # => we prefer the not compiled language if -e is given
+        p1, p2 = COMPILED_CHECKTESTDATA.priority, CHECKTESTDATA.priority
+        COMPILED_CHECKTESTDATA.priority = min(p1, p2)
+        CHECKTESTDATA.priority = max(p1, p2)
+
     for lang in EXTRA_LANGUAGES:
         assert lang.ok
         assert lang.internal
