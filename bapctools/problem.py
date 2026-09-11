@@ -1509,13 +1509,13 @@ class Problem:
     def validate_data(
         self,
         mode: validate.Mode,
-        constraints: Optional[ConstraintsDict | Literal[True]] = None,
+        constraints: bool | ConstraintsDict = False,
     ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
             mode: validate.Mode
-            constraints: Optional[True | ConstraintsDict]. True means "do check constraints but discard the result."
+            constraints: bool | ConstraintsDict. True means "do check constraints but discard the result."
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1525,7 +1525,7 @@ class Problem:
             action = "Invalidation"
         elif mode == validate.Mode.VALID_OUTPUT:
             action = "Output validation"
-        elif constraints is not None:
+        elif constraints is not False:
             action = f"Collecting {str(mode).capitalize()} constraints"
         else:
             action = f"{str(mode).capitalize()} validation"
@@ -1611,7 +1611,7 @@ class Problem:
             bar.debug(f"writing generated invalid test cases to: {base_path}")
 
         return self._validate_data(
-            validate.Mode.INVALID, None, "Generic Invalidation", test_cases, True
+            validate.Mode.INVALID, False, "Generic Invalidation", test_cases, True
         )
 
     def validate_valid_extra_data(self) -> bool:
@@ -1676,13 +1676,13 @@ class Problem:
             bar.debug(f"writing generated valid test cases to: {base_path}")
 
         return self._validate_data(
-            validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", test_cases, True
+            validate.Mode.VALID_OUTPUT, False, "Generic Output Validation", test_cases, True
         )
 
     def _validate_data(
         self,
         mode: validate.Mode,
-        constraints: Optional[ConstraintsDict | Literal[True]],
+        constraints: bool | ConstraintsDict,
         action: str,
         test_cases: Sequence[TestCase],
         extra: bool = False,
@@ -1691,16 +1691,20 @@ class Problem:
         if not test_cases:
             return True
 
-        constraints_dict = {} if constraints is True else constraints
-        check_constraints = constraints_dict is not None
+        if constraints is True:
+            constraints_dict: Optional[ConstraintsDict] = {}
+        elif constraints is False:
+            constraints_dict = None
+        else:
+            constraints_dict = constraints
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant test cases
         match mode:
             case validate.Mode.INPUT:
-                self.validators(InputValidator, check_constraints=check_constraints)
+                self.validators(InputValidator, check_constraints=constraints_dict is not None)
             case validate.Mode.ANSWER:
-                self.validators(AnswerValidator, check_constraints=check_constraints)
+                self.validators(AnswerValidator, check_constraints=constraints_dict is not None)
             case validate.Mode.INVALID | validate.Mode.VALID_OUTPUT:
                 self.validators(InputValidator)
                 self.validators(AnswerValidator)
@@ -1739,7 +1743,7 @@ class Problem:
         bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
-        if constraints_dict:
+        if constraints_dict is not None:
             for loc, value in sorted(constraints_dict.items()):
                 loc = Path(loc).name
                 name, has_low, has_high, vmin, vmax, low, high = value
