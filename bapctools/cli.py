@@ -750,15 +750,7 @@ def main() -> None:
         if sys.version_info < (3, 10):
             fatal("BAPCtools requires at least Python 3.10.")
         parser = cli_parser.PARSER
-        if (
-            len(sys.argv) >= 2
-            and sys.argv[1] not in parser.known_actions
-            and not sys.argv[1].startswith("-")
-        ):
-            action = sys.argv[1]
-            closest = difflib.get_close_matches(action, parser.known_actions, n=1)
-            hint = f", did you mean '{closest[0]}'?" if closest else ""
-            parser.error(f"argument action: invalid choice: '{action}'{hint}")
+        parser.check_action()
         run_parsed_arguments(parser.parse_args())
     except (AbortError, KeyboardInterrupt):
         fatal("Running interrupted")

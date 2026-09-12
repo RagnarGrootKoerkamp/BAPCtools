@@ -2,6 +2,8 @@
 
 import argparse
 import platform
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -18,6 +20,51 @@ class SuppressingParser(argparse.ArgumentParser):
         super().__init__(**kwargs, argument_default=argparse.SUPPRESS)
         # this is set during _build_parser
         self.known_actions: list[str] = []
+
+    def _close_actions(self, action: str) -> list[str]:
+        def score(a: str, b: str) -> float:
+            n, m = len(a), len(b)
+            dp = [[0.0] * (m + 1) for _ in range(n + 1)]
+            ret = [[0.0] * (m + 1) for _ in range(n + 1)]
+            for i in range(1, n + 1):
+                dp[i][0] = 2.0 * i
+            for i in range(1, m + 1):
+                dp[0][i] = 2.0 * i
+            for i in range(1, n + 1):
+                for j in range(1, m + 1):
+                    t = [
+                        (2 + dp[i - 1][j], ret[i - 1][j]),
+                        (2 + dp[i][j - 1], ret[i][j - 1]),
+                        (3 + dp[i - 1][j - 1], ret[i - 1][j - 1]),
+                    ]
+                    if a[i - 1] == b[j - 1]:
+                        t.append((dp[i - 1][j - 1], ret[i - 1][j - 1] - 0.99 ** dp[i - 1][j - 1]))
+                    dp[i][j], ret[i][j] = min(t)
+            if dp[i][j] > 2 * (len(a) + len(b)):
+                return 0
+            return -ret[n][m] / min(len(a), len(b))
+
+        scored = [(score(action, known), -len(known), known) for known in self.known_actions]
+        scored.sort(reverse=True)
+        best_score = max(0.66, max(scored)[0])
+        best = [known for score, _, known in scored if score >= best_score - 0.01]
+        return best if len(best) <= 3 else []
+
+    def check_action(self, args: Optional[Sequence[str]] = None) -> None:
+        if args is None:
+            args = sys.argv[1:]
+
+        if args and args[0] not in self.known_actions and not args[0].startswith("-"):
+            action = args[0]
+            closest = self._close_actions(action)
+            if not closest:
+                hint = ""
+            elif len(closest) == 1:
+                hint = f", did you mean '{closest[0]}'?"
+            else:
+                other = "', '".join(closest[:-1])
+                hint = f", did you mean '{other}', or '{closest[-1]}'?"
+            self.error(f"argument action: invalid choice: '{action}'{hint}")
 
 
 # We use our own version action to lazily determine the version
@@ -65,8 +112,20 @@ class LazyVersion(argparse.Action):
         except PackageNotFoundError:
             exit = 1
             print(Fore.YELLOW, "- missing checktestdata", Style.RESET_ALL, sep="")
-        # TODO: print additional infos
         parser.exit(exit)
+
+
+class ActionHelpFormatter(argparse.RawTextHelpFormatter):
+    def __init__(self, prog: str) -> None:
+        super().__init__(prog, max_help_position=25)
+
+    def _format_action(self, action: argparse.Action) -> str:
+        if isinstance(action, argparse._SubParsersAction):
+            self._dedent()
+            parts = [super()._format_action(c) for c in self._iter_indented_subactions(action)]
+            self._indent()
+            return self._join_parts(parts)
+        return super()._format_action(action)
 
 
 def _build_parser() -> SuppressingParser:
@@ -74,11 +133,11 @@ def _build_parser() -> SuppressingParser:
         description="""
 Tools for ICPC style problem sets.
 Run this from one of:
-    - the repository root, and supply `contest`
-    - a contest directory
-    - a problem directory
+  - the repository root, and supply `contest`
+  - a contest directory
+  - a problem directory
 """,
-        formatter_class=argparse.RawTextHelpFormatter,
+        formatter_class=ActionHelpFormatter,
     )
     parser.add_argument(
         "-v",
@@ -145,13 +204,8 @@ Run this from one of:
     )
     global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
-    subparsers = parser.add_subparsers(title="actions", dest="action", required=True)
-
-    # upgrade
-    subparsers.add_parser(
-        "upgrade",
-        parents=[global_parser],
-        help="Upgrade a problem or contest.",
+    subparsers = parser.add_subparsers(
+        title="actions", dest="action", metavar="<action>", required=True
     )
 
     # New contest
@@ -211,6 +265,13 @@ Run this from one of:
         help="Rename a problem, including its directory.",
     )
     renameproblemparser.add_argument("problemname", nargs="?", help="The new name of the problem,")
+
+    # upgrade
+    subparsers.add_parser(
+        "upgrade",
+        parents=[global_parser],
+        help="Upgrade a problem or contest.",
+    )
 
     # Problem statements
     pdfparser = subparsers.add_parser(
@@ -301,6 +362,45 @@ Run this from one of:
     solparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
     solparser.add_argument("--tex-command", help="TeX command to use, default: pdflatex")
 
+    # Stats
+    statsparser = subparsers.add_parser(
+        "stats", parents=[global_parser], help="show statistics for contest/problem"
+    )
+    all_stats_group = statsparser.add_mutually_exclusive_group()
+    all_stats_group.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Print all stats",
+    )
+
+    # All
+    allparser = subparsers.add_parser(
+        "all",
+        parents=[global_parser],
+        help="validate input, validate answers, and run programs",
+    )
+    allparser.add_argument("--no-time-limit", action="store_true", help="Do not print time limits.")
+    allparser.add_argument(
+        "--no-test-case-sanity-checks",
+        action="store_true",
+        help="Skip sanity checks on test-cases.",
+    )
+    allparser.add_argument(
+        "--check-deterministic",
+        action="store_true",
+        help="Rerun all generators to make sure generators are deterministic.",
+    )
+    allparser.add_argument(
+        "--timeout", "-t", type=int, help="Override the default timeout. Default: 30."
+    )
+    allparser.add_argument(
+        "--overview",
+        "-o",
+        action="store_true",
+        help="Print a live overview for the judgings.",
+    )
+
     # Validation
     validate_parser = subparsers.add_parser(
         "validate", parents=[global_parser], help="validate all data"
@@ -363,16 +463,33 @@ Run this from one of:
         "--no-generate", "-G", action="store_true", help="Do not run `generate`."
     )
 
-    # Stats
-    statsparser = subparsers.add_parser(
-        "stats", parents=[global_parser], help="show statistics for contest/problem"
+    checktestingtool = subparsers.add_parser(
+        "check_testing_tool",
+        parents=[global_parser],
+        help="Run testing_tool against some or all accepted submissions.",
     )
-    all_stats_group = statsparser.add_mutually_exclusive_group()
-    all_stats_group.add_argument(
+    checktestingtool.add_argument(
+        "submissions",
+        nargs="*",
+        type=Path,
+        help="optionally supply a list of programs and test cases to run",
+    )
+    checktestingtool.add_argument(
+        "--no-generate",
+        "-G",
+        action="store_true",
+        help="Do not run `generate` before running submissions.",
+    )
+    checktestingtool.add_argument(
+        "--timeout",
+        type=int,
+        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
+    )
+    checktestingtool.add_argument(
         "--all",
         "-a",
         action="store_true",
-        help="Print all stats",
+        help="Run all test cases and don't stop on error.",
     )
 
     # Generate Test cases
@@ -597,67 +714,6 @@ Run this from one of:
         help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
 
-    checktestingtool = subparsers.add_parser(
-        "check_testing_tool",
-        parents=[global_parser],
-        help="Run testing_tool against some or all accepted submissions.",
-    )
-    checktestingtool.add_argument(
-        "submissions",
-        nargs="*",
-        type=Path,
-        help="optionally supply a list of programs and test cases to run",
-    )
-    checktestingtool.add_argument(
-        "--no-generate",
-        "-G",
-        action="store_true",
-        help="Do not run `generate` before running submissions.",
-    )
-    checktestingtool.add_argument(
-        "--timeout",
-        type=int,
-        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
-    )
-    checktestingtool.add_argument(
-        "--all",
-        "-a",
-        action="store_true",
-        help="Run all test cases and don't stop on error.",
-    )
-
-    # Sort
-    subparsers.add_parser(
-        "sort", parents=[global_parser], help="sort the problems for a contest by name"
-    )
-
-    # All
-    allparser = subparsers.add_parser(
-        "all",
-        parents=[global_parser],
-        help="validate input, validate answers, and run programs",
-    )
-    allparser.add_argument("--no-time-limit", action="store_true", help="Do not print time limits.")
-    allparser.add_argument(
-        "--no-test-case-sanity-checks",
-        action="store_true",
-        help="Skip sanity checks on test-cases.",
-    )
-    allparser.add_argument(
-        "--check-deterministic",
-        action="store_true",
-        help="Rerun all generators to make sure generators are deterministic.",
-    )
-    allparser.add_argument(
-        "--timeout", "-t", type=int, help="Override the default timeout. Default: 30."
-    )
-    allparser.add_argument(
-        "--overview",
-        "-o",
-        action="store_true",
-        help="Print a live overview for the judgings.",
-    )
-
     # Build DOMjudge zip
     zipparser = subparsers.add_parser(
         "zip",
@@ -696,31 +752,6 @@ Run this from one of:
         help="Make a zip more following the legacy format.",
     )
 
-    gitlab_parser = subparsers.add_parser(
-        "gitlabci", parents=[global_parser], help="Print a list of jobs for the given contest."
-    )
-    gitlab_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
-    )
-
-    forgejo_parser = subparsers.add_parser(
-        "forgejo_actions",
-        parents=[global_parser],
-        help="Setup Forgejo Actions workflows in .forgejo.",
-    )
-    forgejo_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
-    )
-
-    github_parser = subparsers.add_parser(
-        "github_actions",
-        parents=[global_parser],
-        help="Setup Github Actions workflows in .github.",
-    )
-    github_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
-    )
-
     exportparser = subparsers.add_parser(
         "export",
         parents=[global_parser],
@@ -735,6 +766,11 @@ Run this from one of:
         "--legacy",
         action="store_true",
         help="Make export more following the legacy format.",
+    )
+
+    # Sort
+    subparsers.add_parser(
+        "sort", parents=[global_parser], help="sort the problems for a contest by name"
     )
 
     updateproblemsyamlparser = subparsers.add_parser(
@@ -762,17 +798,15 @@ Run this from one of:
         help="Make problems.yaml more following the legacy format.",
     )
 
-    # Print the corresponding temporary directory.
-    tmpparser = subparsers.add_parser(
-        "tmp",
+    download_submissions_parser = subparsers.add_parser(
+        "download_submissions",
         parents=[global_parser],
-        help="Print the tmpdir corresponding to the current problem.",
+        help="Download all submissions for a contest and write them to submissions/.",
     )
-    tmpparser.add_argument(
-        "--clean",
-        "-C",
-        action="store_true",
-        help="Delete the temporary cache directory for the current problem/contest.",
+    download_submissions_parser.add_argument(
+        "--contest-id",
+        action="store",
+        help="Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.",
     )
 
     solvestatsparser = subparsers.add_parser(
@@ -791,15 +825,29 @@ Run this from one of:
         help="When given, the solve stats will include submissions from after the scoreboard freeze.",
     )
 
-    download_submissions_parser = subparsers.add_parser(
-        "download_submissions",
-        parents=[global_parser],
-        help="Download all submissions for a contest and write them to submissions/.",
+    gitlab_parser = subparsers.add_parser(
+        "gitlabci", parents=[global_parser], help="Print a list of jobs for the given contest."
     )
-    download_submissions_parser.add_argument(
-        "--contest-id",
-        action="store",
-        help="Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.",
+    gitlab_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
+    )
+
+    forgejo_parser = subparsers.add_parser(
+        "forgejo_actions",
+        parents=[global_parser],
+        help="Setup Forgejo Actions workflows in .forgejo.",
+    )
+    forgejo_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
+    )
+
+    github_parser = subparsers.add_parser(
+        "github_actions",
+        parents=[global_parser],
+        help="Setup Github Actions workflows in .github.",
+    )
+    github_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
     )
 
     create_slack_channel_parser = subparsers.add_parser(
@@ -816,6 +864,19 @@ Run this from one of:
     )
     join_slack_channel_parser.add_argument("--token", help="A bot/user token is of the form xox...")
     join_slack_channel_parser.add_argument("username", help="Slack username")
+
+    # Print the corresponding temporary directory.
+    tmpparser = subparsers.add_parser(
+        "tmp",
+        parents=[global_parser],
+        help="Print the tmpdir corresponding to the current problem.",
+    )
+    tmpparser.add_argument(
+        "--clean",
+        "-C",
+        action="store_true",
+        help="Delete the temporary cache directory for the current problem/contest.",
+    )
 
     argcomplete.autocomplete(parser)
 
