@@ -113,7 +113,7 @@ def verbose(msg: Any) -> None:
 
 def warn(msg: Any) -> None:
     if config.args.suppress_warnings < 1:
-        if msg not in config.args.ignore_warning:
+        if msg in config.args.ignore_warning:
             config.n_warn += 1
             msg += " (ignored)"
         eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
@@ -408,7 +408,7 @@ class ProgressBar:
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
             if config.args.suppress_warnings < 1:
-                if message not in config.args.ignore_warning:
+                if message in config.args.ignore_warning:
                     config.n_warn += 1
                     message += " (ignored)"
                 self.log(message, data, Fore.YELLOW, print_item=print_item)
@@ -493,7 +493,7 @@ class ProgressBar:
         if not success:
             assert message
             if warn_instead_of_error:
-                if message not in config.args.ignore_warning:
+                if message in config.args.ignore_warning:
                     config.n_warn += 1
                     message += " (ignored)"
             else:
@@ -626,7 +626,7 @@ class PrintBar:
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         if config.args.suppress_warnings < 1:
-            if message not in config.args.ignore_warning:
+            if message in config.args.ignore_warning:
                 config.n_warn += 1
                 message += " (ignored)"
             self.log(message, data, Fore.YELLOW, print_item=print_item)
