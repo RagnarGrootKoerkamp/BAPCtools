@@ -749,9 +749,7 @@ def main() -> None:
     try:
         if sys.version_info < (3, 10):
             fatal("BAPCtools requires at least Python 3.10.")
-        parser = cli_parser.PARSER
-        parser.check_action()
-        run_parsed_arguments(parser.parse_args())
+        run_parsed_arguments(cli_parser.parse_args())
     except (AbortError, KeyboardInterrupt):
         fatal("Running interrupted")
 
@@ -771,8 +769,7 @@ def test(args: list[str]) -> None:
     contest.contest_yaml.reset()
     contest.problems_yaml.reset()
     try:
-        parser = cli_parser.PARSER
-        run_parsed_arguments(parser.parse_args(args), personal_config=False)
+        run_parsed_arguments(cli_parser.parse_args(args), personal_config=False)
     finally:
         os.chdir(original_directory)
         ProgressBar.current_bar = None

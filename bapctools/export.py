@@ -18,7 +18,6 @@ from bapctools.util import (
     ask_variable_bool,
     drop_suffix,
     ensure_symlink,
-    eprint,
     error,
     fatal,
     glob,
@@ -451,8 +450,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
         # Done.
         zf.close()
-        bar.log("done")
-        eprint()
+        bar.log("done\n")
     except Exception:
         return False
 
@@ -509,8 +507,7 @@ def build_contest_zip(
             fname.unlink()
 
     zf.close()
-    bar.log("done")
-    eprint()
+    bar.log("done\n")
 
 
 def update_contest_id(cid: str) -> None:
@@ -635,7 +632,6 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
 
     if config.args.number:
         for n, d in enumerate(data, start=1):
-            n += 1
             newlabel = f"S{n:>02}"
             if d["label"] != newlabel:
                 d["label"] = newlabel
