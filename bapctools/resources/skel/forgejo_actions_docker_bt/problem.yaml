@@ -17,4 +17,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          bt all --cp --error --no-bar --force --jobs 0 --problem {%problem_path%}
+          bt all --cp --error --no-bar --force-build --jobs 0 --problem {%problem_path%}
