@@ -113,16 +113,18 @@ def verbose(msg: Any) -> None:
 
 def warn(msg: Any) -> None:
     if config.args.suppress_warnings < 1:
+        if msg not in config.args.ignore_warning:
+            config.n_warn += 1
+            msg += " (ignored)"
         eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
-        config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
     if config.args.suppress_warnings < 2:
-        eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
         config.n_error += 1
+        eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
@@ -406,7 +408,9 @@ class ProgressBar:
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
             if config.args.suppress_warnings < 1:
-                config.n_warn += 1
+                if message not in config.args.ignore_warning:
+                    config.n_warn += 1
+                    message += " (ignored)"
                 self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
@@ -454,6 +458,8 @@ class ProgressBar:
         print_item: bool = True,
         force_log: bool = False,
     ) -> None:
+        if not success:
+            assert message
         with self:
             self.clearline()
 
@@ -485,8 +491,11 @@ class ProgressBar:
         warn_instead_of_error: bool = False,
     ) -> bool:
         if not success:
+            assert message
             if warn_instead_of_error:
-                config.n_warn += 1
+                if message not in config.args.ignore_warning:
+                    config.n_warn += 1
+                    message += " (ignored)"
             else:
                 config.n_error += 1
         if config.args.verbose or not success:
@@ -617,7 +626,9 @@ class PrintBar:
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         if config.args.suppress_warnings < 1:
-            config.n_warn += 1
+            if message not in config.args.ignore_warning:
+                config.n_warn += 1
+                message += " (ignored)"
             self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     def error(
@@ -733,6 +744,7 @@ def path_size(path: Path) -> int:
 
 def drop_suffix(path: Path, suffixes: Sequence[str]) -> Path:
     for suffix in suffixes:
+        assert suffix.startswith(".")
         if path.name.endswith(suffix):
             return path.with_name(path.name.removesuffix(suffix))
     return path
@@ -1309,7 +1321,7 @@ def math_eval(text: str) -> Optional[int | float]:
     # try to guess the meaning of dot and comma (punctuation and separator)
     if text.count(".") != 1 and text.count(",") <= 1:
         text = text.translate(str.maketrans(".,", ",."))
-    text.replace(",", "")
+    text = text.replace(",", "")
 
     # make math eval slightly safer
     allowed = string.digits + "+-*/()." + "eE" + string.whitespace

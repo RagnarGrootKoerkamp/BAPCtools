@@ -888,7 +888,7 @@ class TestCaseRule(Rule):
                     command = self.generator.cache_command(seed)
                     bar.warn(f"Failed generator command: {command}")
                 bar.debug("Use generate --no-validators to ignore validation results.")
-                bar.done(False)
+                bar.done()
                 return False
         else:
             for h in input_validator_hashes:
@@ -947,7 +947,7 @@ class TestCaseRule(Rule):
         ):
             if not config.args.no_validators:
                 bar.debug("Use generate --no-validators to ignore validation results.")
-                bar.done(False)
+                bar.done()
                 return False
         else:
             for h in ans_out_validator_hashes:

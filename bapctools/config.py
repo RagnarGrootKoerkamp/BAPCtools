@@ -130,7 +130,7 @@ TEST_TLE_SUBMISSIONS: bool = False
 class ARGS:
     def __init__(self, source: str | Path, **kwargs: Any) -> None:
         self._set = set[str]()
-        self._known_keys = set[str]()
+        self._known_keys = list[str]()
         self._source = source
 
         def warn(msg: Any) -> None:
@@ -151,7 +151,7 @@ class ARGS:
             return value
 
         def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:
-            self._known_keys.add(key)
+            self._known_keys.append(key)
             if key in kwargs:
                 value = normalize_arg(kwargs.pop(key), t)
                 if value is None:
@@ -173,7 +173,6 @@ class ARGS:
         def get_list_arg(
             key: str, t: type[T], constraint: Optional[str] = None
         ) -> Optional[list[T]]:
-            self._known_keys.add(key)
             values = get_optional_arg(key, list)
             if values is None:
                 return None
@@ -194,7 +193,6 @@ class ARGS:
             return checked
 
         def get_arg(key: str, default: T, constraint: Optional[str] = None) -> T:
-            self._known_keys.add(key)
             value = get_optional_arg(key, type(default), constraint)
             return default if value is None else value
 
@@ -213,14 +211,15 @@ class ARGS:
         self.contest_id: Optional[str] = get_optional_arg("contest_id", str)
         self.contestname: Optional[str] = get_optional_arg("contestname", str)
         self.cp: bool = get_arg("cp", False)
-        self.defaults: bool = get_arg("defaults", False)
         self.default_solution: Optional[Path] = get_optional_arg("default_solution", Path)
+        self.defaults: bool = get_arg("defaults", False)
         self.depth: Optional[int] = get_optional_arg("depth", int, ">= 0")
         self.directory: list[Path] = get_list_arg("directory", Path) or []
         self.error: bool = get_arg("error", False)
         self.force: bool = get_arg("force", False)
         self.force_build: bool = get_arg("force_build", False)
         self.generic: Optional[list[str]] = get_list_arg("generic", str)
+        self.ignore_warning: list[str] = get_list_arg("ignore_warning", str) or []
         self.input: bool = get_arg("input", False)
         self.interaction: bool = get_arg("interaction", False)
         self.interactive: bool = get_arg("interactive", False)
@@ -276,6 +275,11 @@ class ARGS:
         self.watch: bool = get_arg("watch", False)
         self.web: bool = get_arg("web", False)
         self.write: bool = get_arg("write", False)
+
+        if RUNNING_TEST or True:
+            keys = [key for key in self.__dict__ if not key.startswith("_")]
+            for a, b in zip(keys, keys[1:]):
+                assert a < b, f"{a} > {b}"
 
         # internal keys (cannot be set via a config file)
         self.suppress_warnings: int = 0

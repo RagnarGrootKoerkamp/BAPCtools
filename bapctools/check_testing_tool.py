@@ -243,7 +243,7 @@ def run(
     bar = ProgressBar("Building testing tool", items=[testing_tool])
     localbar = bar.start(testing_tool)
     if not testing_tool.build(bar):
-        localbar.done(False)
+        localbar.done()
         return False
     testing_tool.check_python_version(localbar)
     localbar.done()

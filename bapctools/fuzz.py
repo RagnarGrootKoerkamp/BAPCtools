@@ -87,7 +87,7 @@ class GeneratorTask:
         localbar = bar.start(f"{self.i}: validate input")
         if not test_case.validate_format(Mode.INPUT, bar=localbar, constraints=None):
             self.fuzz.queue.ensure_alive()
-            localbar.done(False)
+            localbar.done()
             return False
         self.fuzz.queue.ensure_alive()
         localbar.done()
@@ -111,7 +111,7 @@ class GeneratorTask:
             localbar = bar.start(f"{self.i}: validate output")
             if not test_case.validate_format(Mode.ANSWER, bar=localbar):
                 self.fuzz.queue.ensure_alive()
-                localbar.done(False)
+                localbar.done()
                 return False
             self.fuzz.queue.ensure_alive()
             localbar.done()

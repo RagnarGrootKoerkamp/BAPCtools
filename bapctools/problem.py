@@ -1742,11 +1742,10 @@ class Problem:
                     localbar.done()
                     return
 
-            ok = test_case.validate_format(
+            success &= test_case.validate_format(
                 mode, bar=localbar, constraints=constraints_dict, warn_instead_of_error=extra
             )
-            success &= ok
-            localbar.done(ok)
+            localbar.done()
 
         parallel.run_tasks(process_test_case, test_cases)
         if missing:
