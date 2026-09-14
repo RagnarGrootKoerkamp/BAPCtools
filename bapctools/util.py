@@ -114,8 +114,9 @@ def verbose(msg: Any) -> None:
 def warn(msg: Any) -> None:
     if config.args.suppress_warnings < 1:
         if msg in config.args.ignore_warning:
-            config.n_warn += 1
             msg += " (ignored)"
+        else:
+            config.n_warn += 1
         eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
 
 
@@ -301,6 +302,16 @@ class ProgressBar:
         else:
             self._print(prefix, bar, end="\r")
 
+    @staticmethod
+    def process_warning(message: str, item: Optional[ITEM_TYPE], print_item: bool = True) -> str:
+        item_name = ProgressBar.action(None, item, None, None, print_item)
+        if item_name and f"{item_name} {message}" in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        if message in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        config.n_warn += 1
+        return message
+
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
         assert self.item is not None
@@ -408,9 +419,7 @@ class ProgressBar:
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
             if config.args.suppress_warnings < 1:
-                if message in config.args.ignore_warning:
-                    config.n_warn += 1
-                    message += " (ignored)"
+                message = ProgressBar.process_warning(message, self.item, print_item)
                 self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
@@ -493,9 +502,7 @@ class ProgressBar:
         if not success:
             assert message
             if warn_instead_of_error:
-                if message in config.args.ignore_warning:
-                    config.n_warn += 1
-                    message += " (ignored)"
+                ProgressBar.process_warning(message, self.item)
             else:
                 config.n_error += 1
         if config.args.verbose or not success:
@@ -626,9 +633,7 @@ class PrintBar:
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         if config.args.suppress_warnings < 1:
-            if message in config.args.ignore_warning:
-                config.n_warn += 1
-                message += " (ignored)"
+            message = ProgressBar.process_warning(message, self.item, print_item)
             self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     def error(
