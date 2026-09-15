@@ -92,9 +92,9 @@ The most common commands and options to use on an existing repository are:
 - [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [test_cases [test_cases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
 
-A guide on how to set a problem with BAPCtools and what commands to use can be found at [doc/workflow.md#synopsis](doc/workflow.md#).
-The list of all available commands and options is at [doc/commands.md#synopsis](doc/commands.md#synopsis).
-Additionally, information regarding the implementation is at [doc/implementation_notes.md](doc/implementation_notes.md).
+A guide on how to set a problem with BAPCtools and what commands to use can be found at [docs/workflow.md](https://ragnargrootkoerkamp.github.io/BAPCtools/workflow/).
+The list of all available commands and options is at [docs/commands](https://ragnargrootkoerkamp.github.io/BAPCtools/commands/).
+Additionally, information regarding the implementation is at [docs/advanced/implementation_notes.md](https://ragnargrootkoerkamp.github.io/BAPCtools/advanced/implementation_notes/).
 
 ### Run
 
@@ -106,11 +106,11 @@ Specify one or more submissions and one or more test cases to only run the given
 Before running the given submissions, this command first makes sure that all generated test cases are up to date (in case `generators/generators.yaml` was found).
 To disable automatically regenerating test cases, pass `-G` (`--no-generate`), or add `no_generate: true` to a `.bapctools.yaml` file in the problem or contest directory.
 
-![run](doc/images/run.gif)
+![run](docs/images/run.gif)
 
 By default, `bt run` only prints one summary line per submission, and one additional line for each test case with an unexpected result. Use `-v` to print one line per test case instead.
 
-![run -v](doc/images/run-v.gif)
+![run -v](docs/images/run-v.gif)
 
 ### Test
 
@@ -124,17 +124,17 @@ In interactive mode the output is **not** validated.
 This rebuilds and reruns the program until either `control-C` or `control-D` is pressed.
 It's also possible to supply the test case on the command line directly using e.g. `< /path/to/file.in` or `<<< "10 20"`.
 
-![test](doc/images/test.png)
+![test](docs/images/test.png)
 
 ### Generate
 
 - `bt generate [-v] [--jobs JOBS]`
 
 Use the `generate` command to generate the test cases specified in `generators/generators.yaml`.
-See [doc/generators.md](doc/generators.md) for the specification of `generators.yaml` and see [doc/commands.md#generate](doc/commands.md#generate) for the full list of arguents.
+See [docs/generators.md](https://ragnargrootkoerkamp.github.io/BAPCtools/generators/) for the specification of `generators.yaml` and see [docs/commands.md#generate](https://ragnargrootkoerkamp.github.io/BAPCtools/commands/) for the full list of arguents.
 Use `-j 0` to disable running multiple jobs in parallel (the default is half of the available cpu cores).
 
-![generate](./doc/images/generate.gif)
+![generate](./docs/images/generate.gif)
 
 ### Validate
 
@@ -152,7 +152,7 @@ Validators can be one of
 
 You can use `--remove` to delete all failing test cases or `--move <dir>` to move them to a separate directory.
 
-![validator](./doc/images/validate.png)
+![validator](./docs/images/validate.png)
 
 ### Pdf
 

@@ -1,7 +1,7 @@
 # `problem.yaml`
 
 This file is located under `problem_name/problem.yaml`
-The full specification can be found here [here](https://icpc.io/problem-package-format/spec/2025-09.html).
+The full specification can be found [here](https://icpc.io/problem-package-format/spec/2025-09.html).
 
 ```yaml
 problem_format_version: 2025-09

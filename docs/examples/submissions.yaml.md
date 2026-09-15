@@ -1,7 +1,7 @@
 # `submissions.yaml`
 
 This file is located under `problem_name/submissions/submissions.yaml`
-The full specification can be found here [here](https://icpc.io/problem-package-format/spec/2025-09.html#example-submissions).
+The full specification can be found [here](https://icpc.io/problem-package-format/spec/2025-09.html#example-submissions).
 
 ```yaml
 # define some metadata for a submission
