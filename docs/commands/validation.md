@@ -40,7 +40,7 @@ See the [implementation notes](../advanced/implementation_notes.md#constraints-c
 
 Validators that accept the `--constraints_file <path>` option are run on all test cases to check whether the bounds specified in the validator are actually reached by the test data.
 A warning is raised when this is not the case.
-E.g. when an `input_validator` based on [headers/validation.h](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all test cases is `999`, the following warning will be raised:
+E.g. when an `input_validator` based on [headers/validation.h]({{ repo_url }}/blob/main/bapctools/resources/headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all test cases is `999`, the following warning will be raised:
 
 ```
 WARNING: BOUND NOT REACHED: The value at input_validator.cpp:7 was never equal to the upper bound of 1000. Max value found: 999

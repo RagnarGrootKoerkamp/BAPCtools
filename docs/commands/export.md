@@ -1,5 +1,4 @@
-
-# Exporting
+# Export
 
 ## `samplezip`
 

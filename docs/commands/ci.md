@@ -49,7 +49,7 @@ verify_testproblem:
 The default behaviour is:
 
 - Use the `bapctools` Docker image.
-This has to be installed manually from the [Dockerfile](../installation.md/#docker) found in the root of the repository.
+This has to be installed manually from the [Dockerfile](../installation/#docker) found in the root of the repository.
 - Before each stage, pull `BAPCtools` to the `/cache` partition.
 This makes sure to always use the latest version of BAPCtools.
 - For contests: build the problem and solutions pdf and cache these artefacts 1 week.

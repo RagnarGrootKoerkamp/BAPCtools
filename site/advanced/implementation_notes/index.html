@@ -1,0 +1,1445 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+
+        <meta name="description" content="Documentation for BAPCtools">
+
+
+
+        <link rel="canonical" href="https://RagnarGrootKoerkamp.github.io/BAPCtools/advanced/implementation_notes/">
+
+
+        <link rel="prev" href="../config/">
+
+
+        <link rel="next" href="../multiple_languages/">
+
+
+
+
+
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.62">
+
+
+
+        <title>Implementation Notes - BAPCtools</title>
+
+
+
+
+
+
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.ce62732f.min.css">
+
+
+
+
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.812a03bb.min.css">
+
+
+
+
+
+
+
+
+
+
+
+
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+
+
+
+      <link rel="stylesheet" href="../../css/no_footer.css">
+
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+
+
+
+
+
+  </head>
+
+
+
+
+
+
+
+
+
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+
+
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+
+
+        <a href="#implementation-notes" class="md-skip">
+          Skip to content
+        </a>
+
+    </div>
+    <div data-md-component="announce">
+
+    </div>
+
+
+
+
+
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="BAPCtools" class="md-header__button md-logo" aria-label="BAPCtools" data-md-component="logo">
+
+
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            BAPCtools
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+
+              Implementation Notes
+
+          </span>
+        </div>
+      </div>
+    </div>
+
+
+        <form class="md-header__option" data-md-component="palette">
+
+
+
+
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+
+
+
+
+
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="orange" data-md-color-accent="orange"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_1">
+
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+
+
+</form>
+
+
+
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+
+
+
+
+
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+
+
+    <div class="md-header__source">
+
+        <a href="https://github.com/RagnarGrootKoerkamp/BAPCtools" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BAPCtools
+  </div>
+</a>
+
+    </div>
+  </nav>
+
+</header>
+
+    <div class="md-container" data-md-component="container">
+
+
+
+
+
+
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+
+
+
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="BAPCtools" class="md-nav__button md-logo" aria-label="BAPCtools" data-md-component="logo">
+
+
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    BAPCtools
+  </label>
+
+    <div class="md-nav__source">
+      <a href="https://github.com/RagnarGrootKoerkamp/BAPCtools" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BAPCtools
+  </div>
+</a>
+    </div>
+
+  <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Welcome
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Installation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Workflow
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+
+
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Commands
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Commands
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Commands
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/new/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  New Contest/Problem
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/development/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Problem Development
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/validation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Problem validation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/latex/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Latex
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/export/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Export
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/ci/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  CI
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../commands/misc/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Miscellaneous
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../generators/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Generators
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+
+
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Advanced
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Advanced
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Personal Configuration
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active">
+
+
+
+
+
+
+
+      <a href="././" class="md-nav__link md-nav__link--active">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Implementation Notes
+
+
+  </span>
+
+
+
+      </a>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../multiple_languages/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Multiple Language Support
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Validation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+
+
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Examples
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Examples
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../examples/directory_structure/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Directory Structure
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../examples/generators.yaml/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  generators.yaml
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../examples/languages.yaml/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  languages.yaml
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../examples/problem.yaml/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  problem.yaml
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../examples/submissions.yaml/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  submissions.yaml
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../faq/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  FAQ
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../../contribute/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Contributing
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+
+
+
+
+
+
+
+
+                  <div class="md-sidebar__inner">
+
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+
+
+
+
+
+
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+            <div class="md-content" data-md-component="content">
+
+
+
+
+
+
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+
+
+
+
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+
+
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+      <li class="md-path__item">
+        <a href="../config/" class="md-path__link">
+
+
+  <span class="md-ellipsis">
+    Advanced
+  </span>
+
+        </a>
+      </li>
+
+
+
+
+    </ol>
+  </nav>
+
+
+              <article class="md-content__inner md-typeset">
+
+
+
+
+
+
+<h1 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">🔗︎</a></h1>
+<p>This document explains some miscellaneous parts of the implementation of BAPCtools.</p>
+<h1 id="building-and-running-in-tmpfs">Building and running in tmpfs<a class="headerlink" href="#building-and-running-in-tmpfs" title="Permanent link">🔗︎</a></h1>
+<p>For efficiency, BAPCtools tries to minimize the number of disk writes.
+This means that it will do as many things as possible in RAM.
+In practice, <code>tmpfs</code> (temporary file system in RAM) is used for this.</p>
+<ul>
+<li>On Linux, this is typically <code>/tmp/bapctools_6dhash/</code>, with one temporary directory per contest.</li>
+<li>On Windows, this may be <code>c:\temp\bapctools_6dhash\</code>.</li>
+</ul>
+<p>From here on, let <code>~tmp</code> be the root temporary directory, e.g. <code>/tmp/bapctools_6dhash/</code>.
+<code>~tmp</code> contains a directory structure that tries to mirror the directory structure of the problem archive itself.
+Each 'program' (submission/validator/generator/visualizer) gets its own directory, as do test cases and runs:</p>
+<ul>
+<li><code>~tmp/&lt;contestname&gt;/</code>: Used for compiling the contest pdf and solution slides.
+See the section on building LaTeX.</li>
+<li><code>~tmp/&lt;problemname&gt;/</code>: Contains tex files to build the problem pdf.
+See the section on building LaTeX.</li>
+<li><code>~tmp/&lt;problemname&gt;/{input,output}_validators/</code>: contains the build artefacts for all validators.</li>
+<li><code>~tmp/&lt;problemname&gt;/submissions/&lt;verdict&gt;/&lt;submission&gt;/</code>: contains the build artefacts for all submissions.</li>
+<li><code>~tmp/&lt;problemname&gt;/generators/&lt;generator&gt;/</code>: contains the build artefacts for all generators.</li>
+<li><code>~tmp/&lt;problemname&gt;/data/(&lt;group&gt;/)*&lt;test_case&gt;/</code>: is used to generated the test case and store metadata about it.</li>
+<li><code>~tmp/&lt;problemname&gt;/data/(&lt;group&gt;/)*&lt;test_case&gt;.feedbackdir/</code>: contains the result of the input/output format validators.</li>
+<li><code>~tmp/&lt;problemname&gt;/runs/&lt;verdict&gt;/&lt;submission&gt;/(&lt;group&gt;/)*&lt;test_case&gt;.out</code>: the output of the submission on the test case.</li>
+<li><code>~tmp/&lt;problemname&gt;/runs/&lt;verdict&gt;/&lt;submission&gt;/(&lt;group&gt;/)*&lt;test_case&gt;.feedbackdir</code>: the output validator feedback when validating the corresponding <code>.out</code>.</li>
+</ul>
+<h2 id="building-programs">Building programs<a class="headerlink" href="#building-programs" title="Permanent link">🔗︎</a></h2>
+<p>Each program (submission/validator/generator/visualizer) is build in its own directory (<code>~tmp/problemname/submissions/accepted/submission/</code>, from here on <code>~build</code>).
+Compilation is only done if either the sources or the compile command changed.</p>
+<ol>
+<li>Detect the program language.
+Language detection rules are described in <a href="../{{ repo_url }}/blob/main/bapctools/resources/config/languages.yaml">languages.yaml</a>.</li>
+<li>Symlink all input files to <code>~build</code>.
+This can be either the single submission file, or all files/directories directly contained in the submission.</li>
+<li>Find the <code>build</code> and <code>run</code> command for the current language.</li>
+<li>If <code>~build/meta_</code> is newer than the last modification to any source file and contains exactly the <code>build</code> command, the build is up to date and nothing needs to be done.</li>
+<li>Else, run the <code>build</code> command and update <code>~build/meta_</code> with this.</li>
+<li>For compiled languages, we now (usually) have a file <code>~build/run</code> that is used as <code>{binary}</code> in the substitution of the <code>run</code> command.
+For interpreted languages, e.g. Python, the main file is given as <code>{mainfile}</code>.</li>
+</ol>
+<h2 id="generating-test-cases">Generating test cases<a class="headerlink" href="#generating-test-cases" title="Permanent link">🔗︎</a></h2>
+<p>Test cases are generated inside <code>~tmp/&lt;problemname&gt;/data/(&lt;group&gt;/)*&lt;test_case&gt;/</code> (from now on <code>~test_case</code>).
+Test cases are only re-generated when changes were made.
+This is done with the following steps:</p>
+<ol>
+<li>Check if the current data in <code>~test_case/meta_.yaml</code> is up to date.</li>
+<li>Run the given generator with current working directory <code>~test_case/</code>.</li>
+<li>For copied test cases, copy files to <code>~test_case/</code></li>
+<li>Write hardcoded files to<code>~test_case/</code>.</li>
+<li>Validate the generated <code>~test_case/&lt;test_case&gt;.in</code> file.</li>
+<li>If <code>~test_case/&lt;test_case&gt;.ans</code> was not generated and a solution was provided, run the solution with working directory <code>~test_case</code> to generate <code>~test_case/&lt;test_case&gt;.ans</code>.</li>
+<li>For interactive problems, create an empty <code>~test_case/&lt;test_case&gt;.ans</code> and run the given submission to create a <code>~test_case/&lt;test_case&gt;.interaction</code>.</li>
+<li>Validate the generated <code>~test_case/&lt;test_case&gt;.ans</code> file.</li>
+<li>If provided, run the visualizer with working directory <code>~test_case/</code>.</li>
+<li>Copy generated files to the <code>data/</code> directory.
+For changed files, <code>--force</code> is needed to overwrite them.</li>
+<li>Update the <code>~test_case/meta_.yaml</code> file with the invocations of the generator,
+   solution, and visualizer and hash of the <code>.in</code> file.</li>
+</ol>
+<h1 id="building-latex-files">Building LaTeX files<a class="headerlink" href="#building-latex-files" title="Permanent link">🔗︎</a></h1>
+<p>BAPCtools comes with a set of latex classes/headers to automatically render problem, contest, and solution PDFs.
+These files are available in <a href="../{{ repo_url }}/tree/main/bapctools/resources/latex"><code>/latex/</code></a>.</p>
+<p>To customize the style, you can provide your own modified copy of any of the header files in <code>&lt;contestdirectory&gt;/</code> and they will be used instead of the BACPtools provided files.
+For example, you can provide your own <code>&lt;contestdirectory&gt;/contest.tex</code> as replacement entrypoint for building contest PDFs.
+You can either manually include problems there, or use <code>\input{./contest-problems.tex}</code> to include the automatically generated content.
+This will instantiate the <a href="../{{ repo_url }}/blob/main/bapctools/resources/latex/contest-problem.tex"><code>contest-problem.tex</code></a> template once for each problem in the contest.
+This template itself can also be modified if desired.</p>
+<p>See also the docs on using multiple languages <a href="../../advanced/multiple_languages/">here</a>.</p>
+<h2 id="problem-statement-pdfs">Problem statement pdfs<a class="headerlink" href="#problem-statement-pdfs" title="Permanent link">🔗︎</a></h2>
+<h3 id="per-problem-pdf">Per-problem pdf<a class="headerlink" href="#per-problem-pdf" title="Permanent link">🔗︎</a></h3>
+<p>The per-problem pdfs are created inside <code>&lt;tmpdir&gt;/&lt;problemname&gt;/latex/&lt;language&gt;</code>:</p>
+<ul>
+<li><code>~tmp/&lt;problemname&gt;/latex/&lt;language&gt;/samples.tex</code>: a generated table containing the sample cases.</li>
+<li><code>~tmp/&lt;problemname&gt;/latex/&lt;language&gt;/problem.tex</code>: a wrapper to compile the problem statement and samples into a pdf.</li>
+</ul>
+<p>The statement is compiled using:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">TEXINPUTS</span><span class="o">=</span>.<span class="p">;</span>./solve_stats<span class="p">;</span>./solve_stats/activity<span class="p">;</span>~bapctools/latex<span class="p">;</span>
+latexmk<span class="w"> </span>-cd<span class="w"> </span>-g<span class="w"> </span>-usepretex<span class="o">=</span><span class="s2">"\newcommand\lang{&lt;language&gt;}"</span><span class="w"> </span>-pdf<span class="w"> </span>-pdflatex<span class="o">=</span><span class="s1">'pdflatex -interaction=nonstopmode -halt-on-error %O %P'</span><span class="w"> </span><span class="o">[</span>-pvc<span class="w"> </span>-view<span class="o">=</span>none<span class="o">]</span><span class="w"> </span><span class="o">[</span>-e<span class="w"> </span><span class="nv">$max_repeat</span><span class="o">=</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>~tmpdir/&lt;problemname&gt;/latex/&lt;language&gt;/problem.tex
+</code></pre></div>
+<p>The <code>-pvc</code> option is only passed to <code>latexmk</code> when <code>--watch</code> is passed to BAPCtools.
+The <code>-e $max_repeat=1</code> option is only passed to <code>latexmk</code> when <code>-1</code> is passed to BAPCtools.
+The <code>\lang</code> macro can be used in any place to obtain the used language</p>
+<p>The following placeholders are automatically substituted in the <code>problem.tex</code>:
+<div class="highlight"><pre><span></span><code>{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+</code></pre></div></p>
+<h3 id="full-contest-pdf">Full contest pdf<a class="headerlink" href="#full-contest-pdf" title="Permanent link">🔗︎</a></h3>
+<p>After creating the <code>samples.tex</code> for each problem, the contest pdf is created in <code>~tmpdir/&lt;contestname&gt;</code> like this:</p>
+<ul>
+<li><code>~tmp/&lt;contestname&gt;/latex/&lt;language&gt;/contest_data.tex</code>: a filled in copy of <a href="../{{ repo_url }}/blob/main/bapctools/resources/latex/contest-data.tex">contest_data.tex</a> containing the name, subtitle, year, and authors of the contest.</li>
+<li><code>~tmp/&lt;contestname&gt;/latex/&lt;language&gt;/contest-problems.tex</code>: filled in copies of <a href="../{{ repo_url }}/blob/main/bapctools/resources/latex/contest-problem.tex">contest-problem.tex</a> containing the files to include for each problem.</li>
+</ul>
+<p>The statement is compiled using:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">TEXINPUTS</span><span class="o">=</span>.<span class="p">;</span>./solve_stats<span class="p">;</span>./solve_stats/activity<span class="p">;</span>~bapctools/latex<span class="p">;</span>
+latexmk<span class="w"> </span>-cd<span class="w"> </span>-g<span class="w"> </span>-usepretex<span class="o">=</span><span class="s2">"\newcommand\lang{&lt;language&gt;}"</span><span class="w"> </span>-pdf<span class="w"> </span>-pdflatex<span class="o">=</span><span class="s1">'pdflatex -interaction=nonstopmode -halt-on-error %O %P'</span><span class="w"> </span><span class="o">[</span>-pvc<span class="w"> </span>-view<span class="o">=</span>none<span class="o">]</span><span class="w"> </span><span class="o">[</span>-e<span class="w"> </span><span class="nv">$max_repeat</span><span class="o">=</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>~tmpdir/&lt;contestname&gt;/latex/&lt;language&gt;/contest<span class="o">[</span>-web<span class="o">]</span>.tex
+</code></pre></div>
+<p>The <code>\lang</code> macro can be used in any place to obtain the used language</p>
+<p>The following placeholders are automatically substituted in the <code>contest_data.tex</code>:
+<div class="highlight"><pre><span></span><code>{%title%}
+{%subtitle%}
+{%year%}
+{%author%}
+{%test_session%}
+{%logofile%}
+...
+&lt;any entry in the contest.yaml&gt;
+</code></pre></div></p>
+<h2 id="solution-slides">Solution slides<a class="headerlink" href="#solution-slides" title="Permanent link">🔗︎</a></h2>
+<p>Solutions are rendered in a similar way to the contest pdf.
+It uses the <code>solution/solution.&lt;lang&gt;.tex</code> files as inputs.
+The main difference is that you can provide additional files in <code>&lt;contestdirectory&gt;/</code>:</p>
+<ul>
+<li><code>solutions_header.&lt;lang&gt;.tex</code>: slides prepended to the first problem, for the
+  current language.</li>
+<li><code>solutions_footer.&lt;lang&gt;.tex</code>: slides appended after the last problem, for the
+  current language.</li>
+</ul>
+<p>The following placeholders are automatically substituted in the <code>solution.&lt;lang&gt;.tex</code>:
+<div class="highlight"><pre><span></span><code>{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+</code></pre></div></p>
+<h3 id="solve-stats">Solve stats<a class="headerlink" href="#solve-stats" title="Permanent link">🔗︎</a></h3>
+<p>There is some special support for handling <em>solve stats</em>: post-contest data on how often each problem was solved.
+To use this, create the following directory layout in your contest directory.</p>
+<ul>
+<li><code>&lt;contest&gt;/solve_stats/problem_stats.tex</code>: Contains one line for each problem label:
+  <div class="highlight"><pre><span></span><code><span class="k">\newcommand</span><span class="nb">{</span><span class="k">\solvestatsA</span><span class="nb">}{</span><span class="k">\printsolvestats</span><span class="nb">{</span>&lt;number submissions&gt;<span class="nb">}{</span>&lt;number accepted&gt;<span class="nb">}{</span>&lt;number unknown&gt;<span class="nb">}}</span>
+</code></pre></div>
+  When this file is present, each <code>solution/solution.&lt;lang&gt;.tex</code> may use <code>\solvestats</code> to print a line like:
+  <div class="highlight"><pre><span></span><code>Statistics: 15 submissions, 3 accepted, 8 unknown
+</code></pre></div></li>
+<li><code>&lt;contest&gt;/solve_stats/language_stats.pdf</code>: a plot of the language distribution of all submissions.
+This may be included directly by the <code>solution_header.tex</code> or <code>solution_footer.tex</code>.
+(BAPCtools doesn't do anything special here.)</li>
+<li><code>&lt;contest&gt;/solve_stats/activity/&lt;label&gt;.pdf</code>: One file per problem, containing a plot of the submissions over time.
+These will automatically be included on the solution slides for each problem when available.</li>
+</ul>
+<p>All the files in the <code>&lt;contest&gt;/solve_stats</code> directory can be generated using <code>bt solve_stats</code>.
+More details <a href="../../commands/">here</a>.</p>
+<h1 id="constraints-checking">Constraints checking<a class="headerlink" href="#constraints-checking" title="Permanent link">🔗︎</a></h1>
+<p>For constraints checking, BAPCtools passes the flag <code>--constraints_file &lt;file_path&gt;</code> to input, answer, and output validators.
+After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output.
+Each line in the output file will look like:</p>
+<div class="highlight"><pre><span></span><code>&lt;string name&gt; &lt;string name&gt; &lt;bool reached minimum&gt; &lt;bool reached maximum&gt; &lt;minimum seen&gt; &lt;maximum seen&gt; &lt;minimum allowed&gt; &lt;maximum allowed&gt;
+</code></pre></div>
+<p>For example, the code <code>v.read_integer("a", 1, 1000)</code> on line <code>7</code> could generate the line:</p>
+<div class="highlight"><pre><span></span><code>a a 0 0 999 999 1 1000
+</code></pre></div>
+<p>The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false).
+The <code>999 999</code> indicate that <code>a</code> was read, and the smallest and largest value of <code>a</code> we encountered was <code>999</code>.
+The final <code>1 1000</code> indicate the valid range of <code>a</code>.</p>
+<p>BAPCtools will accumulate these values over all test cases, and print a warning when the minimum or maximum value of a <code>read</code> statement was never reached.</p>
+<p>This system works for any validator that accepts the <code>--constraints_file</code> flag.
+This is determined by searching all sources for the string <code>constraints_file</code>.
+Validators based on <a href="../{{ repo_url }}/blob/main/bapctools/resources/headers/validation.h">headers/validation.h</a> accept this flag.</p>
+<p>The following regexes are used to extract bounds from the problem statement:</p>
+<ul>
+<li><code>{\\(\w+)}{(.*)}</code>: <code class="highlight"><span class="k">\newcommand</span><span class="nb">{</span><span class="k">\maxa</span><span class="nb">}{</span>1000<span class="nb">}</span></code></li>
+<li><code>([0-9-e,.^]+)\s*(?:\\leq|\\geq|\\le|\\ge|&lt;|&gt;|=)\s*(\w*)</code>: <code>0 \leq a</code></li>
+<li><code>(\w*)\s*(?:\\leq|\\geq|\\le|\\ge|&lt;|&gt;|=)\s*([0-9-e,.^]+)</code>: <code>a &lt; 10^9</code></li>
+</ul>
+<h1 id="extensions-of-problem-format">Extensions of problem format<a class="headerlink" href="#extensions-of-problem-format" title="Permanent link">🔗︎</a></h1>
+<h2 id="expected_results"><code>@EXPECTED_RESULTS@:</code><a class="headerlink" href="#expected_results" title="Permanent link">🔗︎</a></h2>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>This is deprecated, use the <code>submissions.yaml</code> if possible</p>
+</div>
+<p>Submissions with more than one allowed verdict must contain the string <code>@EXPECTED_RESULTS@:</code> anywhere in their source to indicate which verdicts are allowed for this submission.</p>
+<ul>
+<li>The final verdict of the submission must be in this list.</li>
+<li>Each test case must either be accepted or have a verdict in this list.
+(This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted test case will be the final verdict.)</li>
+</ul>
+<p>A submission with an <code>@EXPECTED_RESULTS@:</code> tag should not be placed in one of the four <a href="https://icpc.io/problem-package-format/#submissions-correct-and-incorrect">standard</a> submission directories, because <a href="https://github.com/DOMjudge/domjudge/issues/1861">DOMjudge will ignore the tag</a> in this case.
+Directory names like <code>mixed/</code> or <code>rejected/</code> are typically used in this case.</p>
+<p>The <code>@EXPECTED_RESULTS@:</code> tag should be followed by a comma-separated list of verdicts from</p>
+<ul>
+<li><code>ACCEPTED</code>,</li>
+<li><code>WRONG_ANSWER</code>,</li>
+<li><code>TIME_LIMIT_EXCEEDED</code>,</li>
+<li><code>RUN_TIME_ERROR</code>.</li>
+</ul>
+<p>Additionally, the following DOMjudge equivalents may be used:</p>
+<ul>
+<li><code>CORRECT</code>,</li>
+<li><code>WRONG-ANSWER</code> / <code>NO-OUTPUT</code>,</li>
+<li><code>TIMELIMIT</code>,</li>
+<li><code>RUN-ERROR</code>,</li>
+<li><code>CHECK-MANUALLY</code>: this is not supported and will be ignored,</li>
+<li><code>COMPILER-ERROR</code>: this is not supported and will be ignored.</li>
+</ul>
+<p>Matching is case-insensitive and extra white space is allowed.
+Examples:</p>
+<ul>
+<li><code>// @EXPECTED_RESULTS@: WRONG_ANSWER</code></li>
+<li><code># @expected_results@:  accepted,time_limit_exceeded, no-output</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              </article>
+            </div>
+
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+
+      </main>
+
+        <footer class="md-footer">
+
+
+
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+
+
+          <a href="../config/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Personal Configuration">
+            <div class="md-footer__button md-icon">
+
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Personal Configuration
+              </div>
+            </div>
+          </a>
+
+
+
+          <a href="../multiple_languages/" class="md-footer__link md-footer__link--next" aria-label="Next: Multiple Language Support">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Multiple Language Support
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+
+      </nav>
+
+
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+
+
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+
+</div>
+
+
+<div class="md-social">
+
+
+
+
+
+    <a href="https://github.com/RagnarGrootKoerkamp/BAPCtools/" target="_blank" rel="noopener" title="BAPCtools" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M216.5 362.5c-66-8-112.5-55.5-112.5-117 0-25 9-52 24-70-6.5-16.5-5.5-51.5 2-66 20-2.5 47 8 63 22.5 19-6 39-9 63.5-9s44.5 3 62.5 8.5c15.5-14 43-24.5 63-22 7 13.5 8 48.5 1.5 65.5 16 19 24.5 44.5 24.5 70.5 0 61.5-46.5 108-113.5 116.5 17 11 28.5 35 28.5 62.5v52c0 15 12.5 23.5 27.5 17.5C441 459.5 512 369 512 257 512 115.5 397 0 255.5 0S0 115.5 0 257c0 111 70.5 203 165.5 237.5 13.5 5 26.5-4 26.5-17.5v-40c-7 3-16 5-24 5-33 0-52.5-18-66.5-51.5-5.5-13.5-11.5-21.5-23-23-6-.5-8-3-8-6 0-6 10-10.5 20-10.5 14.5 0 27 9 40 27.5 10 14.5 20.5 21 33 21s20.5-4.5 32-16c8.5-8.5 15-16 21-21"/></svg>
+    </a>
+
+</div>
+
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+
+
+
+
+
+
+
+
+
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.instant","navigation.top","navigation.footer","navigation.path"],"redirect":null,"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+
+
+      <script src="../../assets/javascripts/bundle.8dcc8e9c.min.js"></script>
+
+
+  </body>
+</html>

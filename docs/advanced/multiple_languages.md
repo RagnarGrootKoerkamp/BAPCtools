@@ -69,7 +69,7 @@ Lorem ipsum…
 
 BAPCtools needs a translation file to translate common term such as `Input`,
 `Output`, and `time limit` to your language of choice. These are available in
-[`/latex/lang/`](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/lang). If a translation is not available for your
+[`/latex/lang/`]({{ repo_url }}/tree/main/bapctools/resources/latex/lang). If a translation is not available for your
 language, you can either make a PR to add e.g. `/latex/lang/de.tex` to
 BAPCtools, or you can provide `<contestdirectory>/de.tex`.
 

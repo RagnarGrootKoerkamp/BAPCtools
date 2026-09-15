@@ -1,11 +1,11 @@
-# Creating a new contest/problem
+# New Contest/Problem
 
 ## `new_contest`
 
 This command creates a new contest.
 Can be called as `bt new_contest` or `bt new_contest <contest name>`.
 Settings for this contest will be asked for interactively.
-The following files are copied from [skel/contest](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/skel/contest):
+The following files are copied from [skel/contest]({{ repo_url }}/tree/main/bapctools/resources/skel/contest):
 
 - `contest.yaml` containing data for rendering the contest pdf.
 - `problems.yaml` containing the list of problems and their labels.
@@ -51,7 +51,7 @@ LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem.
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem2.
 ```
 
-Files are usually copied from [skel/problem](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/skel/problem), but this can be overridden as follows:
+Files are usually copied from [skel/problem]({{ repo_url }}/tree/main/bapctools/resources/skel/problem), but this can be overridden as follows:
 
 - If the `--skel <directory>` flag is specified, that directory is used instead.
 - If either the current (contest) directory or the parent directory contains a `skel/problem` directory, that is used instead.
@@ -70,7 +70,7 @@ This skips input-prompts but fails when defaults cannot be assumed.
 
 ## `skel`
 
-Copy the given directory from [../skel/problem](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/skel/problem) to the current problem directory.
+Copy the given directory from [../skel/problem]({{ repo_url }}/tree/main/bapctools/resources/skel/problem) to the current problem directory.
 Directories passed must be relative to the problem root, e.g. `generators` or `output_validators/output_validator`.
 The skel directory is found as with the `new_problem` command and can be overridden using `--skel`.
 

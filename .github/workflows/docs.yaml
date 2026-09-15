@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'mkdocs.yml'
+      - 'zensical.toml'
       - 'docs/**'
 
 permissions:
@@ -26,9 +26,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.x"
-      - run: pip install mkdocs
-      - run: pip install mkdocs-material
-      - run: mkdocs build --strict
+      - run: pip install zensical
+      - run: zensical build --strict
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

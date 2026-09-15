@@ -2,9 +2,9 @@
 
 !!! info
     The latest version of BAPCtools is designed for the lasted version of the problem format: [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
-    The [`bt upgrade` command](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/HEAD/doc/commands.md#upgrade) is a best-effort automated way to upgrade older packages to `2025-09`.
+    The [`bt upgrade` command](commands/misc#upgrade) is a best-effort automated way to upgrade older packages to `2025-09`.
     If you are working on older packages, we recommend to upgrade them.
-    If you do not want this, you can also switch to the [`legacy` branch](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/legacy).
+    If you do not want this, you can also switch to the [`legacy` branch]({{ repo_url }}/tree/legacy).
     However, keep in mind that this version is no longer actively maintained.
 
 There are multiple ways to install BAPCtools:

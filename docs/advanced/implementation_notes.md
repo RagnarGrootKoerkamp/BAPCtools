@@ -1,4 +1,4 @@
-# Implementation notes
+# Implementation Notes
 
 This document explains some miscellaneous parts of the implementation of BAPCtools.
 
@@ -33,7 +33,7 @@ Each program (submission/validator/generator/visualizer) is build in its own dir
 Compilation is only done if either the sources or the compile command changed.
 
 1. Detect the program language.
-Language detection rules are described in [languages.yaml](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/config/languages.yaml).
+Language detection rules are described in [languages.yaml]({{ repo_url }}/blob/main/bapctools/resources/config/languages.yaml).
 1. Symlink all input files to `~build`.
 This can be either the single submission file, or all files/directories directly contained in the submission.
 1. Find the `build` and `run` command for the current language.
@@ -65,12 +65,12 @@ For changed files, `--force` is needed to overwrite them.
 # Building LaTeX files
 
 BAPCtools comes with a set of latex classes/headers to automatically render problem, contest, and solution PDFs.
-These files are available in [`/latex/`](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex).
+These files are available in [`/latex/`]({{ repo_url }}/tree/main/bapctools/resources/latex).
 
 To customize the style, you can provide your own modified copy of any of the header files in `<contestdirectory>/` and they will be used instead of the BACPtools provided files.
 For example, you can provide your own `<contestdirectory>/contest.tex` as replacement entrypoint for building contest PDFs.
 You can either manually include problems there, or use `\input{./contest-problems.tex}` to include the automatically generated content.
-This will instantiate the [`contest-problem.tex`](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/latex/contest-problem.tex) template once for each problem in the contest.
+This will instantiate the [`contest-problem.tex`]({{ repo_url }}/blob/main/bapctools/resources/latex/contest-problem.tex) template once for each problem in the contest.
 This template itself can also be modified if desired.
 
 See also the docs on using multiple languages [here](../advanced/multiple_languages.md).
@@ -110,8 +110,8 @@ The following placeholders are automatically substituted in the `problem.tex`:
 
 After creating the `samples.tex` for each problem, the contest pdf is created in `~tmpdir/<contestname>` like this:
 
-- `~tmp/<contestname>/latex/<language>/contest_data.tex`: a filled in copy of [contest_data.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
-- `~tmp/<contestname>/latex/<language>/contest-problems.tex`: filled in copies of [contest-problem.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/latex/contest-problem.tex) containing the files to include for each problem.
+- `~tmp/<contestname>/latex/<language>/contest_data.tex`: a filled in copy of [contest_data.tex]({{ repo_url }}/blob/main/bapctools/resources/latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
+- `~tmp/<contestname>/latex/<language>/contest-problems.tex`: filled in copies of [contest-problem.tex]({{ repo_url }}/blob/main/bapctools/resources/latex/contest-problem.tex) containing the files to include for each problem.
 
 The statement is compiled using:
 
@@ -202,11 +202,11 @@ BAPCtools will accumulate these values over all test cases, and print a warning 
 
 This system works for any validator that accepts the `--constraints_file` flag.
 This is determined by searching all sources for the string `constraints_file`.
-Validators based on [headers/validation.h](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/main/bapctools/resources/headers/validation.h) accept this flag.
+Validators based on [headers/validation.h]({{ repo_url }}/blob/main/bapctools/resources/headers/validation.h) accept this flag.
 
 The following regexes are used to extract bounds from the problem statement:
 
-- `{\\(\w+)}{(.*)}`: `\newcommand{\maxa}{1000}`
+- `{\\(\w+)}{(.*)}`: `#!tex \newcommand{\maxa}{1000}`
 - `([0-9-e,.^]+)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*(\w*)`: `0 \leq a`
 - `(\w*)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*([0-9-e,.^]+)`: `a < 10^9`
 

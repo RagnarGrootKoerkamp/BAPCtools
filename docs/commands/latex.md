@@ -6,7 +6,7 @@ Renders a pdf for the current problem or contest.
 The pdf is written to `problem.en.pdf` or `contest.en.pdf` respectively.
 If there are problem statements (and problem names in `problem.yaml`) present for other languages, creates those PDFs as well.
 
-!!! Note
+!!! note
     All LaTeX compilation is done in tmpfs (`/tmp/` on linux).
     The resulting pdfs will be symlinks into the temporary directory.
     See the [Implementation notes](../advanced/implementation_notes.md#building-latex-files) for more.
@@ -20,12 +20,12 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 Note that this implies `--cp`.
 - `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf.
-This uses [contest-web.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/contest-web.tex) instead of [contest.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/contest.tex) and [problem-web.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/problem-web.tex) instead of [problem.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/problem.tex).
+This uses [contest-web.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/contest-web.tex) instead of [contest.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/contest.tex) and [problem-web.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/problem-web.tex) instead of [problem.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/problem.tex).
 In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
 
 ## `solutions`
-
+{{ repo_url }}
 Renders a pdf with solutions for the current problem or contest.
 The pdf is written to `solution.en.pdf` or `solutions.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 See the [Implementation notes](../advanced/implementation_notes.md#building-latex-files) for more.
@@ -46,7 +46,7 @@ Note that this does not pick up changes to `*.yaml` configuration files.
 Note that this implies `--cp`.
 - `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf.
-This uses [contest-web.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/contest-web.tex) instead of [contest.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/contest.text) and [solutions-web.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/solutions-web.tex) instead of [solutions.tex](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/solutions.tex).
+This uses [contest-web.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/contest-web.tex) instead of [contest.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/contest.tex) and [solutions-web.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/solutions-web.tex) instead of [solutions.tex]({{ repo_url }}/tree/main/bapctools/resources/latex/solutions.tex).
 In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
 - `-1`: Run the LaTeX compiler only once.
 

@@ -3,7 +3,7 @@ This document aims to show the typical workflow of preparing a problem with BAPC
 We start with the creation of a new problem and end after uploading it to DOMjudge.
 Along the way, all commands that are used for various stages of problem preparation are explained.
 
-!!! danger
+!!! warning
     Do not use BAPCtools on problem packages from untrusted sources.
     Programs are **not** run inside a sandbox.
     Malicious submissions, validators, visualizers, and generators can harm your system.
@@ -39,7 +39,7 @@ BAPCtools offers two commands to offer such an overview.
 #### `bt stats`
 This shows a summary of files and programs that have been added to the problem.
 The output should look similar to this:
-```ini
+```
 problem    time yaml tex sol   val: I A O   sample secret bad good    AC  WA TLE subs   c(++) py java kt    comment
 A <name>    1.0    Y   0   0        N N          0      0   0    0     0   0   0    0       0  0    0  0
 -------------------------------------------------------------------------------------------------------------------

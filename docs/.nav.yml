@@ -1,0 +1,10 @@
+nav:
+  - index.md
+  - installation.md
+  - workflow.md
+  - commands
+  - generators.md
+  - advanced
+  - examples
+  - faq.md
+  - contribute.md

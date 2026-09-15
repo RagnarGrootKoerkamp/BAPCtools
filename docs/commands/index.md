@@ -6,7 +6,7 @@ The [implementation notes](../advanced/implementation_notes.md) contain more inf
 
 Unless otherwise specified, commands work both on the problem and contest level.
 
-!!! TIP
+!!! tip
     Allowed subcommands and options are also available with `bt --help` and `bt <command> --help`.
 
 ## Global flags

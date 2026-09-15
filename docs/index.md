@@ -9,7 +9,7 @@ We are always interested to know who's using this, so feel free to inform us (e.
 The main user base is sitting in Europe with regular users from the BAPC, GCPC and NWERC.
 BAPCtools has also been used to prepare problems for the EUC and the ICPC WF.
 
-!!! danger
+!!! warning
     Do not use BAPCtools on problem packages from untrusted sources.
     Programs are **not** run inside a sandbox.
     Malicious submissions, validators, visualizers, and generators can harm your system.

@@ -1,0 +1,52 @@
+[project]
+site_name = "BAPCtools"
+site_description = "Documentation for BAPCtools"
+site_url = "https://RagnarGrootKoerkamp.github.io/BAPCtools"
+repo_url = "https://github.com/RagnarGrootKoerkamp/BAPCtools"
+repo_name = "BAPCtools"
+extra_css = ["css/no_footer.css"]
+
+[project.extra]
+repo_tree = "https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main"
+
+[project.plugins.macros]
+[project.plugins.awesome-nav]
+
+[project.markdown_extensions]
+admonition = {}
+pymdownx.details = {}
+pymdownx.superfences = {}
+pymdownx.highlight = {}
+pymdownx.inlinehilite = {}
+toc.permalink = "🔗︎"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+name = "BAPCtools"
+link = "https://github.com/RagnarGrootKoerkamp/BAPCtools/"
+
+[project.theme]
+features = [
+  "navigation.instant",
+  "navigation.top",
+  "navigation.footer",
+  "navigation.path",
+]
+
+# Palette toggle for light mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+primary = "indigo"
+accent = "indigo"
+
+# Palette toggle for dark mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+primary = "orange"
+accent = "orange"
