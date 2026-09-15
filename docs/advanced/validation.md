@@ -3,8 +3,8 @@
 BAPCtools distinguishes 3 types of validation, one more than the [problem package format specification](https://www.kattis.com/problem-package-format/spec/problem_package_format#input-validators):
 
 1. input validation, which validates the `.in` file for every test case, typically for syntax, format, correctness, and range,
-2. answer validation, which validates the `.ans` file for every test case, typically for syntax, format, and ranges, but not for correctness,
-3. output validation, which checks correctness and running time for the output of every submission.
+1. answer validation, which validates the `.ans` file for every test case, typically for syntax, format, and ranges, but not for correctness,
+1. output validation, which checks correctness and running time for the output of every submission.
 
 Input and answer validation run on the _files_ in `data/*`; their purpose is to ensure problem quality.
 Output validation runs on the output of the author submissions in `submissions` (and eventually on solver submissions when the problem is hosted on a judge system);
@@ -47,7 +47,7 @@ Test if the test case input file `testcase.in` file passes the 'input validators
 directory in `/input_validators/` is an input validator.
 Input validators receive the test case on standard input, as
 
-```
+```sh
 input_validator [input_validator_args] < testcase.in
 ```
 
@@ -58,7 +58,7 @@ input_validator [input_validator_args] < testcase.in
 BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each test case.
 As for input validation, every program in `answer_validators` is a validator, and all validators must pass.
 Answer validators receive the test case answer file on standard input, as
-```
+```sh
 answer_validator /path/to/testcase.in [output_validator_args] < testcase.ans
 ```
 
@@ -70,7 +70,7 @@ BAPCtools assumes that all answer files are also valid outputs and therefore als
 If this assumption is wrong, you can specify `ans_is_output: False` in `problem.yaml` (note that this option is always `False` for interactive or multi-pass problems, because these do not have a single output).
 If enabled, the output validator is invoked as:
 
-```
+```sh
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
     case_sensitive space_change_sensitive [output_validator_args] < testcase.ans
 ```
@@ -97,7 +97,7 @@ Examples:
     in: "-1"
 "too_large":
     in: "100"
-"not_a_number:
+"not_a_number":
     in: foo
 "extra input":
     in: 0 1
@@ -173,7 +173,7 @@ Output validation receives submission output on standard input.
 If `testcase.out` is the output produced by a submission on `testcase.in`,
 the output validator is called as follows:
 
-```
+```sh
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
   [problem_yaml_flags] [output_validator_args] \
   < testcase.out

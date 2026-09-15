@@ -3,76 +3,10 @@ This document aims to show the typical workflow of preparing a problem with BAPC
 We start with the creation of a new problem and end after uploading it to DOMjudge.
 Along the way, all commands that are used for various stages of problem preparation are explained.
 
-> [!CAUTION]
-> Do not use BAPCtools on problem packages from untrusted sources.
-> Programs are **not** run inside a sandbox.
-> Malicious submissions, validators, visualizers, and generators can harm your system.
-
-## Topics
-- [Problem Directory](#problem-directory)
-  - [Required Files](#required-files)
-  - [Optional Files](#optional-files)
-  - [`bt new_problem`](#bt-new_problem)
-- [Overview](#overview)
-  - [`bt stats`](#bt-stats)
-  - [`bt run -oa[a]`](#bt-run--o--aa-submissions-data)
-- [Problem Preparation](#problem-preparation)
-  - [Submissions](#submissions)
-  - [Test cases/Generators](#test-cases/generators)
-  - [Input and Answer Validators](#input-and-answer-validators)
-  - [Output Validators](#output-validators)
-  - [Statement and Solution](#statement-and-solution)
-- [Finalize](#finalize)
-- [Upload](#upload)
-
-
-## Problem Directory
-A problem directory is specified by the existence of a `problem.yaml`.
-However, to set up a proper problem, we need some more subdirectories and files.
-
-#### Required Files
-```ini
-Problem
-├─╴answer_validators/
-│  └─╴...
-├─╴data/
-│  ├─╴sample/
-│  └─╴secret/
-├─╴input_validators/
-│  └─╴...
-├─╴output_validator/              ; for custom output checking
-│  └─╴...
-├─╴solution/
-│  └─╴solution.<lang>.tex
-├─╴statement/
-│  └─╴problem.<lang>.tex
-├─╴submissions/
-│  ├─╴accepted/
-│  ├─╴run_time_error/
-│  ├─╴time_limit_exceeded/
-│  └─╴wrong_answer/
-└─╴problem.yaml
-```
-> [!IMPORTANT]
-> There can be many input/answer validator*s* but only one output validator.
-> Therefore, it is the only one of those directories that does not end with a plural *s*.
-#### Optional Files
-```ini
-Problem
-├─╴data/
-│  ├─╴invalid_input/
-│  ├─╴invalid_answer/
-│  ├─╴invalid_output/
-│  └─╴valid_output/
-┆
-├─╴generators/
-│  ├─╴...
-│  └─╴generators.yaml
-├─╴input_visualizer/
-│  └─╴...
-└─╴output_visualizer/
-   └─╴...
-```
+!!! danger
+    Do not use BAPCtools on problem packages from untrusted sources.
+    Programs are **not** run inside a sandbox.
+    Malicious submissions, validators, visualizers, and generators can harm your system.
 
 #### `bt new_problem`
 
@@ -95,8 +29,8 @@ The command will request some information from you:
 - **license:** the license, we encourage to make problems public (cc by-sa)
 - **rights owner:** owner of the copyright (if this is not provided, the author is the rights owner)
 
-> [!TIP]
-> For more information regarding these options and their meaning, you can also look at the [problem specification](https://icpc.io/problem-package-format/spec/2025-09.html#problem-metadata).
+!!! tip
+    For more information regarding these options and their meaning, you can also look at the [problem specification](https://icpc.io/problem-package-format/spec/2025-09.html#problem-metadata).
 
 ## Overview
 For any problem and any stage of preparation, it is useful to get an overview of the current state of the problem.
@@ -112,6 +46,7 @@ A <name>    1.0    Y   0   0        N N          0      0   0    0     0   0   0
 TOTAL       1.0    1   0   0        0 0 0        0      0   0    0     0   0   0    0       0  0    0  0
 ```
 Most of the columns should be self-explanatory, but here are descriptions of what is displayed:
+
 - **problem:** the problem label followed by the problem directory name
 - **time:** the time limit in seconds
 - **yaml:** `Y` if `problem.yaml` exists (should always be true)
@@ -141,31 +76,34 @@ Each row represents a submission, each column represents a test case.
 To make the table easier to read, the test cases are grouped in multiples of 10 and samples are marked with a lowercase letter.
 
 The entries correspond to the verdict that a submission got on a test case:
+
 - **A:** accepted
 - **W:** wrong answer
 - **T:** time limit exceeded
 - **R:** run time error
 - **-:** skipped because of lazy judging
 
-> [!NOTE]
-> Here is a short explanation for the given command line parameters:
-> - **-o:** enable the overview table (if possible, printed with live updates)
-> - **-a:** disable lazy judging for WA/RTE submissions
-> - **-aa:** completely disable lazy judging
-> - **[submissions/...]:** a list of directories/submissions to run
-> - **[data/...]:** a list of directories/test cases to use
+!!! info
+    Here is a short explanation for the given command line parameters:
+
+    - **-o:** enable the overview table (if possible, printed with live updates)
+    - **-a:** disable lazy judging for WA/RTE submissions
+    - **-aa:** completely disable lazy judging
+    - **[submissions/...]:** a list of directories/submissions to run
+    - **[data/...]:** a list of directories/test cases to use
 
 ## Problem Preparation
 Every problem needs the following things:
+
 - [Submissions](#submissions)
-- [Test cases/Generators](#test-cases/generators)
+- [Test cases/Generators](#test-casesgenerators)
 - [Input and Answer Validators](#input-and-answer-validators)
 - [Output Validators](#output-validators)
 - [Statement and Solution](#statement-and-solution)
 
-> [!TIP]
-> The order in which you add these things is up to you.
-> However, this guide will use the mentioned order.
+!!! tip
+    The order in which you add these things is up to you.
+    However, this guide will use the mentioned order.
 
 ### Submissions
 ---
@@ -181,19 +119,23 @@ As input to the submission, you can either specify a test case/directory in `dat
 or you can run the program in interactive mode with `-i`, in which case the console input is passed to the submission.
 After running the submission, its output and running time is printed.
 
-> [!IMPORTANT]
-> Note that with `-i` the output is only printed, it is **not** validated!
+!!! info
+    Note that with `-i` the output is only printed, it is **not** validated!
 
 #### `bt run [-G] [submissions/...] [data/...]`
 This command will run the selected submission on a given test case.
 This will also validate the output of the submission but will not display the output.
 
-> [!TIP]
-> By default `bt run` will try to keep the `data/` directory up to date, see [Test cases/Generators](#test-cases/generators) for more information.
-> If you just want to run the submission you can add `-G` (short for `--no-generate`) to disable this behaviour.
+!!! tip
+    By default `bt run` will try to keep the `data/` directory up to date, see [Test cases/Generators](#test-casesgenerators) for more information.
+    If you just want to run the submission you can add `-G` (short for `--no-generate`) to disable this behaviour.
 
 ### Test cases/Generators
 ---
+
+!!! tip
+    the following sections are still WIP
+
  - [output validator]
  - `bt generate`
 
