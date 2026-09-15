@@ -32,7 +32,8 @@ dependencies = [
 bt = "bapctools.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ragnargrootkoerkamp/bapctools"
+Repository = "https://github.com/ragnargrootkoerkamp/bapctools"
+Documentation = "https://ragnargrootkoerkamp.github.io/BAPCtools/"
 Issues = "https://github.com/ragnargrootkoerkamp/bapctools/issues"
 
 [dependency-groups]

@@ -20,7 +20,7 @@ wrong_answer/edge_case.py:
 ac_or_wa:
   permitted: [AC, WA]
 
-# The following are the default directories and there configurations
+# The following are the default directories and their configurations
 
 # All cases must be accepted.
 accepted:
