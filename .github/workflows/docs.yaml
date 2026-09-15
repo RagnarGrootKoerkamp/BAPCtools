@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'mkdocs.yml'
+      - 'docs/**'
 
 permissions:
   contents: read
