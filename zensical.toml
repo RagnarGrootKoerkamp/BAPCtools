@@ -4,7 +4,7 @@ site_description = "Documentation for BAPCtools"
 site_url = "https://RagnarGrootKoerkamp.github.io/BAPCtools"
 repo_url = "https://github.com/RagnarGrootKoerkamp/BAPCtools"
 repo_name = "BAPCtools"
-extra_css = ["css/no_footer.css"]
+extra_css = ["css/no_footer.css", "css/terminal.css"]
 
 [project.extra]
 repo_tree = "https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main"

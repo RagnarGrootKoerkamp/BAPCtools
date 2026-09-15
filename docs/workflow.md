@@ -39,12 +39,15 @@ BAPCtools offers two commands to offer such an overview.
 #### `bt stats`
 This shows a summary of files and programs that have been added to the problem.
 The output should look similar to this:
-```
-problem    time yaml tex sol   val: I A O   sample secret bad good    AC  WA TLE subs   c(++) py java kt    comment
-A <name>    1.0    Y   0   0        N N          0      0   0    0     0   0   0    0       0  0    0  0
+
+<pre class="terminal"><code><span class="bright">problem    time yaml tex sol   val: I A O   sample secret inv v_o    AC  WA TLE subs   c(++) py java kt    comment</span>
+A &ltname&gt    1.0    Y   <span class="fg-red">0   0        N N          0      0   0   0     0   0   0    0       0  0    0  0</span>
 -------------------------------------------------------------------------------------------------------------------
-TOTAL       1.0    1   0   0        0 0 0        0      0   0    0     0   0   0    0       0  0    0  0
-```
+TOTAL       1.0    1   0   0        0 0 0        0      0   0   0     0   0   0    0       0  0    0  0
+</code></pre>
+
+As you can see most of the columns are red, indicating that we have still work to do.
+
 Most of the columns should be self-explanatory, but here are descriptions of what is displayed:
 
 - **problem:** the problem label followed by the problem directory name
@@ -57,7 +60,8 @@ Most of the columns should be self-explanatory, but here are descriptions of wha
 - **val O:** `Y` if the output validator was found (note that this must exist if the problem is interactive and/or multi-pass)
 - **sample:** the number of sample test cases (BAPCtools encourages to give at least two examples)
 - **secret:** the number of secret test cases (BAPCtools encourages to use 30-100 test cases)
-- **bad:** the number of invalid test cases (those test cases are intentionally wrong to check that the validators correctly reject them)
+- **inv:** the number of invalid test cases (those test cases are intentionally wrong to check that the validators correctly reject them)
+- **v_o:** the number of test cases+outputs under `data/valid_output` that are used to check that the validator accepted them
 - **AC, WA, TLE:** the number of submissions in the corresponding `accepted`, `time_limit_exceeded`, and `wrong_answer` directories
 - **subs:** The total number of submissions (files) in the `submissions/` directory
 - **c(++), py, java, kt:** the number of *accepted* submissions in the corresponding language
@@ -66,12 +70,13 @@ Most of the columns should be self-explanatory, but here are descriptions of wha
 #### `bt run -o -a[a] [submissions/...] [data/...]`
 This command runs submissions and presents their verdict on the test cases.
 The output should look similar to this:
-```ini
-accepted/solution.py:          aaaAAAAAAA AAAAAAA
-wrong_answer/wrong.py:         aaaAAWAAAW WAAAAAA
-time_limit_exceeded/brute.cpp: aaaAAAAATT TT-----
-run_time_error/bug.java:       aaaAARA--- -------
-```
+
+<pre class="terminal"><code><span class="fg-cyan">accepted/solution.py</span>:          <span class="fg-green">aaaAAAAAAA AAAAAAA</span>
+<span class="fg-cyan">wrong_answer/wrong.py</span>:         <span class="fg-green">aaaAA</span><span class="fg-red">W</span><span class="fg-green">AAA</span><span class="fg-red">W W</span><span class="fg-green">AAAAAA</span>
+<span class="fg-cyan">time_limit_exceeded/brute.cpp</span>: <span class="fg-green">aaaAAAAA</span><span class="fg-magenta">TT TT</span>-----
+<span class="fg-cyan">run_time_error/bug.java</span>:       <span class="fg-green">aaaAA</span><span class="fg-yellow">R</span><span class="fg-green">A</span>--- -------
+</code></pre>
+
 Each row represents a submission, each column represents a test case.
 To make the table easier to read, the test cases are grouped in multiples of 10 and samples are marked with a lowercase letter.
 

@@ -1,0 +1,20 @@
+.fg-black { color: #000000; }
+.fg-red { color: #aa0000; }
+.fg-green { color: #00aa00; }
+.fg-yellow { color: #aa5500; }
+.fg-blue { color: #0000aa; }
+.fg-magenta { color: #aa00aa; }
+.fg-cyan { color: #00aaaa; }
+.fg-white { color: #aaaaaa; }
+
+.bg-black { background-color: #000000; }
+.bg-red { background-color: #aa0000; }
+.bg-green { background-color: #00aa00; }
+.bg-yellow { background-color: #aa5500; }
+.bg-blue { background-color: #0000aa; }
+.bg-magenta { background-color: #aa00aa; }
+.bg-cyan { background-color: #00aaaa; }
+.bg-white { background-color: #aaaaaa; }
+
+.bright { font-weight: bold; }
+.dim { opacity: 0.6; }
