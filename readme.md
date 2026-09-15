@@ -163,21 +163,6 @@ The generated `problem.en.pdf` is linked to the problem directory itself, if you
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
-## Personal configuration file
-
-For some command-line flags, it is convenient if they are always set to the same value, which differs per user (e.g., `--username` or `--password` for commands that access a CCS like DOMjudge) or per contest (e.g., which statement languages are used).
-For this, you can create a configuration YAML file containing key-value pairs in one of the following locations, from low to high priority:
-
-- `$XDG_CONFIG_HOME/bapctools/config.yaml` (Unix-ish systems, where `$XDG_CONFIG_HOME` usually is `~/.config`)
-- `%AppData%/bapctools/config.yaml` (Windows systems)
-- `<contest directory>/.bapctools.yaml`
-
-The keys in this config file can be any option that can be passed on the command-line.
-Note that the keys should be written out in full (e.g., `username: jury` rather than `u: jury`) and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rather than `no-bar: True`).
-
-These personal config files also allow you to set the key `local_time_multiplier` to adjust hardcoded time limits intended for different hardware.
-This might be useful for the CI or if your hardware is much faster or much slower than the contest hardware.
-
 ## Developing / Contributing to BAPCtools
 
 The recommended way to install all development dependencies is in a virtual environment,

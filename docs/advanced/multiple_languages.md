@@ -1,8 +1,7 @@
 # Multiple Language Support
 
 The
-[Problem Package Format Specification](https://www.kattis.com/problem-package-format/)
-supports multiple (natural) languages for statements in the form of `prolem_statement/problem.LANG.tex` and problem names in the `problem.yaml` metadata of the form
+[Problem Package Format Specification](https://www.kattis.com/problem-package-format/) supports multiple (natural) languages for statements in the form of `prolem_statement/problem.LANG.tex` and problem names in the `problem.yaml` metadata of the form
 
 ```yaml
 name:
@@ -22,7 +21,7 @@ The default language for BAPCtools is English, but multiple languages can be spe
 In short,
 
 1. configure `lang` in `.bapctools.yaml`.
-2. add a skeleton for `problem.LANG.tex` in `skel/problem/statement`.
+1. add a skeleton for `problem.LANG.tex` in `skel/problem/statement`.
 
 ### Configure `lang`
 
@@ -70,7 +69,7 @@ Lorem ipsum…
 
 BAPCtools needs a translation file to translate common term such as `Input`,
 `Output`, and `time limit` to your language of choice. These are available in
-[`/latex/lang/`](../latex/lang). If a translation is not available for your
+[`/latex/lang/`](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/main/bapctools/resources/latex/lang). If a translation is not available for your
 language, you can either make a PR to add e.g. `/latex/lang/de.tex` to
 BAPCtools, or you can provide `<contestdirectory>/de.tex`.
 
@@ -117,18 +116,13 @@ The resulting PDFs are named `<problemdirectory>/problem.xy.pdf`.
 
 ## Solution PDF
 
-Similarly, `bt solutions [--lang en fr]` creates
-`<problemdirectory>/solution.xy.pdf` for the given languages, defaulting to
-all available `solution.xy.tex` files.
+Similarly, `bt solutions [--lang en fr]` creates `<problemdirectory>/solution.xy.pdf` for the given languages, defaulting to all available `solution.xy.tex` files.
 
-(Note that in the past we required `solution.tex` files. These will now trigger
-a warning that they should be renamed to include the language suffix in their filename.)
+(Note that in the past we required `solution.tex` files.
+These will now trigger a warning that they should be renamed to include the language suffix in their filename.)
 
 ## Contest PDFs
 
-At the contest level things work similarly, and `contest.xy.pdf` and
-`solutions.xy.pdf` are created using `bt pdf` and `bt solutions` respectively.
-By default, only those languages `xy` are used for which
-`<problemdirectory>/statement/problem.xy.tex` is available for all problems in the
-contest. Solution slides are skipped for problems without a corresponding
-`<probblemdirectory>/problemstatement/solution.xy.tex` file.
+At the contest level things work similarly, and `contest.xy.pdf` and `solutions.xy.pdf` are created using `bt pdf` and `bt solutions` respectively.
+By default, only those languages `xy` are used for which `<problemdirectory>/statement/problem.xy.tex` is available for all problems in the contest.
+Solution slides are skipped for problems without a corresponding `<probblemdirectory>/problemstatement/solution.xy.tex` file.

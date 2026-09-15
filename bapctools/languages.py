@@ -14,6 +14,7 @@ from bapctools.util import (
     BAR_TYPE,
     error,
     fatal,
+    home_config_dir,
     once,
     read_yaml,
     warn,
@@ -259,13 +260,7 @@ VALIDATOR_LANGUAGE_CODES: Final[Sequence[str]] = (
 @once
 def languages() -> Sequence[Language]:
     languages_path = Path("languages.yaml")
-    raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / languages_path)
-    assert isinstance(raw_languages, dict)
-    raw_overrides = read_yaml(languages_path, empty={}) if languages_path.is_file() else {}
-    if not isinstance(raw_overrides, dict):
-        fatal("could not parse languages.yaml.")
-
-    codes = {*raw_languages, *raw_overrides}
+    raw_languages: dict[object, object] = {}
 
     def deepmerge(target: dict[object, object], overrides: dict[object, object]) -> None:
         for key, value in overrides.items():
@@ -276,29 +271,40 @@ def languages() -> Sequence[Language]:
             else:
                 target[key] = value
 
+    for d in [config.RESOURCES_ROOT / "config", home_config_dir()]:
+        file = d / languages_path
+        if not file.is_file():
+            continue
+        tmp_languages = read_yaml(file, empty={})
+        if not isinstance(tmp_languages, dict):
+            fatal(f"could not parse {file}.")
+        deepmerge(raw_languages, tmp_languages)
+
+    raw_merged = copy.deepcopy(raw_languages)
+    if languages_path.is_file():
+        tmp_languages = read_yaml(languages_path, empty={})
+        if not isinstance(tmp_languages, dict):
+            fatal(f"could not parse {languages_path}.")
+        deepmerge(raw_merged, tmp_languages)
+
     languages = []
     priorities: dict[int, str] = {}
-    for code in codes:
+    for code, merged in raw_merged.items():
         if not isinstance(code, str):
             error("keys in languages.yaml must be strings. SKIPPED.")
             continue
         if not Language.CODE_REGEX.match(code):
             error(f"key {code} in languages.yaml is invalid. SKIPPED.")
             continue
-        conf = raw_languages.get(code, {})
-        assert isinstance(conf, dict)
-        overrides = raw_overrides.get(code, {})
-        if not isinstance(overrides, dict):
+        if not isinstance(merged, dict):
             error(f"invalid entry {code} in languages.yaml. SKIPPED.")
             continue
 
-        merged = copy.deepcopy(conf)
-        deepmerge(merged, overrides)
-
+        fallback = raw_languages[code]
         lang = Language(code, merged)
-        if not lang.ok and conf:
+        if not lang.ok and code in raw_languages and isinstance(fallback, dict):
             # TODO: also use fallback if merged lang is not installed?
-            lang = Language(code, conf)
+            lang = Language(code, fallback)
         if not lang.ok:
             continue
 
