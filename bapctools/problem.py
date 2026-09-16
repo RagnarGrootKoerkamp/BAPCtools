@@ -1432,7 +1432,7 @@ class Problem:
 
             feedbackdir = submission.with_suffix(".feedbackdir")
             feedbackdir.mkdir(parents=True, exist_ok=True)
-            nextpass = feedbackdir / "nextpass.in" if self.multi_pass else None
+            nextpass = feedbackdir / "nextpass.in"
             for pass_id in itertools.count(1):
                 ret = output_validator.run(run.test_case, submission)
                 if self.interactive:
@@ -1458,8 +1458,13 @@ class Problem:
                 elif ret.err:
                     data = ret.err
 
+                has_nextpass = nextpass.is_file()
+                if not self.multi_pass and has_nextpass:
+                    localbar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
+                    has_nextpass = False
+
                 if ret.status == ExecStatus.REJECTED:
-                    if nextpass and nextpass.is_file():
+                    if has_nextpass:
                         success = False
                         localbar.error(
                             "Output Validator gave WRONG_ANSWER but created nextpass.in", data
@@ -1485,7 +1490,7 @@ class Problem:
                         )
                     return
                 assert ret.status == ExecStatus.ACCEPTED
-                if not nextpass or not nextpass.is_file():
+                if not has_nextpass:
                     if run.allow_ac:
                         localbar.done(True, "accepted", data, force_log=True)
                     else:

@@ -103,7 +103,6 @@ class Run:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
             with interaction.open("a") if interaction else nullcontext(None) as interaction_file:  # type: ignore[attr-defined]
-                nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
                 max_duration = 0.0
                 tle_result = None
                 for pass_id in itertools.count(1):
@@ -143,6 +142,7 @@ class Run:
                         break
 
                     result = self._validate_output(bar)
+                    self._has_nextpass(bar)
                     if result is None:
                         bar.error(
                             f"No output validator found for test case {self.test_case.name}",
@@ -164,7 +164,7 @@ class Run:
                         )
                     elif result.status == ExecStatus.REJECTED:
                         result.verdict = Verdict.WRONG_ANSWER
-                        if nextpass and nextpass.is_file():
+                        if self._has_nextpass():
                             bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                             result.verdict = Verdict.JUDGE_ERROR
                     elif result.duration > self.problem.limits.validation_time:
@@ -177,7 +177,7 @@ class Run:
                     if result.verdict != Verdict.ACCEPTED:
                         break
 
-                    if not self._prepare_nextpass(nextpass):
+                    if not self._has_nextpass():
                         break
 
                     assert self.problem.limits.validation_passes is not None
@@ -185,6 +185,8 @@ class Run:
                         bar.error("exceeded limit of validation_passes", resume=True)
                         result.verdict = Verdict.JUDGE_ERROR
                         break
+
+                    self._prepare_nextpass()
 
                     if interaction:
                         print("---", file=interaction_file)
@@ -208,10 +210,6 @@ class Run:
             ):
                 self.out_path.unlink()
 
-        if result.verdict != Verdict.ACCEPTED and (self.feedbackdir / "nextpass.in").is_file():
-            assert not self.problem.multi_pass
-            bar.warn("Validator created nextpass.in for non multi-pass problem. Ignored.")
-
         self.result = result
         return result
 
@@ -231,18 +229,23 @@ class Run:
             or config.args.action in ["all", "time_limit"]
         )
 
-    # prepare next pass
-    def _prepare_nextpass(self, nextpass: Optional[Path]) -> bool:
-        if not nextpass or not nextpass.is_file():
+    def _has_nextpass(self, bar: Optional[ProgressBar] = None) -> bool:
+        has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
+        if not self.problem.multi_pass:
+            if bar and has_nextpass:
+                bar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
             return False
+        return has_nextpass
+
+    # prepare next pass
+    def _prepare_nextpass(self) -> None:
         # clear all files outside of feedbackdir
         for f in self.tmpdir.iterdir():
             if f.resolve() == self.feedbackdir.resolve():
                 continue
             remove_path(f)
         # use nextpass.in as next input
-        shutil.move(nextpass, self.in_path)
-        return True
+        shutil.move(self.feedbackdir / "nextpass.in", self.in_path)
 
     def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
         output_validator = self.problem.output_validator()
@@ -704,7 +707,6 @@ while True:
     sys.stderr.buffer.write(l)
 """
                 submission_args = test_case.get_test_case_yaml(localbar).args or []
-                nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
                 for pass_id in itertools.count(1):
 
                     def run_submission() -> ExecResult:
@@ -748,6 +750,7 @@ while True:
                     result = run_submission()
                     if result.verdict is None:
                         val_result = run._validate_output(localbar)
+                        run._has_nextpass(localbar)
                         if val_result is not None and config.args.error:
                             result.err = val_result.err
                         if val_result is None:
@@ -757,6 +760,9 @@ while True:
                             result.verdict = Verdict.ACCEPTED
                         elif val_result.status == ExecStatus.REJECTED:
                             result.verdict = Verdict.WRONG_ANSWER
+                            if run._has_nextpass():
+                                result.err = "got WRONG_ANSWER but found nextpass.in"
+                                result.verdict = Verdict.JUDGE_ERROR
                         elif result.duration > self.problem.limits.validation_time:
                             result.verdict = Verdict.JUDGE_ERROR
                             result.err = f"Validator TIMEOUT after {result.duration:.1f}s"
@@ -778,8 +784,16 @@ while True:
                     if result.verdict != Verdict.ACCEPTED:
                         break
 
-                    if not run._prepare_nextpass(nextpass):
+                    if not run._has_nextpass():
                         break
+
+                    assert run.problem.limits.validation_passes is not None
+                    if pass_id >= run.problem.limits.validation_passes:
+                        result.err = "exceeded limit of validation_passes"
+                        result.verdict = Verdict.JUDGE_ERROR
+                        break
+
+                    run._prepare_nextpass()
                     passmsg = f" (pass {pass_id + 1})" if self.problem.multi_pass else ""
                     eprint(ProgressBar.action(f"Running {self.name}", test_case.name + passmsg))
             else:

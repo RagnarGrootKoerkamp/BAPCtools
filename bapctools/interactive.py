@@ -18,12 +18,12 @@ from colorama import Fore, Style
 
 from bapctools import config
 from bapctools.util import (
-    BAR_TYPE,
     ExecResult,
     ExecStatus,
     is_windows,
     limit_setter,
     PrintBar,
+    ProgressBar,
     remove_path,
 )
 from bapctools.verdicts import Verdict
@@ -318,7 +318,7 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    bar: BAR_TYPE,
+    bar: ProgressBar,
     *,
     # False: Return as part of ExecResult
     # True: print to stdout
@@ -360,8 +360,6 @@ def run_interactive_test_case(
 
     validator_dir = run.feedbackdir.absolute()
     submission_dir = run.submission.tmpdir
-
-    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
         validator_command_str = "".join(map(str, validator_command))
@@ -567,6 +565,8 @@ def run_interactive_test_case(
                 ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
 
+            run._has_nextpass(bar)
+
             assert validator_time is not None
             assert submission_time is not None
             did_timeout = submission_time > time_limit
@@ -587,7 +587,7 @@ def run_interactive_test_case(
                 else:
                     config.n_error += 1
                 verdict = Verdict.JUDGE_ERROR
-            elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
+            elif validator_status == config.RTV_WA and run._has_nextpass():
                 bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                 verdict = Verdict.JUDGE_ERROR
             elif aborted:
@@ -639,7 +639,7 @@ def run_interactive_test_case(
             elif verdict != Verdict.ACCEPTED:
                 break
 
-            if not run._prepare_nextpass(nextpass):
+            if not run._has_nextpass():
                 break
 
             assert run.problem.limits.validation_passes is not None
@@ -647,6 +647,8 @@ def run_interactive_test_case(
                 bar.error("exceeded limit of validation_passes", resume=True)
                 verdict = Verdict.JUDGE_ERROR
                 break
+
+            run._prepare_nextpass()
 
             if interaction_file:
                 print("---", file=interaction_file, flush=True)
