@@ -109,7 +109,6 @@ class Run:
                     result = self.submission.run(
                         self.in_path, self.out_path, args=submission_args or []
                     )
-                    max_duration = max(max_duration, result.duration)
 
                     # write an interaction file for samples
                     if interaction:
@@ -123,16 +122,16 @@ class Run:
                         data = data.replace("\n", "\n>")
                         print(">", data, sep="", file=interaction_file)
 
+                    max_duration = max(max_duration, result.duration)
                     if result.duration > self.problem.limits.time_limit:
                         result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                         if tle_result is None:
                             tle_result = result
                             tle_result.pass_id = pass_id if self.problem.multi_pass else None
-                        else:
-                            tle_result.timeout_expired |= result.timeout_expired
-                        if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                        tle_result.timeout_expired |= result.timeout_expired
+                        if not self._continue_pass(bool(result.status), result.timeout_expired):
                             break
-                    elif result.status == ExecStatus.ERROR:
+                    elif result.status != ExecStatus.ACCEPTED:
                         result.verdict = Verdict.RUNTIME_ERROR
                         msg = f"Exited with code {result.returncode}"
                         if config.args.error and result.err:
@@ -142,7 +141,7 @@ class Run:
                         break
 
                     result = self._validate_output(bar)
-                    self._has_nextpass(bar)
+                    has_nextpass = self._check_nextpass(bar)
                     if result is None:
                         bar.error(
                             f"No output validator found for test case {self.test_case.name}",
@@ -164,7 +163,7 @@ class Run:
                         )
                     elif result.status == ExecStatus.REJECTED:
                         result.verdict = Verdict.WRONG_ANSWER
-                        if self._has_nextpass():
+                        if has_nextpass:
                             bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                             result.verdict = Verdict.JUDGE_ERROR
                     elif result.duration > self.problem.limits.validation_time:
@@ -174,10 +173,7 @@ class Run:
                         config.n_error += 1
                         result.verdict = Verdict.JUDGE_ERROR
 
-                    if result.verdict != Verdict.ACCEPTED:
-                        break
-
-                    if not self._has_nextpass():
+                    if result.verdict != Verdict.ACCEPTED or not has_nextpass:
                         break
 
                     assert self.problem.limits.validation_passes is not None
@@ -213,26 +209,24 @@ class Run:
         self.result = result
         return result
 
-    # check if we should continue after tle
-    def _continue_with_tle(self, verdict: Verdict, timeout_expired: bool) -> bool:
+    def _continue_pass(self, status_ok: bool, timeout_expired: bool) -> bool:
+        # if the problem is not multi_pass there is nothing to continue
         if not self.problem.multi_pass:
             return False
-        if config.args.all == 2 or config.args.reorder:
-            return True
-        if verdict != Verdict.TIME_LIMIT_EXCEEDED:
-            return False
-        if timeout_expired:
+        # if the submission did not exit properly there is not answer to continue with
+        if timeout_expired or not status_ok:
             return False
         return (
-            config.args.verbose > 0
+            config.args.reorder
+            or config.args.verbose > 0
             or config.args.all > 0
             or config.args.action in ["all", "time_limit"]
         )
 
-    def _has_nextpass(self, bar: Optional[ProgressBar] = None) -> bool:
+    def _check_nextpass(self, bar: ProgressBar) -> bool:
         has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
         if not self.problem.multi_pass:
-            if bar and has_nextpass:
+            if has_nextpass:
                 bar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
             return False
         return has_nextpass
@@ -750,7 +744,7 @@ while True:
                     result = run_submission()
                     if result.verdict is None:
                         val_result = run._validate_output(localbar)
-                        run._has_nextpass(localbar)
+                        has_nextpass = run._check_nextpass(localbar)
                         if val_result is not None and config.args.error:
                             result.err = val_result.err
                         if val_result is None:
@@ -760,7 +754,7 @@ while True:
                             result.verdict = Verdict.ACCEPTED
                         elif val_result.status == ExecStatus.REJECTED:
                             result.verdict = Verdict.WRONG_ANSWER
-                            if run._has_nextpass():
+                            if has_nextpass:
                                 result.err = "got WRONG_ANSWER but found nextpass.in"
                                 result.verdict = Verdict.JUDGE_ERROR
                         elif result.duration > self.problem.limits.validation_time:
@@ -781,10 +775,7 @@ while True:
                         msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
                     eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}\n")
 
-                    if result.verdict != Verdict.ACCEPTED:
-                        break
-
-                    if not run._has_nextpass():
+                    if result.verdict != Verdict.ACCEPTED or not has_nextpass:
                         break
 
                     assert run.problem.limits.validation_passes is not None

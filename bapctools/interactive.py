@@ -565,13 +565,12 @@ def run_interactive_test_case(
                 ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
 
-            run._has_nextpass(bar)
-
             assert validator_time is not None
             assert submission_time is not None
             did_timeout = submission_time > time_limit
             aborted = submission_time >= timeout
             max_duration = max(max_duration, submission_time)
+            has_nextpass = run._check_nextpass(bar)
 
             # If submission timed out: TLE
             # If team exists first with TLE/RTE -> TLE/RTE
@@ -587,7 +586,7 @@ def run_interactive_test_case(
                 else:
                     config.n_error += 1
                 verdict = Verdict.JUDGE_ERROR
-            elif validator_status == config.RTV_WA and run._has_nextpass():
+            elif validator_status == config.RTV_WA and has_nextpass:
                 bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                 verdict = Verdict.JUDGE_ERROR
             elif aborted:
@@ -623,23 +622,18 @@ def run_interactive_test_case(
                     tle_result = ExecResult(
                         None,
                         ExecStatus.ACCEPTED,
-                        max_duration,
-                        aborted,
+                        0,
+                        False,
                         val_err,
                         team_err,
                         verdict,
                         pass_id if run.problem.multi_pass else None,
                     )
-                else:
-                    tle_result.timeout_expired |= aborted
-
-            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
-                if not run._continue_with_tle(verdict, max_duration >= timeout):
+                tle_result.timeout_expired |= aborted
+                if not run._continue_pass(submission_status == 0, max_duration >= timeout):
                     break
-            elif verdict != Verdict.ACCEPTED:
-                break
 
-            if not run._has_nextpass():
+            elif verdict != Verdict.ACCEPTED or not has_nextpass:
                 break
 
             assert run.problem.limits.validation_passes is not None
