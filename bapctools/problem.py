@@ -1163,7 +1163,7 @@ class Problem:
     def run_some(
         test_cases: Sequence[TestCase],
         submissions: Sequence[Submission],
-        skip_test_case: Callable[[Submission, TestCase], bool] = lambda s, t: False,
+        skip_run: Callable[[Submission, TestCase], bool] = lambda s, t: False,
     ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
@@ -1176,7 +1176,7 @@ class Problem:
                 max_submission_len,
                 verdict_table,
                 test_cases,
-                skip_test_case,
+                skip_run,
                 needs_leading_newline=needs_leading_newline,
             )
             needs_leading_newline = not printed_newline
@@ -1262,9 +1262,9 @@ class Problem:
     ) -> None:
         # Begin by aggregating bitstrings for all test cases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row: verdicts.Verdicts, test_case: TestCase) -> str:
-            assert row[test_case.name] is not None
-            if row[test_case.name] is not False:
-                return verdicts.to_char(row[test_case.name])
+            assert row[test_case.short_path] is not None
+            if row[test_case.short_path] is not False:
+                return verdicts.to_char(row[test_case.short_path])
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
@@ -1282,17 +1282,17 @@ class Problem:
                 special_id += 1
                 resultant_id[resultant] = special_id
 
-        scores = dict[str, float]()
+        scores = dict[Path, float]()
         for t in test_cases:
-            scores[t.name] = 0
+            scores[t.short_path] = 0
         for dct in verdict_table:
             failures = 0
             for t in test_cases:
-                if dct[t.name] != verdicts.Verdict.ACCEPTED:
+                if dct[t.short_path] != verdicts.Verdict.ACCEPTED:
                     failures += 1
             for t in test_cases:
-                if dct[t.name] != verdicts.Verdict.ACCEPTED:
-                    scores[t.name] += 1.0 / failures
+                if dct[t.short_path] != verdicts.Verdict.ACCEPTED:
+                    scores[t.short_path] += 1.0 / failures
         scores_list = sorted(scores.values())
 
         eprint(
@@ -1311,7 +1311,7 @@ class Problem:
 
         for case in test_cases:
             # Skip all AC test cases
-            if all(row[case.name] == verdicts.Verdict.ACCEPTED for row in verdict_table):
+            if all(row[case.short_path] == verdicts.Verdict.ACCEPTED for row in verdict_table):
                 continue
 
             name = case.name
@@ -1321,13 +1321,13 @@ class Problem:
             eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
             color = Style.RESET_ALL
-            if len(scores_list) > 6 and scores[case.name] >= scores_list[-6]:
+            if len(scores_list) > 6 and scores[case.short_path] >= scores_list[-6]:
                 color = Fore.YELLOW
-            if len(scores_list) > 3 and scores[case.name] >= scores_list[-3]:
+            if len(scores_list) > 3 and scores[case.short_path] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(case)
             eprint(resultant, end="  ")
-            eprint(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="")
+            eprint(f"{color}{scores[case.short_path]:0.3f}{Style.RESET_ALL}  ", end="")
             if resultant in resultant_id:
                 eprint(f"(Type {resultant_id[resultant]})", end="")
             eprint()
@@ -1856,24 +1856,24 @@ class Problem:
         ok = True
 
         def run_all(
-            skip_test_case: Callable[[Submission, TestCase], bool],
+            skip_run: Callable[[Submission, TestCase], bool],
             select_duration: Callable[[Sequence[float]], float],
-        ) -> tuple[str, str, float] | tuple[None, None, None]:
+        ) -> tuple[Path, Path, float] | tuple[None, None, None]:
             nonlocal ok
 
             def skip_submission(s: Submission) -> bool:
-                return all(skip_test_case(s, t) for t in test_cases)
+                return all(skip_run(s, t) for t in test_cases)
 
             cur_submissions = [s for s in submissions if not skip_submission(s)]
 
             if len(cur_submissions) == 0:
                 return None, None, None
 
-            cur_ok, verdict_table = Problem.run_some(test_cases, cur_submissions, skip_test_case)
+            cur_ok, verdict_table = Problem.run_some(test_cases, cur_submissions, skip_run)
             if not cur_ok:
                 ok = False
 
-            def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
+            def get_slowest(result: verdicts.Verdicts) -> tuple[Path, float]:
                 slowest_pair = result.slowest_test_case()
                 assert slowest_pair is not None
                 return slowest_pair

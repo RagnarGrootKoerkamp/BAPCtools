@@ -49,12 +49,18 @@ from bapctools.visualize import OutputVisualizer
 
 class Run:
     def __init__(
-        self, problem: "problem.Problem", submission: "Submission", test_case: TestCase
+        self,
+        problem: "problem.Problem",
+        submission: "Submission",
+        test_case: TestCase,
+        *,
+        skip: bool = False,
     ) -> None:
         self.problem = problem
         self.submission = submission
         self.test_case = test_case
         self.name: str = self.test_case.name
+        self.skip = skip
         self.result = None
 
         self.tmpdir: Path = (
@@ -442,11 +448,14 @@ class Submission(Program):
         max_submission_name_len: int,
         verdict_table: VerdictTable,
         test_cases: Sequence[TestCase],
-        skip_test_case: Callable[["Submission", TestCase], bool] = lambda s, t: False,
+        skip_run: Callable[["Submission", TestCase], bool] = lambda s, t: False,
         *,
         needs_leading_newline: bool,
     ) -> tuple[bool, bool]:
-        runs = [Run(self.problem, self, test_case) for test_case in test_cases]
+        runs = [
+            Run(self.problem, self, test_case, skip=skip_run(self, test_case))
+            for test_case in test_cases
+        ]
         max_test_case_len = max(len(run.name) for run in runs)
         max_pass_len = 0
         if self.problem.multi_pass:
@@ -456,19 +465,7 @@ class Submission(Program):
         padding_len = max_submission_name_len - len(self.name)
         run_until = self.problem.run_until()
 
-        run_test_case: list[TestCase] = []
-        skipped_test_case: list[TestCase] = []
-        for test_case in test_cases:
-            if skip_test_case(self, test_case):
-                skipped_test_case.append(test_case)
-            else:
-                run_test_case.append(test_case)
-        verdicts = Verdicts(
-            run_test_case,
-            self.problem.limits.timeout,
-            run_until,
-            skipped_test_case,
-        )
+        verdicts = Verdicts(runs, run_until)
 
         verdict_table.next_submission(verdicts)
         bar = TableProgressBar(
@@ -485,15 +482,13 @@ class Submission(Program):
         )
 
         def process_run(run: Run) -> None:
-            if not verdicts.run_is_needed(run.name):
+            if not verdicts.run_is_needed(run):
                 bar.skip()
                 return
 
             localbar = bar.start(run)
             result = run.run(localbar)
             assert result.verdict is not None
-
-            verdict_table.update_verdicts(run.name, result.verdict, result.duration)
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -587,7 +582,7 @@ class Submission(Program):
                 test_case = run.test_case
                 if not expectation.matches(test_case):
                     continue
-                verdict = verdicts[test_case.name]
+                verdict = verdicts[test_case.short_path]
                 if isinstance(verdict, Verdict):
                     got.add(verdict)
                     passed_permitted &= verdict in expectation.permitted
@@ -616,7 +611,7 @@ class Submission(Program):
             if message is not None:
                 bar.warn(f"missing '{crop_line(message, 15)}' in judgemessage.txt")
 
-        verdict = verdicts["."]
+        verdict = verdicts[Path()]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
         self.verdict = verdict
 
@@ -641,17 +636,17 @@ class Submission(Program):
         if bar.logged:
             color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
-        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_test_case:{max_test_case_len}}{Style.RESET_ALL}"
+        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_test_case.as_posix():{max_test_case_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_test_case()
             assert slowest_pair is not None
-            (slowest_name, slowest_duration) = slowest_pair
-            slowest_verdict = verdicts[slowest_name]
+            (slowest_path, slowest_duration) = slowest_pair
+            slowest_verdict = verdicts[slowest_path]
             assert isinstance(slowest_verdict, Verdict), (
                 "Verdict of slowest test case must not be empty"
             )
-            slowest_test_case = next(t for t in test_cases if t.name == slowest_name)
+            slowest_test_case = next(t for t in test_cases if t.short_path == slowest_path)
 
             slowest_color = Fore.GREEN
             if time_sensitive_lower < slowest_duration < time_sensitive_upper:

@@ -2504,9 +2504,7 @@ data/*
             assert all(isinstance(e, dict) and len(e) == 1 for e in d.yaml["data"])
 
             # don't move unknown test cases/groups
-            test_nodes = {
-                id(c.yaml): c.path.as_posix() for c in d.data if c.path in test_case_paths
-            }
+            test_nodes = {id(c.yaml): c.path for c in d.data if c.path in test_case_paths}
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestCaseResult:
@@ -2514,12 +2512,13 @@ data/*
                     self.yaml = yaml
                     test_case_yaml = next(iter(yaml.values()))
                     assert isinstance(test_case_yaml, (str, dict, type(None)))
-                    self.name = test_nodes[id(test_case_yaml)]
+                    self.short_path = test_nodes[id(test_case_yaml)]
+                    self.name = self.short_path.as_posix()
                     self.count = len(parse_count(test_case_yaml))
                     self.scores = []
                     self.result = []
                     for i in range(len(submissions)):
-                        verdict = verdict_table.results[i][self.name]
+                        verdict = verdict_table.results[i][self.short_path]
                         # moving TLE cases to the front is most important to save resources
                         # RTE are less reliable and therefore less important than WA
                         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
@@ -2528,7 +2527,7 @@ data/*
                             self.scores.append((i, 4))
                         elif verdict == Verdict.RUNTIME_ERROR:
                             self.scores.append((i, 3))
-                        self.result.append(verdict_table._get_verdict(i, self.name))
+                        self.result.append(verdict_table._get_verdict(i, self.short_path))
 
                 def __str__(self) -> str:
                     return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.name:<{max_test_case_len}} {''.join(self.result)}"
