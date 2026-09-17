@@ -48,8 +48,8 @@ class Connection:
         propagate_eof: bool = False,
     ) -> None:
         # we need unbuffered IO
-        assert isinstance(read, io.RawIOBase)
-        assert isinstance(write, io.RawIOBase)
+        assert isinstance(read, io.RawIOBase)  # type: ignore[unreachable]
+        assert isinstance(write, io.RawIOBase)  # type: ignore[unreachable]
         os.set_blocking(read.fileno(), False)
         os.set_blocking(write.fileno(), False)
 

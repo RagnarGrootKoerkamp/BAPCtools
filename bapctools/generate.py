@@ -9,7 +9,7 @@ import shutil
 import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from pathlib import Path, PurePosixPath
-from typing import cast, Final, Literal, Optional, overload, TypeVar
+from typing import cast, Final, Literal, Optional, overload, TypeGuard, TypeVar
 
 from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -97,7 +97,7 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
 )
 
 
-def is_test_case(yaml: object) -> TypeIs[YAML_TYPE]:
+def is_test_case(yaml: object) -> TypeGuard[YAML_TYPE]:
     return (
         yaml is None
         or isinstance(yaml, str)
@@ -105,11 +105,11 @@ def is_test_case(yaml: object) -> TypeIs[YAML_TYPE]:
     )
 
 
-def is_directory(yaml: object) -> TypeIs[dict[object, object]]:
+def is_directory(yaml: object) -> TypeGuard[dict[object, object]]:
     return isinstance(yaml, dict) and not is_test_case(yaml)
 
 
-def has_count(yaml: object) -> TypeIs[dict[object, object]]:
+def has_count(yaml: object) -> TypeGuard[dict[object, object]]:
     return (
         isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], (int, list, str))
     )

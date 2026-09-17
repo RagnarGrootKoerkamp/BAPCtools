@@ -198,6 +198,7 @@ class ProgressBar:
         self.item_width: int = max_len + 1  # The max length of the items we're processing
         self.count: Optional[int] = count  # The number of items we're processing
         self.i: int = 0
+        ProgressBar.columns = shutil.get_terminal_size().columns
         emptyline = " " * self.total_width() + "\r"
         self.carriage_return: str = emptyline if is_windows() else "\033[K"
         self.logged: bool = False
@@ -297,7 +298,7 @@ class ProgressBar:
             return
         bar = self.get_bar()
         prefix = self.get_prefix()
-        if bar is None or bar == "":
+        if bar == "":
             self._print(prefix, end="\r")
         else:
             self._print(prefix, bar, end="\r")
@@ -378,16 +379,11 @@ class ProgressBar:
             self.clearline()
             self.logged = True
 
-            if self.parent:
-                self.parent.global_logged = True
-                if self.parent.needs_leading_newline:
-                    self._print()
-                    self.parent.needs_leading_newline = False
-            else:
-                self.global_logged = True
-                if self.needs_leading_newline:
-                    self._print()
-                    self.needs_leading_newline = False
+            root = self.parent or self
+            root.global_logged = True
+            if root.needs_leading_newline:
+                root._print()
+                root.needs_leading_newline = False
 
             self._print(
                 self.get_prefix(print_item),
@@ -398,10 +394,7 @@ class ProgressBar:
             )
 
             if resume:
-                if self.parent:
-                    self.parent._resume()
-                else:
-                    self._resume()
+                root._resume()
 
     # Same as log, but only in verbose mode.
     def debug(
@@ -560,7 +553,7 @@ class ProgressBar:
         return self.global_logged and not suppress_newline
 
 
-if not is_windows():
+if hasattr(signal, "SIGWINCH"):
 
     def update_columns(_: Any, __: Any) -> None:
         cols, rows = shutil.get_terminal_size()
@@ -1547,9 +1540,7 @@ def exec_command(
         else:
             eprint("cd", Path.cwd(), "; ", end="")
         eprint(*command, end="")
-        if input is not None:
-            eprint(" <", input, end="")
-        elif "stdin" in kwargs:
+        if "stdin" in kwargs:
             eprint(" <", kwargs["stdin"].name, end="")
         eprint()
 
