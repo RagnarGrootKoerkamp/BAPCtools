@@ -318,6 +318,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             return False
         if data["type"] != "directory":
             return False
+        assert isinstance(data, CommentedMap)
         ryaml_filter(data, "type")
         bar.log(f"removing legacy 'type: directory' in generators.yaml ({path})")
         return True

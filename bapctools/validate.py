@@ -506,10 +506,9 @@ def sanity_check(
         if not (path.suffix == ".ans" and (problem.interactive or problem.multi_pass)):
             bar.warn(f"{name} is empty but was accepted!")
         return
-    else:
+    elif problem.interactive and path.suffix == ".ans":
         # enforce empty .ans file for interactive
-        if problem.interactive and path.suffix == ".ans":
-            bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
+        bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
         return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
 
     # check file size limits

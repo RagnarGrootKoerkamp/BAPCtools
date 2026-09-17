@@ -729,11 +729,7 @@ while True:
                             result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                         elif result.status == ExecStatus.ERROR:
                             result.verdict = Verdict.RUNTIME_ERROR
-                            msg = f"Exited with code {result.returncode}"
-                            if config.args.error and result.err:
-                                result.err = f"{msg}:\n{result.err}"
-                            else:
-                                result.err = msg
+                            result.err = f"Exited with code {result.returncode}"
                         return result
 
                     result = run_submission()
