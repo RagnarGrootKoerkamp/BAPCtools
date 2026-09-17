@@ -409,11 +409,11 @@ def build_latex_pdf(
         if path.suffix in (".svg", ".bmp"):
             bar.warn(f"unsupported filetype {path.suffix} for {rel_path.as_posix()}")
             continue
-        if path.suffix not in (".png", ".pdf", ".jpg", ".jpeg"):
+        if path.suffix.lower() not in (".png", ".pdf", ".jpg", ".jpeg"):
             continue
         if path.stat().st_size < config.ICPC_IMAGE_LIMIT * 1024:
             continue
-        bar.warn(f"{rel_path} is larger than {config.ICPC_IMAGE_LIMIT}KiB")
+        bar.warn(f"{rel_path} is larger than {config.ICPC_IMAGE_LIMIT} KiB")
 
     assert not config.args.watch
     ensure_symlink(dest_path, built_pdf, True)
