@@ -206,7 +206,7 @@ class Verdicts:
         return node not in self.children
 
     def update(self, run: "Run") -> None:
-        """update our state based on runase (implying possibly others)"""
+        """update our state based on the run (can set multiple nodes)"""
         with self:
             assert run.result is not None
             self.duration[run.test_case.short_path] = run.result.duration
