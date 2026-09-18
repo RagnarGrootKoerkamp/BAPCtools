@@ -101,7 +101,6 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         for i, sample in enumerate(samples):
             in_file, ans_file = sample.download
             base_name = outputdir / str(i + 1)
-            contents[base_name.with_suffix(".in")] = in_file
             if in_file.stat().st_size > 0:
                 contents[base_name.with_suffix(".in")] = in_file
             if ans_file.stat().st_size > 0:
