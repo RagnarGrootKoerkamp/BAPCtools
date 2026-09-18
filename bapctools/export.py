@@ -426,7 +426,18 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     first_newline = t.find("\n")
                     shebang, t = t[:first_newline], t[first_newline:]
                 comment = "#" if f.suffix == ".py" else "//"
-                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {', '.join(sorted(v.name for v in submission.expectations.all_permitted()))}\n{t}"
+                # TODO: check if other services depend on the exact string "RUNTIME_ERROR".
+                # If not, the default __str__() in verdicts.py should be updated to "RUN_TIME_ERROR" instead of .replace()ing it here.
+                # DOMjudge uses RUN_TIME_ERROR for sure:
+                # https://github.com/DOMjudge/domjudge/blob/9.0.1/webapp/src/Service/SubmissionService.php#L43
+                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {
+                    ', '.join(
+                        sorted(
+                            v.name.replace('RUNTIME_ERROR', 'RUN_TIME_ERROR')
+                            for v in submission.expectations.all_permitted()
+                        )
+                    )
+                }\n{t}"
                 f.unlink()
                 f.write_text(t)
 
