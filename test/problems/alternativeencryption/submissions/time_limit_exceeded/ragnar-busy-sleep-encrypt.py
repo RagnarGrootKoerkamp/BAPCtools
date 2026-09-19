@@ -16,5 +16,5 @@ if mode == "encrypt":
     import time
 
     current_time = time.time()
-    while time.time() < current_time + 1.5:
+    while time.time() < current_time + 2.5:
         pass

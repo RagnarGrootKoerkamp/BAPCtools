@@ -15,8 +15,10 @@ def randstr(n):
 seed(int(sys.argv[1]))
 n = int(sys.argv[2])
 command = " ".join(sys.argv[3:]).encode("ascii").decode("unicode_escape")
+code = compile(command, "<string>", "eval")
+
 
 print("encrypt")
 print(n)
 for i in range(n):
-    print(eval(command))
+    print(eval(code))
