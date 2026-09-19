@@ -29,14 +29,7 @@ class Verdict(Enum):
     COMPILER_ERROR = 6
 
     def __str__(self) -> str:
-        return {
-            Verdict.ACCEPTED: "ACCEPTED",
-            Verdict.WRONG_ANSWER: "WRONG ANSWER",
-            Verdict.TIME_LIMIT_EXCEEDED: "TIME LIMIT EXCEEDED",
-            Verdict.RUNTIME_ERROR: "RUNTIME ERROR",
-            Verdict.JUDGE_ERROR: "JUDGE ERROR",
-            Verdict.COMPILER_ERROR: "COMPILER ERROR",
-        }[self]
+        return self.name.replace("_", " ")
 
     def __lt__(self, other: "Verdict") -> bool:
         return self.value < other.value
