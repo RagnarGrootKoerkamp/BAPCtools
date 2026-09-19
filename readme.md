@@ -25,7 +25,7 @@ There are multiple ways to install BAPCtools:
   mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
 - Run from a [Docker image](#Docker).
 - The development version from git via `pip install .`.
-  For more information regarding the development version see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
+  For more information regarding the development version see the installation instructions in [contributing.md](contributing.md).
 
 (If you know how to make a Debian package, feel free to help out.)
 
@@ -162,19 +162,6 @@ Use this command to compile the `problem.en.pdf` from the `statement/problem.en.
 The generated `problem.en.pdf` is linked to the problem directory itself, if you want a persistent version of the pdf use `--cp`.
 
 This can also be used to create the contest pdf by running it from the contest directory.
-
-## Developing / Contributing to BAPCtools
-
-The recommended way to install all development dependencies is in a virtual environment,
-created with `python3 -m venv venv` and activated with `. venv/bin/activate`.<br />
-Install the development dependencies with `pip install --editable . --group dev`.
-
-If you want to use your local development version of BAPCtools anywhere, you can create a symlink from any `bin` directory on your `$PATH` to the virtual environment, for example: `ln -s /path/to/BAPCtools/venv/bin/bt ~/bin/bt`.
-
-The Python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff) and type-checked using [mypy](https://mypy-lang.org/).
-To enable the pre-commit hook, run `pre-commit install` from the repository root.
-All Python code will now automatically be formatted and type-checked on each commit.
-If you want to run the hooks before creating a commit, use `pre-commit run` (only staged files) or `pre-commit run -a` (all files).
 
 ## Updating the Docker Image
 
