@@ -35,6 +35,7 @@ from bapctools.util import (
     write_yaml,
 )
 from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
+from bapctools.verdicts import Verdict
 from bapctools.visualize import InputVisualizer, OutputVisualizer
 
 
@@ -419,21 +420,20 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 t = f.read_text()
                 shebang = ""
                 if t.startswith("#!"):
-                    first_newline = t.find("\n")
-                    shebang, t = t[:first_newline], t[first_newline:]
+                    shebang, _, t = t.partition("\n")
                 comment = "#" if f.suffix == ".py" else "//"
-                # TODO: check if other services depend on the exact string "RUNTIME_ERROR".
-                # If not, the default __str__() in verdicts.py should be updated to "RUN_TIME_ERROR" instead of .replace()ing it here.
-                # DOMjudge uses RUN_TIME_ERROR for sure:
+
+                # Domjudge uses "RUN_TIME_ERROR" instead of "RUNTIME_ERROR"
                 # https://github.com/DOMjudge/domjudge/blob/9.0.1/webapp/src/Service/SubmissionService.php#L43
-                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {
-                    ', '.join(
-                        sorted(
-                            v.name.replace('RUNTIME_ERROR', 'RUN_TIME_ERROR')
-                            for v in submission.expectations.all_permitted()
-                        )
-                    )
-                }\n{t}"
+                def domjudge_verdict(v: Verdict) -> str:
+                    if v == Verdict.RUNTIME_ERROR:
+                        return "RUN_TIME_ERROR"
+                    return v.name
+
+                expected_results = ", ".join(
+                    sorted(domjudge_verdict(v) for v in submission.expectations.all_permitted())
+                )
+                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {expected_results}\n{t}"
                 f.unlink()
                 f.write_text(t)
 
