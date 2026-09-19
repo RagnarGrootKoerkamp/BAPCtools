@@ -1,7 +1,7 @@
 import re
-import zipfile
 from pathlib import Path
 from typing import Optional
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from bapctools import config
 from bapctools.contest import (
@@ -66,74 +66,70 @@ def remove_language_pdf_suffix(file: Path, lang: Optional[str]) -> Path:
 def build_samples_zip(problems: list[Problem], output: Path, languages: list[str]) -> None:
     bar = PrintBar("Zip", len(output.name), item=output)
     bar.log("writing sample zip file")
-    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
+    with ZipFile(output, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
+        # Do not include contest PDF for kattis.
+        if not config.args.kattis:
+            for language in languages:
+                for file in glob(Path(), f"contest*.{language}.pdf"):
+                    out = remove_language_pdf_suffix(file, language) if config.args.legacy else file
+                    if Path(file).is_file():
+                        zf.write(file, out)
 
-    # Do not include contest PDF for kattis.
-    if not config.args.kattis:
-        for language in languages:
-            for file in glob(Path("."), f"contest*.{language}.pdf"):
-                out = remove_language_pdf_suffix(file, language) if config.args.legacy else file
-                if Path(file).is_file():
-                    zf.write(
-                        file,
-                        out,
-                        compress_type=zipfile.ZIP_DEFLATED,
-                    )
+        for problem in problems:
+            if not problem.label:
+                fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
 
-    for problem in problems:
-        if not problem.label:
-            fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
+            outputdir = Path(problem.label)
+            zf.writestr(f"{problem.label}/", "")
 
-        outputdir = Path(problem.label)
-        zf.writestr(f"{problem.label}/", "", compress_type=zipfile.ZIP_DEFLATED)
+            attachments_dir = problem.path / "attachments"
+            if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
+                bar.error(
+                    f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
+                )
+                continue
 
-        attachments_dir = problem.path / "attachments"
-        if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            bar.error(
-                f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
-            )
-            continue
+            contents: dict[
+                Path, Path
+            ] = {}  # Maps desination to source, to allow checking duplicates.
 
-        contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
+            # Add samples.
+            samples = problem.overrides(only_samples=True)
+            for i, sample in enumerate(samples):
+                in_file, ans_file = sample.download
+                base_name = outputdir / str(i + 1)
+                if in_file.stat().st_size > 0:
+                    contents[base_name.with_suffix(".in")] = in_file
+                if ans_file.stat().st_size > 0:
+                    contents[base_name.with_suffix(".ans")] = ans_file
 
-        # Add samples.
-        samples = problem.overrides(only_samples=True)
-        for i, sample in enumerate(samples):
-            in_file, ans_file = sample.download
-            base_name = outputdir / str(i + 1)
-            if in_file.stat().st_size > 0:
-                contents[base_name.with_suffix(".in")] = in_file
-            if ans_file.stat().st_size > 0:
-                contents[base_name.with_suffix(".ans")] = ans_file
-
-        # Add attachments if they exist.
-        if attachments_dir.is_dir():
-            for f in attachments_dir.iterdir():
-                if f.is_dir():
-                    bar.error(f"{f} directory attachments are not supported.")
-                elif f.is_file():
-                    if f.name.startswith("."):
-                        continue  # Skip dotfiles
-                    destination = outputdir / f.name
-                    if destination in contents:
-                        bar.error(
-                            f"Cannot overwrite {destination} from attachments/"
-                            f" (sourced from {contents[destination]})."
-                            "\n\tDo not include samples in attachments/,"
-                            " use .{in,ans}.statement or .{in,ans}.download instead."
-                        )
+            # Add attachments if they exist.
+            if attachments_dir.is_dir():
+                for f in attachments_dir.iterdir():
+                    if f.is_dir():
+                        bar.error(f"{f} directory attachments are not supported.")
+                    elif f.is_file():
+                        if f.name.startswith("."):
+                            continue  # Skip dotfiles
+                        destination = outputdir / f.name
+                        if destination in contents:
+                            bar.error(
+                                f"Cannot overwrite {destination} from attachments/"
+                                f" (sourced from {contents[destination]})."
+                                "\n\tDo not include samples in attachments/,"
+                                " use .{in,ans}.statement or .{in,ans}.download instead."
+                            )
+                        else:
+                            contents[destination] = f
                     else:
-                        contents[destination] = f
-                else:
-                    bar.error(f"Cannot include broken file {f}.")
+                        bar.error(f"Cannot include broken file {f}.")
 
-        if contents:
-            for destination, source in contents.items():
-                zf.write(source, destination)
-        else:
-            bar.error(f"No attachments or samples found for problem {problem.name}.")
+            if contents:
+                for destination, source in contents.items():
+                    zf.write(source, destination)
+            else:
+                bar.error(f"No attachments or samples found for problem {problem.name}.")
 
-    zf.close()
     bar.log("done")
 
 
@@ -445,21 +441,17 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     yaml_path.unlink()
     write_yaml(yaml_data, yaml_path)
 
-    # Build .ZIP file.
-    bar.log("writing zip file")
     try:
-        zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
-
-        export_dir = problem.tmpdir / "export"
-        for f in sorted(export_dir.rglob("*")):
-            name = f.relative_to(export_dir)
-            if f.is_file():
-                zf.write(f, name, compress_type=zipfile.ZIP_DEFLATED)
-            if f.is_dir():
-                zf.writestr(f"{name}/", "", compress_type=zipfile.ZIP_DEFLATED)
-
-        # Done.
-        zf.close()
+        # Build .ZIP file.
+        bar.log("writing zip file")
+        with ZipFile(output, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
+            export_dir = problem.tmpdir / "export"
+            for f in sorted(export_dir.rglob("*")):
+                name = f.relative_to(export_dir)
+                if f.is_file():
+                    zf.write(f, name)
+                elif f.is_dir():
+                    zf.writestr(f"{name}/", "")
         bar.log("done\n")
     except Exception:
         return False
@@ -481,42 +473,40 @@ def build_contest_zip(
     bar = PrintBar("Zip", len(outfile), item=outfile)
     bar.log("writing zip file")
 
-    zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
-
-    for fname in zipfiles:
-        zf.write(fname, fname.name, compress_type=zipfile.ZIP_DEFLATED)
-
-    # For general zip export, also create pdfs and a samples zip.
-    if not config.args.kattis:
-        sampleout = Path("samples.zip")
-        build_samples_zip(problems, sampleout, languages)
-
-        def add_file(file: Path) -> None:
-            if file.is_file():
-                out = remove_language_pdf_suffix(file, languages[0]) if config.args.legacy else file
-                zf.write(
-                    file,
-                    out,
-                    compress_type=zipfile.ZIP_DEFLATED,
-                )
-
-        add_file(Path("problems.yaml"))
-        add_file(Path("contest.yaml"))
-        add_file(sampleout)
-        for language in languages:
-            for name in [
-                *Path(".").glob(f"contest*.{language}.pdf"),
-                *Path(".").glob(f"solutions*.{language}.pdf"),
-                *Path(".").glob(f"problem-slides*.{language}.pdf"),
-            ]:
-                add_file(name)
-
-    # For Kattis export, delete the original zipfiles.
-    if config.args.kattis:
+    with ZipFile(outfile, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
         for fname in zipfiles:
-            fname.unlink()
+            zf.write(fname, fname.name)
 
-    zf.close()
+        # For general zip export, also create pdfs and a samples zip.
+        if not config.args.kattis:
+            sampleout = Path("samples.zip")
+            build_samples_zip(problems, sampleout, languages)
+
+            def add_file(file: Path) -> None:
+                if file.is_file():
+                    out = (
+                        remove_language_pdf_suffix(file, languages[0])
+                        if config.args.legacy
+                        else file
+                    )
+                    zf.write(file, out)
+
+            add_file(Path("problems.yaml"))
+            add_file(Path("contest.yaml"))
+            add_file(sampleout)
+            for language in languages:
+                for name in [
+                    *Path().glob(f"contest*.{language}.pdf"),
+                    *Path().glob(f"solutions*.{language}.pdf"),
+                    *Path().glob(f"problem-slides*.{language}.pdf"),
+                ]:
+                    add_file(name)
+
+        # For Kattis export, delete the original zipfiles.
+        if config.args.kattis:
+            for fname in zipfiles:
+                fname.unlink()
+
     bar.log("done\n")
 
 

@@ -60,7 +60,7 @@ class GeneratorTask:
 
     def _run(self, bar: ProgressBar) -> bool:
         # GENERATE THE TEST DATA
-        dir = Path("fuzz") / f"tmp_id_{str(self.tmp_id)}"
+        dir = Path("fuzz") / f"tmp_id_{self.tmp_id}"
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
         remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)

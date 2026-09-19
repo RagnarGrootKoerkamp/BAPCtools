@@ -92,7 +92,7 @@ def to_string(v: Optional[Verdict | Literal[False]]) -> str:
     if v is None or v is False:
         return to_char(v)
     else:
-        return f"{v.color()}{str(v)}{Style.RESET_ALL}"
+        return f"{v.color()}{v}{Style.RESET_ALL}"
 
 
 def from_string(s: str) -> Verdict:

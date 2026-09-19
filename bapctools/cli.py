@@ -111,7 +111,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     tmpdir.mkdir(parents=True, exist_ok=True)
 
     def fallback_problems() -> list[tuple[Path, str]]:
-        problem_paths = list(filter(is_problem_directory, glob(Path("."), "*/")))
+        problem_paths = list(filter(is_problem_directory, glob(Path(), "*/")))
         label = chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().test_session else "A"
         problems = []
         for path in problem_paths:

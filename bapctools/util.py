@@ -26,6 +26,7 @@ from io import StringIO
 from pathlib import Path
 from typing import (
     Any,
+    BinaryIO,
     cast,
     Concatenate,
     Generic,
@@ -771,7 +772,7 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
         if path is not None:
             fatal(f"Duplicate key in yaml file {path}!\n{e.args[0]}\n{e.args[2]}")
         else:
-            fatal(f"Duplicate key in yaml object!\n{str(e)}")
+            fatal(f"Duplicate key in yaml object!\n{e}")
     except Exception as e:
         if suppress_errors:
             return None
@@ -1522,37 +1523,29 @@ def exec_command(
     command: Sequence[str | Path],
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
+    *,
     preexec_fn: bool = True,
+    timeout: Optional[int] = None,
+    memory: Optional[int] = None,
+    stdout: Optional[int | BinaryIO | Literal[True]] = True,
+    stderr: Optional[int | BinaryIO | Literal[True]] = True,
     **kwargs: Any,
 ) -> ExecResult:
-    # By default: discard stdout, return stderr
-    if "stdout" not in kwargs or kwargs["stdout"] is True:
-        kwargs["stdout"] = subprocess.PIPE
-    if "stderr" not in kwargs or kwargs["stderr"] is True:
-        kwargs["stderr"] = subprocess.PIPE
+    # By default: return stdour and stderr
+    kwargs["stdout"] = subprocess.PIPE if stdout is True else stdout
+    kwargs["stderr"] = subprocess.PIPE if stderr is True else stderr
+    assert "text" not in kwargs
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        if "cwd" in kwargs:
-            eprint("cd", kwargs["cwd"], "; ", end="")
-        else:
-            eprint("cd", Path.cwd(), "; ", end="")
+        eprint("cd", kwargs.get("cwd", Path.cwd()), "; ", end="")
         eprint(*command, end="")
-        if "stdin" in kwargs:
-            eprint(" <", kwargs["stdin"].name, end="")
+        stdin = kwargs.get("stdin")
+        if stdin is not None:
+            eprint(" <", getattr(stdin, "name", stdin), end="")
         eprint()
-
-    timeout: Optional[int] = None
-    if "timeout" in kwargs:
-        timeout = kwargs["timeout"]
-        kwargs.pop("timeout")
-
-    memory: Optional[int] = None
-    if "memory" in kwargs:
-        memory = kwargs["memory"]
-        kwargs.pop("memory")
 
     if preexec_fn:
         kwargs["preexec_fn"] = limit_setter(command, timeout, memory)
@@ -1572,12 +1565,12 @@ def exec_command(
             return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
 
         try:
-            (stdout, stderr) = process.communicate(timeout=timeout)
+            (out, err) = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             # Timeout expired.
             timeout_expired = True
             process.kill()
-            (stdout, stderr) = process.communicate()
+            (out, err) = process.communicate()
 
     tend = time.monotonic()
 
@@ -1590,8 +1583,8 @@ def exec_command(
         return crop_output(s) if crop else s
 
     status = exec_code_map(process.returncode)
-    err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
-    out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
+    res_err = maybe_crop(err.decode("utf-8", "replace")) if err is not None else None
+    res_out = maybe_crop(out.decode("utf-8", "replace")) if out is not None else None
 
     if process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
@@ -1602,7 +1595,7 @@ def exec_command(
     else:
         duration = tend - tstart
 
-    return ExecResult(process.returncode, status, duration, timeout_expired, err, out)
+    return ExecResult(process.returncode, status, duration, timeout_expired, res_err, res_out)
 
 
 def inc_label(label: str) -> str:

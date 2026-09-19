@@ -553,29 +553,29 @@ class Problem:
             )
         # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
         for lang in texlangs & yamllangs:
-            unnormalised_yamlname = self.settings.name[lang]
-            yamlname = " ".join(unnormalised_yamlname.split())
+            unnormalised_yamlname = self.settings.name[lang].encode()
+            yamlname = b" ".join(unnormalised_yamlname.split())
             texpath = self.path / latex.PdfType.PROBLEM.path(lang)
-            with texpath.open() as texfile:
-                match texname := latex.get_argument_for_command(texfile, "problemname"):
+            with texpath.open("rb") as texfile:
+                match texname := latex.get_argument_for_command(texfile, b"problemname"):
                     case None:
                         bar.error(rf"No \problemname found in {texpath.name}")
                         continue
-                    case "":
+                    case b"":
                         continue
-                    case r"\problemyamlname":
+                    case rb"\problemyamlname":
                         bar.warn(
                             rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in {texpath.name}"
                         )
                         continue
-                    case s if "\\" in s or "_" in s or "^" in s:
+                    case s if b"\\" in s or b"_" in s or b"^" in s:
                         # texname contains markup, like "CO_2" or "\emph{Hello}":
                         # Assume authors know what they're doing
                         continue
                     case s if s != yamlname:
                         bar.warn(
-                            f"Problem titles in {texpath.name} ({texname})"
-                            f" and problem.yaml ({yamlname}) differ;"
+                            f"Problem titles in {texpath.name} ({texname.decode(errors='replace')})"
+                            f" and problem.yaml ({yamlname.decode(errors='replace')}) differ;"
                             r" consider using \problemname{}."
                         )
         return sorted(texlangs & yamllangs)
@@ -1533,7 +1533,7 @@ class Problem:
         elif mode == validate.Mode.VALID_OUTPUT:
             action = "Output validation"
         elif constraints is not False:
-            action = f"Collecting {str(mode).capitalize()} constraints"
+            action = f"Collecting {mode} constraints"
         else:
             action = f"{str(mode).capitalize()} validation"
 
