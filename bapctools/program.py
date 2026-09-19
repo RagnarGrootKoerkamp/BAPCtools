@@ -384,15 +384,13 @@ class Program:
             if not config.FILE_NAME_REGEX.fullmatch(d.name):
                 self.ok = False
                 bar.error(
-                    f"{str(d)} does not match directory name regex {config.FILE_NAME_REGEX.pattern}"
+                    f"{d} does not match directory name regex {config.FILE_NAME_REGEX.pattern}"
                 )
                 return False
         for f in self.source_files:
             if not config.FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
-                bar.error(
-                    f"{str(f)} does not match file name regex {config.FILE_NAME_REGEX.pattern}"
-                )
+                bar.error(f"{f} does not match file name regex {config.FILE_NAME_REGEX.pattern}")
                 return False
 
         # Link all source_files
@@ -404,7 +402,7 @@ class Program:
         for f in self.source_files:
             if not f.is_file():
                 self.ok = False
-                bar.error(f"{str(f)} is not a file")
+                bar.error(f"{f} is not a file")
                 return False
             tmpf = self.tmpdir / f.name
             if (
@@ -477,10 +475,9 @@ class Program:
         return True
 
     def _exec_command(self, *args: Any, **kwargs: Any) -> ExecResult:
-        if "timeout" not in kwargs and "timeout" in self.limits:
-            kwargs["timeout"] = self.limits["timeout"]
-        if "memory" not in kwargs and "memory" in self.limits:
-            kwargs["memory"] = self.limits["memory"]
+        for key in ["timeout", "memory"]:
+            if key not in kwargs and key in self.limits:
+                kwargs[key] = self.limits[key]
         return exec_command(*args, **kwargs)
 
 

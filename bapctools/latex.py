@@ -6,7 +6,7 @@ import shutil
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
-from typing import Final, Optional, TextIO, TYPE_CHECKING
+from typing import BinaryIO, Final, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -342,7 +342,7 @@ def build_latex_pdf(
 
     latexmk_command.append(tex_path.absolute())
 
-    def run_latexmk(stdout: Optional[TextIO], stderr: Optional[TextIO]) -> ExecResult:
+    def run_latexmk(stdout: Optional[BinaryIO], stderr: Optional[BinaryIO]) -> ExecResult:
         logfile.unlink(True)
         return exec_command(
             latexmk_command,
@@ -359,7 +359,7 @@ def build_latex_pdf(
         # use files instead of subprocess.PIPE since later might hang
         outfile = (builddir / tex_path.name).with_suffix(".stdout")
         errfile = (builddir / tex_path.name).with_suffix(".stderr")
-        with outfile.open("w") as stdout, errfile.open("w") as stderr:
+        with outfile.open("wb") as stdout, errfile.open("wb") as stderr:
             ret = run_latexmk(stdout, stderr)
         ret.err = errfile.read_text(errors="replace")  # not used
         ret.out = outfile.read_text(errors="replace")
@@ -621,7 +621,7 @@ def build_contest_pdfs(
     )
 
 
-def get_argument_for_command(texfile: TextIO, command: str) -> Optional[str]:
+def get_argument_for_command(texfile: BinaryIO, command: bytes) -> Optional[bytes]:
     """Return the (whitespace-normalised) argument for the given command in the given texfile.
     If texfile contains `\foo{bar  baz }`, returns the string 'bar baz'.
     The command is given without backslash.
@@ -633,8 +633,8 @@ def get_argument_for_command(texfile: TextIO, command: str) -> Optional[str]:
     """
 
     for line in texfile:
-        regex = r"\\" + command + r"\{(.*)\}"
+        regex = rb"\\" + command + rb"\{(.*)\}"
         match = re.search(regex, line)
         if match:
-            return " ".join(match.group(1).split())
+            return b" ".join(match.group(1).split())
     return None
