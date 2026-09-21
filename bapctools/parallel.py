@@ -2,6 +2,7 @@
 import heapq
 import os
 import threading
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any, Generic, Literal, Optional, TypeVar
 
@@ -27,7 +28,7 @@ class QueueItem(Generic[T]):
             return self.index < other.index
 
 
-class AbstractQueue(Generic[T]):
+class AbstractQueue(Generic[T], ABC):
     def __init__(self, f: Callable[[T], Any], pin: bool) -> None:
         self.f = f
         self.pin = pin
@@ -49,16 +50,17 @@ class AbstractQueue(Generic[T]):
     def __exit__(self, *args: Any) -> None:
         self.mutex.__exit__(*args)
 
-    # Add one task. Higher priority => done first
+    @abstractmethod
     def put(self, task: T, priority: int = 0) -> None:
-        raise Exception("Abstract method")
+        """Add one task. Higher priority => done first"""
+        ...
+
+    @abstractmethod
+    def done(self) -> None: ...
 
     # By default, do nothing on .join(). This is overridden in ParallelQueue.
     def join(self) -> None:
         return
-
-    def done(self) -> None:
-        raise Exception("Abstract method")
 
     def abort(self) -> None:
         self.aborted = True
