@@ -286,6 +286,7 @@ class ProgressBar:
         bar_width = self.bar_width()
         if self.count is None or bar_width is None or bar_width < 4:
             return ""
+        # self.i is the number of started items
         done = (self.i - 1) * (bar_width - 2) // self.count
         text = f" {self.i}/{self.count}"
         fill = "#" * done + "-" * (bar_width - 2 - done)

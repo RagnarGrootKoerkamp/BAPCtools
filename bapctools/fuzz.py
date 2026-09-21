@@ -275,7 +275,7 @@ class Fuzz:
         )
         max_len += len(f"{self.tmp_ids}: ")
         # we use a PrintBar after an abort
-        printbar = PrintBar("Fuzz", max_len=max_len)
+        printbar = PrintBar("Fuzz")
         printbar.log("Press CTRL+C to stop\n")
         bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
 
