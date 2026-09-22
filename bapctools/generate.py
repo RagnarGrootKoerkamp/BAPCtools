@@ -964,7 +964,7 @@ class TestCaseRule(Rule):
     ) -> None:
         assert self.process
 
-        bar = parent_bar.start(str(self.path))
+        bar = parent_bar.start(self.path)
         generator_config.failed += 1
 
         if self.copy_of is not None and not self.intended_copy:
@@ -1691,7 +1691,7 @@ class DirectoryRule(Rule):
         # - Link included test cases.
         #   - Input of included test cases are re-validated with the
         #     directory-specific input validator flags.
-        bar.start(str(self.path))
+        bar.start(self.path)
 
         # Create the directory.
         dir_path = problem.path / "data" / self.path
@@ -1733,7 +1733,7 @@ class DirectoryRule(Rule):
             if not generator_config.process_test_case(new_case):
                 continue
 
-            bar.start(str(new_case))
+            bar.start(new_case)
             generator_config.failed += 1
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
@@ -2410,7 +2410,7 @@ data/*
 
         bar = ProgressBar("Adding", items=in_files)
         for in_file in sorted(in_files, key=lambda x: x.name):
-            bar.start(str(in_file))
+            bar.start(in_file)
             if not (self.problem.path / in_file).exists():
                 bar.warn("file not found. SKIPPED.")
             elif in_file in known:
