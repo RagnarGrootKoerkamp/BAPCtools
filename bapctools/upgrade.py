@@ -138,29 +138,32 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 
     test_case_yamls = defaultdict[Path, CommentedMap](CommentedMap)
     for f in (problem_path / "data").rglob("*.yaml"):
+        name = f.relative_to(problem_path / "data")
         if f.with_suffix(".in").exists():  # Prevent reading test_group.yaml, which has no *.in file
             test_case_yaml = read_yaml(f, empty=CommentedMap())
             if not isinstance(test_case_yaml, CommentedMap):
-                bar.error(f"can't not parse {f}. SKIPPED.", resume=True)
+                bar.error(f"can't not parse {name}. SKIPPED.", resume=True)
                 continue
             test_case_yamls[f] = test_case_yaml
 
     for f in (problem_path / "data").rglob("*.desc"):
+        name = f.relative_to(problem_path / "data")
         test_case_yaml = test_case_yamls[f.with_suffix(".yaml")]
         if "description" in test_case_yaml:
-            bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'description'")
+            bar.warn(f"can't move '{name}' to '*.yaml', it already contains the key 'description'")
         else:
-            bar.log(f"moving '{f}' to 'description' key in '*.yaml'")
+            bar.log(f"moving '{name}' to 'description' key in '*.yaml'")
             test_case_yaml["description"] = f.read_text().strip()
             write_yaml(test_case_yaml, f.with_suffix(".yaml"))
             f.unlink()
 
     for f in (problem_path / "data").rglob("*.hint"):
+        name = f.relative_to(problem_path / "data")
         test_case_yaml = test_case_yamls[f.with_suffix(".yaml")]
         if "hint" in test_case_yaml:
-            bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'hint'")
+            bar.warn(f"can't move '{name}' to '*.yaml', it already contains the key 'hint'")
         else:
-            bar.log(f"moving '{f}' to 'hint' key in '*.yaml'")
+            bar.log(f"moving '{name}' to 'hint' key in '*.yaml'")
             test_case_yaml["hint"] = f.read_text().strip()
             write_yaml(test_case_yaml, f.with_suffix(".yaml"))
             f.unlink()
@@ -200,9 +203,10 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
     ]
 
     for f in (problem_path / "data").rglob("test_group.yaml"):
+        name = f.relative_to(problem_path / "data")
         data = read_yaml(f, empty=CommentedMap())
         if not isinstance(data, CommentedMap):
-            bar.error(f"can't not parse {f}. SKIPPED.", resume=True)
+            bar.error(f"can't not parse {name}. SKIPPED.", resume=True)
             continue
 
         for old, new in rename:
