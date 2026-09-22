@@ -68,9 +68,8 @@ class GeneratorTask:
         infile = cwd / (name + ".in")
         ansfile = cwd / (name + ".ans")
 
-        # The extra newline at the end is to ensure this line stays visible.
-        localbar = bar.start(f"{self.i}: {self.command}\n")
-        localbar.done()
+        localbar = bar.start(f"{self.i}: {self.command}")
+        localbar.done(force_log=True)
 
         localbar = bar.start(f"{self.i}: generate")
         result = self.generator.run(localbar, cwd, name, self.seed)
@@ -296,9 +295,12 @@ class Fuzz:
         except KeyboardInterrupt:
             fatal("Running interrupted", force=True)
 
+        printbar.item_width = max_len + 1
         for submission, verdicts in self.summary.items():
             msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))
             printbar.start(submission).log(msg, color="")
+        if not self.summary:
+            printbar.item_width = 0
         printbar.log(f"Found {self.added} test cases in total.", color="")
 
         if self.queue.aborted:
