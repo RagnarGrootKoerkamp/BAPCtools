@@ -1389,7 +1389,7 @@ class Problem:
             return True
         sample = samples[0]
         sample_path = sample.relative_to(self.path / "data").with_suffix("")
-        PrintBar("Output Validator checks").log(f"using test case: {sample_path.as_posix()}")
+        PrintBar("Output validator checks").log(f"using test case: {sample_path.as_posix()}")
 
         @dataclass(frozen=True)
         class CheckRun:
@@ -1421,7 +1421,7 @@ class Problem:
             return True
 
         success = True
-        bar = ProgressBar("Output Validator checks", items=runs)
+        bar = ProgressBar("Output validator checks", items=runs)
 
         def run(run: CheckRun) -> None:
             nonlocal success
@@ -1467,26 +1467,26 @@ class Problem:
                     if has_nextpass:
                         success = False
                         localbar.error(
-                            "Output Validator gave WRONG_ANSWER but created nextpass.in", data
+                            "Output validator gave WRONG_ANSWER but created nextpass.in", data
                         )
                         return
                     else:
                         localbar.done(True, "rejected", data)
                         return
                 if ret.status == ExecStatus.TIMEOUT:
-                    localbar.error("Output Validator got TIMEOUT", data)
+                    localbar.error("Output validator got TIMEOUT", data)
                     return
                 if ret.status == ExecStatus.ERROR:
                     if ret.returncode == 0:
                         success = False
                         localbar.error(
-                            "Output Validator exited with exit code 0, did you forget to exit with WA or AC?",
+                            "Output validator exited with exit code 0, did you forget to exit with WA or AC?",
                             data,
                         )
                     else:
                         success = False
                         localbar.error(
-                            f"Output Validator crashed (exit code: {ret.returncode})", data
+                            f"Output validator crashed (exit code: {ret.returncode})", data
                         )
                     return
                 assert ret.status == ExecStatus.ACCEPTED
@@ -1496,7 +1496,7 @@ class Problem:
                     else:
                         success = False
                         localbar.error(
-                            f"Output Validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
+                            f"Output validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
                             data,
                         )
                     return
@@ -1504,7 +1504,7 @@ class Problem:
                 assert self.limits.validation_passes is not None
                 if pass_id >= self.limits.validation_passes:
                     success = False
-                    localbar.error("Output Validator exceeded limit of validation_passes", data)
+                    localbar.error("Output validator exceeded limit of validation_passes", data)
                     return
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
@@ -1632,7 +1632,7 @@ class Problem:
 
         args = self.get_test_group_yaml(
             self.path / "data" / "valid_output",
-            PrintBar("Generic Output Validation"),
+            PrintBar("Generic output validation"),
         ).output_validator_args
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
@@ -1643,7 +1643,7 @@ class Problem:
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
         samples = samples[:2]
 
-        bar = PrintBar("Generic Output Validation")
+        bar = PrintBar("Generic output validation")
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
@@ -1683,7 +1683,7 @@ class Problem:
             bar.debug(f"writing generated valid test cases to: {base_path}")
 
         return self._validate_data(
-            validate.Mode.VALID_OUTPUT, False, "Generic Output Validation", test_cases, True
+            validate.Mode.VALID_OUTPUT, False, "Generic output validation", test_cases, True
         )
 
     def _validate_data(
