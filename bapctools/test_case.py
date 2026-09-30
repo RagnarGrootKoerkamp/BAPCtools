@@ -20,7 +20,6 @@ from bapctools.util import (
     hash_file_content,
     parse_yaml,
     print_name,
-    ProgressBar,
     shorten_path,
     substitute,
     YamlParser,
@@ -357,7 +356,7 @@ class TestCase:
         self,
         mode: validate.Mode,
         *,
-        bar: ProgressBar,
+        bar: BAR_TYPE,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
@@ -454,7 +453,7 @@ class TestCase:
         validators: Sequence[AnyValidator],
         expect_rejection: bool,
         *,
-        bar: ProgressBar,
+        bar: BAR_TYPE,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
@@ -604,7 +603,7 @@ class TestCase:
                 if warn_instead_of_error:
                     bar.warn(msg)
                 else:
-                    bar.error(msg, resume=True)
+                    bar.error(msg)
         else:
             success = all(results)
             if success:

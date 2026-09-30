@@ -261,7 +261,6 @@ class ProgressBar:
         item: Optional[ITEM_TYPE],
         width: Optional[int] = None,
         total_width: Optional[int] = None,
-        print_item: bool = True,
     ) -> str:
         if width is not None and total_width is not None:
             if prefix is None and width > total_width:
@@ -274,13 +273,10 @@ class ProgressBar:
         if width is None or width <= 0:
             width = 0
         prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
-        suffix = f"{text:<{width}}" if print_item else " " * width
-        return prefix + suffix
+        return f"{prefix}{text:<{width}}"
 
-    def get_prefix(self, print_item: bool = True) -> str:
-        return ProgressBar.action(
-            self.prefix, self.item, self.item_width, self.total_width(), print_item
-        )
+    def get_prefix(self) -> str:
+        return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
 
     def get_bar(self) -> str:
         bar_width = self.bar_width()
@@ -306,8 +302,8 @@ class ProgressBar:
             self._print(prefix, bar, end="\r")
 
     @staticmethod
-    def process_warning(message: str, item: Optional[ITEM_TYPE], print_item: bool = True) -> str:
-        item_name = ProgressBar.action(None, item, None, None, print_item)
+    def process_warning(message: str, item: Optional[ITEM_TYPE]) -> str:
+        item_name = ProgressBar.action(None, item, None, None)
         if item_name and f"{item_name} {message}" in config.args.ignore_warning:
             return f"{message} (ignored)"
         if message in config.args.ignore_warning:
@@ -368,15 +364,7 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        color: str = Fore.GREEN,
-        *,
-        resume: bool = True,
-        print_item: bool = True,
-    ) -> None:
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         with self:
             self.clearline()
             self.logged = True
@@ -388,63 +376,36 @@ class ProgressBar:
                 root.needs_leading_newline = False
 
             self._print(
-                self.get_prefix(print_item),
+                self.get_prefix(),
                 color,
                 message,
                 ProgressBar._format_data(data),
                 Style.RESET_ALL,
             )
-
-            if resume:
-                root._resume()
+            root._resume()
 
     # Same as log, but only in verbose mode.
-    def debug(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        color: str = Fore.GREEN,
-        *,
-        resume: bool = True,
-        print_item: bool = True,
-    ) -> None:
+    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         if config.args.verbose:
-            self.log(message, data, color, resume=resume, print_item=print_item)
+            self.log(message, data, color)
 
-    def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
+    def warn(self, message: str, data: Optional[str] = None) -> None:
         with self.lock:
             if config.args.suppress_warnings < 1:
-                message = ProgressBar.process_warning(message, self.item, print_item)
-                self.log(message, data, Fore.YELLOW, print_item=print_item)
+                message = ProgressBar.process_warning(message, self.item)
+                self.log(message, data, Fore.YELLOW)
 
     # Error by default removes the current item from the in_progress set.
-    # Set `resume` to `True` to continue processing the item.
-    def error(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        *,
-        resume: bool = False,
-        print_item: bool = True,
-    ) -> None:
+    def error(self, message: str, data: Optional[str] = None) -> None:
         with self:
             if config.args.suppress_warnings < 2:
                 config.n_error += 1
-                self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
-            if not resume:
-                self._release_item()
+                self.log(message, data, Fore.RED)
 
-    def fatal(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        *,
-        resume: bool = False,
-        print_item: bool = True,
-    ) -> NoReturn:
+    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn:
         with self:
             config.n_error += 1
-            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+            self.log(message, data, Fore.RED)
             exit1()
 
     # Skip an item.
@@ -470,6 +431,9 @@ class ProgressBar:
             if self.item is None:
                 return
 
+            if not print_item:
+                self._release_item()
+
             if not self.logged:
                 if not success:
                     config.n_error += 1
@@ -478,10 +442,10 @@ class ProgressBar:
                         message,
                         data,
                         color=Fore.GREEN if success else Fore.RED,
-                        print_item=print_item,
                     )
 
-            self._release_item()
+            if print_item:
+                self._release_item()
             if self.parent:
                 self.parent._resume()
 
@@ -493,7 +457,7 @@ class ProgressBar:
         message: str = "",
         data: Optional[str] = None,
         warn_instead_of_error: bool = False,
-    ) -> bool:
+    ) -> None:
         if not success:
             assert message
             if warn_instead_of_error:
@@ -504,15 +468,10 @@ class ProgressBar:
             with self:
                 if success:
                     self.log(message, data)
+                elif warn_instead_of_error:
+                    self.warn(message, data)
                 else:
-                    if warn_instead_of_error:
-                        self.warn(message, data)
-                    else:
-                        self.error(message, data, resume=True)
-                if self.parent:
-                    self.parent._resume()
-            return True
-        return False
+                    self.error(message, data)
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
@@ -601,58 +560,49 @@ class PrintBar:
         bar_copy.parent = self
         return bar_copy
 
-    def log(
+    def part_done(
         self,
-        message: str,
+        success: bool = True,
+        message: str = "",
         data: Optional[str] = None,
-        color: str = Fore.GREEN,
-        *,
-        resume: bool = True,
-        print_item: bool = True,
+        warn_instead_of_error: bool = False,
     ) -> None:
+        if not success:
+            assert message
+            if warn_instead_of_error:
+                ProgressBar.process_warning(message, self.item)
+            else:
+                config.n_error += 1
+        if config.args.verbose or not success:
+            if success:
+                self.log(message, data)
+            elif warn_instead_of_error:
+                self.warn(message, data)
+            else:
+                self.error(message, data)
+
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         self._set_logged()
-        prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None, print_item)
+        prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None)
         eprint(prefix, color, message, ProgressBar._format_data(data), Style.RESET_ALL, sep="")
 
-    def debug(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        color: str = Fore.GREEN,
-        *,
-        resume: bool = True,
-        print_item: bool = True,
-    ) -> None:
+    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         if config.args.verbose:
-            self.log(message, data, color, resume=resume, print_item=print_item)
+            self.log(message, data, color)
 
-    def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
+    def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
-            message = ProgressBar.process_warning(message, self.item, print_item)
-            self.log(message, data, Fore.YELLOW, print_item=print_item)
+            message = ProgressBar.process_warning(message, self.item)
+            self.log(message, data, Fore.YELLOW)
 
-    def error(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        *,
-        resume: bool = False,
-        print_item: bool = True,
-    ) -> None:
+    def error(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 2:
             config.n_error += 1
-            self.log(message, data, Fore.RED, print_item=print_item)
+            self.log(message, data, Fore.RED)
 
-    def fatal(
-        self,
-        message: str,
-        data: Optional[str] = None,
-        *,
-        resume: bool = False,
-        print_item: bool = True,
-    ) -> NoReturn:
+    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn:
         config.n_error += 1
-        self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+        self.log(message, data, Fore.RED)
         exit1()
 
     def finalize(

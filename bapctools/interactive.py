@@ -18,12 +18,12 @@ from colorama import Fore, Style
 
 from bapctools import config
 from bapctools.util import (
+    BAR_TYPE,
     ExecResult,
     ExecStatus,
     is_windows,
     limit_setter,
     PrintBar,
-    ProgressBar,
     remove_path,
 )
 from bapctools.verdicts import Verdict
@@ -318,7 +318,7 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    bar: ProgressBar,
+    bar: BAR_TYPE,
     *,
     # False: Return as part of ExecResult
     # True: print to stdout
@@ -582,12 +582,12 @@ def run_interactive_test_case(
 
             if validator_status not in [config.RTV_AC, config.RTV_WA]:
                 if validator_time > validation_time:
-                    bar.error(f"Validator TIMEOUT after {validator_time:.1f}s", resume=True)
+                    bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
                 else:
                     config.n_error += 1
                 verdict = Verdict.JUDGE_ERROR
             elif validator_status == config.RTV_WA and has_nextpass:
-                bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
+                bar.error("got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.JUDGE_ERROR
             elif aborted:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -638,7 +638,7 @@ def run_interactive_test_case(
 
             assert run.problem.limits.validation_passes is not None
             if pass_id >= run.problem.limits.validation_passes:
-                bar.error("exceeded limit of validation_passes", resume=True)
+                bar.error("exceeded limit of validation_passes")
                 verdict = Verdict.JUDGE_ERROR
                 break
 

@@ -10,6 +10,7 @@ from bapctools import config, parallel
 from bapctools.program import Program
 from bapctools.run import Submission
 from bapctools.util import (
+    BAR_TYPE,
     command_supports_memory_limit,
     default_exec_code_map,
     ensure_symlink,
@@ -181,7 +182,7 @@ class TestingTool(Program):
         )
 
     # this only works for single file python 3 files
-    def check_python_version(self, bar: ProgressBar) -> None:
+    def check_python_version(self, bar: BAR_TYPE) -> None:
         if "python" not in self.language.name.lower():
             return
         if "3" not in self.language.name.lower():

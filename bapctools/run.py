@@ -79,22 +79,14 @@ class Run:
         ensure_symlink(self.in_path, self.test_case.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(
-        self,
-        bar: ProgressBar,
-        *,
-        interaction: bool | Path = False,
-    ) -> ExecResult:
+    def run(self, bar: BAR_TYPE, *, interaction: bool | Path = False) -> ExecResult:
         submission_args = self.test_case.get_test_case_yaml(bar).args
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
                 self, bar=bar, interaction=interaction, submission_args=submission_args
             )
             if result is None:
-                bar.error(
-                    f"No output validator found for test case {self.test_case.name}",
-                    resume=True,
-                )
+                bar.error(f"No output validator found for test case {self.test_case.name}")
                 result = ExecResult(
                     None,
                     ExecStatus.REJECTED,
@@ -149,10 +141,7 @@ class Run:
                     result = self._validate_output(bar)
                     has_nextpass = self._check_nextpass(bar)
                     if result is None:
-                        bar.error(
-                            f"No output validator found for test case {self.test_case.name}",
-                            resume=True,
-                        )
+                        bar.error(f"No output validator found for test case {self.test_case.name}")
                         result = ExecResult(
                             None,
                             ExecStatus.REJECTED,
@@ -170,7 +159,7 @@ class Run:
                     elif result.status == ExecStatus.REJECTED:
                         result.verdict = Verdict.WRONG_ANSWER
                         if has_nextpass:
-                            bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
+                            bar.error("got WRONG_ANSWER but found nextpass.in")
                             result.verdict = Verdict.JUDGE_ERROR
                     elif result.duration > self.problem.limits.validation_time:
                         bar.error(f"Validator TIMEOUT after {result.duration:.1f}s")
@@ -184,7 +173,7 @@ class Run:
 
                     assert self.problem.limits.validation_passes is not None
                     if pass_id >= self.problem.limits.validation_passes:
-                        bar.error("exceeded limit of validation_passes", resume=True)
+                        bar.error("exceeded limit of validation_passes")
                         result.verdict = Verdict.JUDGE_ERROR
                         break
 
@@ -229,7 +218,7 @@ class Run:
             or config.args.action in ["all", "time_limit"]
         )
 
-    def _check_nextpass(self, bar: ProgressBar) -> bool:
+    def _check_nextpass(self, bar: BAR_TYPE) -> bool:
         has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
         if not self.problem.multi_pass:
             if has_nextpass:
@@ -247,7 +236,7 @@ class Run:
         # use nextpass.in as next input
         shutil.move(self.feedbackdir / "nextpass.in", self.in_path)
 
-    def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
+    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
         output_validator = self.problem.output_validator()
         if not output_validator:
             return None
@@ -358,8 +347,7 @@ class Submission(Program):
         return set(permitted)
 
     def _get_language_candidates(
-        self,
-        bar: ProgressBar,
+        self, bar: BAR_TYPE
     ) -> list[tuple[languages.Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
@@ -381,7 +369,7 @@ class Submission(Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
-    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+    def _set_language(self, language: languages.Language, bar: BAR_TYPE) -> None:
         restriction = self.problem.settings.languages
         if restriction and language.code not in restriction:
             bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
@@ -389,7 +377,7 @@ class Submission(Program):
             bar.warn(f"selected language {language.code} is not permitted")
         super()._set_language(language, bar)
 
-    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path], bar: BAR_TYPE) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)
         entrypoint = self.expectations.entrypoint
@@ -406,12 +394,12 @@ class Submission(Program):
         in_path: Path,
         out_path: Path,
         crop: bool = True,
-        args: Sequence[str | Path] = [],
+        args: Optional[Sequence[str | Path]] = None,
         cwd: Optional[Path] = None,
         generator_timeout: bool = False,
     ) -> ExecResult:
         with in_path.open("rb") as in_file, out_path.open("wb") as out_file:
-            return self._run(in_file, out_file, crop, args, cwd, generator_timeout)
+            return self._run(in_file, out_file, crop, args or [], cwd, generator_timeout)
 
     def _run(
         self,
@@ -808,7 +796,7 @@ while True:
         if not self.problem.output_validator():
             return
 
-        bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
+        bar = ProgressBar(f"Running {self.name}", max_len=1, count=1)
         bar.start()
 
         is_tty = sys.stdin.isatty()
