@@ -1999,6 +1999,7 @@ class GeneratorConfig:
             raw_yaml: object,
             parser: YamlParser,
             parent: AnyDirectoryRule,
+            parent_bar: PrintBar,
         ) -> DirectoryRule:
             assert is_directory(raw_yaml)
 
@@ -2118,10 +2119,12 @@ class GeneratorConfig:
                         child_name = itertools.repeat(child_key)
 
                     child_path = ".".join(d.path.parts + (child_key or '""',))
-                    child_bar = sub_parser.bar.start(child_path)
+                    child_bar = parent_bar.start(child_path)
                     if is_directory(child_yaml):
                         child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
-                        cd = parse_directory(child_key, child_name, child_yaml, child_parser, d)
+                        cd = parse_directory(
+                            child_key, child_name, child_yaml, child_parser, d, child_bar
+                        )
                         d.data.append(cd)
                         child_parser.check_unknown_keys()
                     elif is_test_case(child_yaml):
@@ -2155,7 +2158,7 @@ class GeneratorConfig:
                     d.includes[name] = t
             return d
 
-        root = parse_directory("", itertools.repeat(""), raw_yaml, parser, RootDirectoryRule())
+        root = parse_directory("", itertools.repeat(""), raw_yaml, parser, RootDirectoryRule(), bar)
         if config.args.action in [
             "generate",
             "all",
