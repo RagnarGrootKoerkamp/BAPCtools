@@ -13,7 +13,7 @@ from bapctools import (
     validate,
 )
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     combine_hashes_dict,
     ExecStatus,
     fatal,
@@ -34,17 +34,17 @@ from bapctools.validate import (
 from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools import problem
+    from bapctools.problem import Problem
 
 
 class TestGroup:
     def __init__(
         self,
-        problem: "problem.Problem",
+        problem: "Problem",
         file: Optional[Path],
         yaml_data: object,
         parent: Optional["TestGroup"],
-        bar: BAR_TYPE,
+        bar: AnyBar,
     ) -> None:
         if parent is None:
             self.args: Sequence[str] = []
@@ -153,10 +153,10 @@ class TestGroup:
 
     @staticmethod
     def parse_yaml(
-        problem: "problem.Problem",
+        problem: "Problem",
         file: Path,
         parent: "TestGroup",
-        bar: BAR_TYPE,
+        bar: AnyBar,
         *,
         filename: Optional[Path] = None,
     ) -> "TestGroup":
@@ -225,7 +225,7 @@ class TestCase:
 
     def __init__(
         self,
-        base_problem: "problem.Problem",
+        base_problem: "Problem",
         path: Path,
         *,
         short_path: Optional[Path] = None,
@@ -275,7 +275,7 @@ class TestCase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def get_test_case_yaml(self, bar: BAR_TYPE) -> TestGroup:
+    def get_test_case_yaml(self, bar: AnyBar) -> TestGroup:
         assert self.in_path.is_file()
 
         if self._test_case_yaml is not None:
@@ -294,7 +294,7 @@ class TestCase:
         return self._test_case_yaml
 
     # Returns a hash of the core part of the test case (the part that is usually supposed to be unique)
-    def core_hash(self, bar: BAR_TYPE) -> str:
+    def core_hash(self, bar: AnyBar) -> str:
         # Store the hashes of the generated files for this test case
         hashes = {}
 
@@ -320,7 +320,7 @@ class TestCase:
 
         return combine_hashes_dict(hashes)
 
-    def validator_hashes(self, cls: type[AnyValidator], bar: BAR_TYPE) -> dict[str, dict[str, str]]:
+    def validator_hashes(self, cls: type[AnyValidator], bar: AnyBar) -> dict[str, dict[str, str]]:
         """
         Returns
         -------
@@ -356,7 +356,7 @@ class TestCase:
         self,
         mode: validate.Mode,
         *,
-        bar: BAR_TYPE,
+        bar: AnyBar,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
@@ -453,7 +453,7 @@ class TestCase:
         validators: Sequence[AnyValidator],
         expect_rejection: bool,
         *,
-        bar: BAR_TYPE,
+        bar: AnyBar,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:

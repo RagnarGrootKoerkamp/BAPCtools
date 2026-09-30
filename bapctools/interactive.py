@@ -18,7 +18,7 @@ from colorama import Fore, Style
 
 from bapctools import config
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     ExecResult,
     ExecStatus,
     is_windows,
@@ -318,7 +318,7 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    bar: BAR_TYPE,
+    bar: AnyBar,
     *,
     # False: Return as part of ExecResult
     # True: print to stdout

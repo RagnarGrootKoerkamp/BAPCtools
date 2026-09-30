@@ -12,7 +12,7 @@ from colorama import Fore, Style
 
 from bapctools import config
 from bapctools.test_case import TestCase
-from bapctools.util import eprint, ITEM_TYPE, ProgressBar
+from bapctools.util import eprint, ItemType, ProgressBar
 
 if TYPE_CHECKING:
     from bapctools.run import Run, Submission
@@ -653,7 +653,7 @@ class TableProgressBar(ProgressBar):
         max_len: Optional[int] = None,
         count: Optional[int] = None,
         *,
-        items: Optional[Sequence[ITEM_TYPE]] = None,
+        items: Optional[Sequence[ItemType]] = None,
         needs_leading_newline: bool = False,
     ) -> None:
         super().__init__(
@@ -679,7 +679,7 @@ class TableProgressBar(ProgressBar):
         kwargs["flush"] = False  # drop all flushes...
         self.io.print(*args, **kwargs)
 
-    def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
+    def start(self, item: ItemType = "") -> "TableProgressBar":
         from bapctools.run import Run
 
         assert isinstance(item, Run)

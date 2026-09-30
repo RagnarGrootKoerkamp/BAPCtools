@@ -4,7 +4,7 @@ from typing import Final, Optional, TYPE_CHECKING
 
 from bapctools import config
 from bapctools.test_case import TestCase
-from bapctools.util import BAR_TYPE, error, fatal, once_per_instance, read_yaml, warn, YamlParser
+from bapctools.util import AnyBar, error, fatal, once_per_instance, read_yaml, warn, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class Person:
     def __init__(
-        self, source: str, yaml_data: str | dict[object, object], parent_path: str, bar: BAR_TYPE
+        self, source: str, yaml_data: str | dict[object, object], parent_path: str, bar: AnyBar
     ):
         if isinstance(yaml_data, dict):
             parser = YamlParser(source, yaml_data, parent_path, bar)

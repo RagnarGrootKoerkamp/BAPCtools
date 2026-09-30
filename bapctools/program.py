@@ -12,8 +12,9 @@ from typing import Any, Final, Optional, TYPE_CHECKING
 from colorama import Fore
 
 from bapctools import config, languages
+from bapctools.languages import Language
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
@@ -194,12 +195,10 @@ class Program:
             self.has_deps = False
 
         self.input_files: list[Path]  # Populated in Program.build
-        self.language: languages.Language  # Populated in Program.build
+        self.language: Language  # Populated in Program.build
 
     # checks all languages and sorts them
-    def _get_language_candidates(
-        self, bar: BAR_TYPE
-    ) -> list[tuple[languages.Language, list[Path]]]:
+    def _get_language_candidates(self, bar: AnyBar) -> list[tuple[Language, list[Path]]]:
         candidates = []
         for lang in languages.languages():
             score, matching = lang.evaluate(self.input_files)
@@ -207,13 +206,13 @@ class Program:
                 candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
-    def _set_language(self, language: languages.Language, bar: BAR_TYPE) -> None:
+    def _set_language(self, language: Language, bar: AnyBar) -> None:
         restrictions: Final[Sequence[str]] = getattr(self.__class__, "languages", tuple())
         if restrictions and language.code not in restrictions:
             bar.warn(f"selected language {language.code} is not permitted for this program")
         self.language = language
 
-    def _get_entry_point(self, files: list[Path], bar: BAR_TYPE) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path], bar: AnyBar) -> tuple[Path, Path, str]:
         binary = self.tmpdir / languages.BINARY_NAME
         mainfile = None
         if not self.has_deps:
@@ -230,7 +229,7 @@ class Program:
         return (binary, mainfile, str(mainclass))
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: BAR_TYPE) -> bool:
+    def _get_language(self, bar: AnyBar) -> bool:
         candidates = self._get_language_candidates(bar)
 
         fallback = False
@@ -263,7 +262,7 @@ class Program:
         bar.error(f"No language detected for {self.path}.")
         return False
 
-    def _checks(self, bar: BAR_TYPE) -> None:
+    def _checks(self, bar: AnyBar) -> None:
         for f in self.source_files:
             if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
                 bar.warn(
@@ -325,7 +324,7 @@ class Program:
                             break
 
     # Return True on success.
-    def _compile(self, bar: BAR_TYPE) -> bool:
+    def _compile(self, bar: AnyBar) -> bool:
         # Remove all non-source files.
         for f in self.tmpdir.glob("*"):
             if f not in self.input_files:
@@ -364,7 +363,7 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar: BAR_TYPE) -> bool:
+    def build(self, bar: AnyBar) -> bool:
         assert not self.built
         self.built = True
 
@@ -496,7 +495,7 @@ class Generator(Program):
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
     def run(
-        self, bar: BAR_TYPE, cwd: Path, name: str, args: Optional[Sequence[str | Path]] = None
+        self, bar: AnyBar, cwd: Path, name: str, args: Optional[Sequence[str | Path]] = None
     ) -> ExecResult:
         assert self.run_command is not None
         if args is None:

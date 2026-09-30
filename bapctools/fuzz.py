@@ -7,7 +7,8 @@ from typing import Any, Optional
 from colorama import Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from bapctools import config, generate, parallel, problem
+from bapctools import config, generate, parallel
+from bapctools.problem import Problem
 from bapctools.run import Run, Submission
 from bapctools.test_case import TestCase
 from bapctools.util import (
@@ -194,7 +195,7 @@ class FuzzProgressBar(ProgressBar):
 
 
 class Fuzz:
-    def __init__(self, problem: problem.Problem) -> None:
+    def __init__(self, problem: Problem) -> None:
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
         self.summary: dict[Submission, set[Verdict]] = {}

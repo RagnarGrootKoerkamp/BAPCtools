@@ -2,14 +2,15 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import languages, program
+from bapctools import languages
+from bapctools.program import Program
 from bapctools.util import ExecResult
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.problem import Problem
 
 
-class InputVisualizer(program.Program):
+class InputVisualizer(Program):
     """
     Visualizes a test case, called as:
 
@@ -47,7 +48,7 @@ class InputVisualizer(program.Program):
         )
 
 
-class OutputVisualizer(program.Program):
+class OutputVisualizer(Program):
     """
     Visualizes the output of a submission
 
