@@ -7,7 +7,7 @@ import sys
 from collections.abc import Callable, Sequence
 from contextlib import ExitStack, nullcontext
 from pathlib import Path
-from typing import IO, Optional
+from typing import IO, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -17,13 +17,13 @@ from bapctools import (
     interactive,
     languages,
     parallel,
-    problem,
     validate,
 )
+from bapctools.languages import Language
 from bapctools.program import Program
 from bapctools.test_case import TestCase
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     crop_line,
     crop_output,
     ensure_symlink,
@@ -46,11 +46,14 @@ from bapctools.verdicts import (
 )
 from bapctools.visualize import OutputVisualizer
 
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from bapctools.problem import Problem
+
 
 class Run:
     def __init__(
         self,
-        problem: "problem.Problem",
+        problem: "Problem",
         submission: "Submission",
         test_case: TestCase,
         *,
@@ -79,7 +82,7 @@ class Run:
         ensure_symlink(self.in_path, self.test_case.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, bar: BAR_TYPE, *, interaction: bool | Path = False) -> ExecResult:
+    def run(self, bar: AnyBar, *, interaction: bool | Path = False) -> ExecResult:
         submission_args = self.test_case.get_test_case_yaml(bar).args
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
@@ -218,7 +221,7 @@ class Run:
             or config.args.action in ["all", "time_limit"]
         )
 
-    def _check_nextpass(self, bar: BAR_TYPE) -> bool:
+    def _check_nextpass(self, bar: AnyBar) -> bool:
         has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
         if not self.problem.multi_pass:
             if has_nextpass:
@@ -236,7 +239,7 @@ class Run:
         # use nextpass.in as next input
         shutil.move(self.feedbackdir / "nextpass.in", self.in_path)
 
-    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+    def _validate_output(self, bar: AnyBar) -> Optional[ExecResult]:
         output_validator = self.problem.output_validator()
         if not output_validator:
             return None
@@ -246,7 +249,7 @@ class Run:
             args=self.test_case.get_test_case_yaml(bar).output_validator_args,
         )
 
-    def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+    def _visualize_output(self, bar: AnyBar) -> Optional[ExecResult]:
         if config.args.no_visualizer:
             return None
         output_visualizer = self.problem.visualizer(OutputVisualizer)
@@ -263,7 +266,7 @@ class Run:
 
 class Submission(Program):
     def __init__(
-        self, problem: "problem.Problem", path: Path, skip_double_build_warning: bool = False
+        self, problem: "Problem", path: Path, skip_double_build_warning: bool = False
     ) -> None:
         super().__init__(
             problem,
@@ -346,9 +349,7 @@ class Submission(Program):
 
         return set(permitted)
 
-    def _get_language_candidates(
-        self, bar: BAR_TYPE
-    ) -> list[tuple[languages.Language, list[Path]]]:
+    def _get_language_candidates(self, bar: AnyBar) -> list[tuple[Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
         candidates = []
@@ -369,7 +370,7 @@ class Submission(Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
-    def _set_language(self, language: languages.Language, bar: BAR_TYPE) -> None:
+    def _set_language(self, language: Language, bar: AnyBar) -> None:
         restriction = self.problem.settings.languages
         if restriction and language.code not in restriction:
             bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
@@ -377,7 +378,7 @@ class Submission(Program):
             bar.warn(f"selected language {language.code} is not permitted")
         super()._set_language(language, bar)
 
-    def _get_entry_point(self, files: list[Path], bar: BAR_TYPE) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path], bar: AnyBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)
         entrypoint = self.expectations.entrypoint

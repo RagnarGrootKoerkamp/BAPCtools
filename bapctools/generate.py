@@ -21,7 +21,7 @@ from bapctools.program import Generator, Program
 from bapctools.run import Run, Submission
 from bapctools.test_case import TestCase
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     combine_hashes,
     combine_hashes_dict,
     ensure_symlink,
@@ -276,7 +276,7 @@ class GeneratorInvocation(Invocation):
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(self, bar: BAR_TYPE, cwd: Path, name: str, seed: int, retries: int = 1) -> ExecResult:
+    def run(self, bar: AnyBar, cwd: Path, name: str, seed: int, retries: int = 1) -> ExecResult:
         assert isinstance(self.program, Generator), "Generator program must be built!"
 
         for retry in range(retries):
@@ -310,7 +310,7 @@ class SolutionInvocation(Invocation):
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar: BAR_TYPE, cwd: Path) -> ExecResult:
+    def run(self, bar: AnyBar, cwd: Path) -> ExecResult:
         assert isinstance(self.program, Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
@@ -330,7 +330,7 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar: BAR_TYPE, cwd: Path, t: "TestCaseRule") -> bool:
+    def generate_interaction(self, bar: AnyBar, cwd: Path, t: "TestCaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
@@ -806,7 +806,7 @@ class TestCaseRule(Rule):
         self,
         problem: Problem,
         generator_config: "GeneratorConfig",
-        bar: BAR_TYPE,
+        bar: AnyBar,
         dst: Path,
     ) -> None:
         assert self.process
@@ -860,7 +860,7 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: BAR_TYPE,
+        bar: AnyBar,
     ) -> bool:
         assert self.process
 
@@ -898,7 +898,7 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: BAR_TYPE,
+        bar: AnyBar,
     ) -> bool:
         assert self.process
 
@@ -1945,7 +1945,7 @@ class GeneratorConfig:
             key: str,
             name_gen: Iterator[str],
             raw_yaml: object,
-            bar: BAR_TYPE,
+            bar: AnyBar,
             parent: DirectoryRule,
         ) -> list[TestCaseRule]:
             assert is_test_case(raw_yaml)
@@ -2324,7 +2324,7 @@ class GeneratorConfig:
 
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path: Path, bar: BAR_TYPE, silent: bool = False) -> None:
+    def _remove_unknown(self, path: Path, bar: AnyBar, silent: bool = False) -> None:
         local = path.relative_to(self.problem.path / "data")
         keep = any(
             (

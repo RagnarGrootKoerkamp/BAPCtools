@@ -141,7 +141,7 @@ class Named(Protocol):
     def name(self) -> str: ...
 
 
-ITEM_TYPE = str | Path | Named
+ItemType = str | Path | Named
 
 
 # A class that draws a progressbar.
@@ -161,7 +161,7 @@ class ProgressBar:
     columns = shutil.get_terminal_size().columns
 
     @staticmethod
-    def item_text(item: Optional[ITEM_TYPE]) -> str:
+    def item_text(item: Optional[ItemType]) -> str:
         if item is None:
             return ""
         if isinstance(item, str):
@@ -171,7 +171,7 @@ class ProgressBar:
         return item.name
 
     @staticmethod
-    def item_len(item: ITEM_TYPE) -> int:
+    def item_len(item: ItemType) -> int:
         return len(ProgressBar.item_text(item))
 
     def _is_locked(self) -> bool:
@@ -184,7 +184,7 @@ class ProgressBar:
         max_len: Optional[int] = None,
         count: Optional[int] = None,
         *,
-        items: Optional[Sequence[ITEM_TYPE]] = None,
+        items: Optional[Sequence[ItemType]] = None,
         needs_leading_newline: bool = False,
     ) -> None:
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
@@ -212,8 +212,8 @@ class ProgressBar:
         # - the counter
         # - items in progress
         self.parent: Optional[ProgressBar] = None
-        self.in_progress: set[ITEM_TYPE] = set()
-        self.item: Optional[ITEM_TYPE] = None
+        self.in_progress: set[ItemType] = set()
+        self.item: Optional[ItemType] = None
 
         self.needs_leading_newline: bool = needs_leading_newline
 
@@ -244,7 +244,7 @@ class ProgressBar:
         self.count += count
         self.item_width = max(self.item_width, max_len + 1) if self.item_width else max_len + 1
 
-    def add_item(self, item: ITEM_TYPE) -> None:
+    def add_item(self, item: ItemType) -> None:
         assert self.count is not None
         self.count += 1
         self.item_width = max(self.item_width, ProgressBar.item_len(item))
@@ -258,7 +258,7 @@ class ProgressBar:
     @staticmethod
     def action(
         prefix: Optional[str],
-        item: Optional[ITEM_TYPE],
+        item: Optional[ItemType],
         width: Optional[int] = None,
         total_width: Optional[int] = None,
     ) -> str:
@@ -302,7 +302,7 @@ class ProgressBar:
             self._print(prefix, bar, end="\r")
 
     @staticmethod
-    def process_warning(message: str, item: Optional[ITEM_TYPE]) -> str:
+    def process_warning(message: str, item: Optional[ItemType]) -> str:
         item_name = ProgressBar.action(None, item, None, None)
         if item_name and f"{item_name} {message}" in config.args.ignore_warning:
             return f"{message} (ignored)"
@@ -336,7 +336,7 @@ class ProgressBar:
                 self.item = next(iter(self.in_progress))
             self.draw_bar()
 
-    def start(self, item: ITEM_TYPE = "") -> "ProgressBar":
+    def start(self, item: ItemType = "") -> "ProgressBar":
         with self:
             # start may only be called on the root bar.
             assert self.parent is None
@@ -530,7 +530,7 @@ class PrintBar:
         prefix: Optional[str | Path] = None,
         max_len: Optional[int] = None,
         *,
-        item: Optional[ITEM_TYPE] = None,
+        item: Optional[ItemType] = None,
     ) -> None:
         self.prefix: Optional[str] = str(prefix) if prefix else None
         self.item_width: Optional[int] = None
@@ -539,7 +539,7 @@ class PrintBar:
             self.item_width = ProgressBar.item_len(item) + 1
         if self.max_len is not None:
             self.item_width = self.max_len + 1
-        self.item: Optional[ITEM_TYPE] = item
+        self.item: Optional[ItemType] = item
         self.global_logged: bool = False
         self.parent: Optional[PrintBar] = None
 
@@ -550,7 +550,7 @@ class PrintBar:
         if self.parent is not None:
             self.parent._set_logged()
 
-    def start(self, item: Optional[ITEM_TYPE] = None) -> "PrintBar":
+    def start(self, item: Optional[ItemType] = None) -> "PrintBar":
         bar_copy = copy.copy(self)
         bar_copy.item = item
         if item is not None:
@@ -630,7 +630,7 @@ class PrintBar:
         return self.global_logged and not suppress_newline
 
 
-BAR_TYPE = PrintBar | ProgressBar
+AnyBar = PrintBar | ProgressBar
 
 
 # Given a command line argument, return the first match:
@@ -757,7 +757,7 @@ class YamlParser:
         source: str,
         yaml: dict[object, object],
         parent_path: Optional[str] = None,
-        bar: Optional[BAR_TYPE] = None,
+        bar: Optional[AnyBar] = None,
     ):
         assert isinstance(yaml, dict)
         self.errors = 0
@@ -1136,7 +1136,7 @@ def has_substitute(
 def substitute(
     data: str,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: BAR_TYPE = PrintBar(),
+    bar: AnyBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> str:
@@ -1159,7 +1159,7 @@ def copy_and_substitute(
     inpath: Path,
     outpath: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: BAR_TYPE = PrintBar(),
+    bar: AnyBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1178,7 +1178,7 @@ def copy_and_substitute(
 def substitute_file_variables(
     path: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: BAR_TYPE = PrintBar(),
+    bar: AnyBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1188,7 +1188,7 @@ def substitute_file_variables(
 def substitute_dir_variables(
     dirname: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: BAR_TYPE = PrintBar(),
+    bar: AnyBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1203,7 +1203,7 @@ def copytree_and_substitute(
     src: Path,
     dst: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: BAR_TYPE = PrintBar(),
+    bar: AnyBar = PrintBar(),
     *,
     exist_ok: bool = True,
     preserve_symlinks: bool = True,

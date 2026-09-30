@@ -11,7 +11,7 @@ from typing import Final, Optional
 
 from bapctools import config
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     error,
     fatal,
     home_config_dir,
@@ -130,7 +130,7 @@ class Language:
         score = (len(matches), self.priority)
         return (score, source_files)
 
-    def is_installed(self, bar: BAR_TYPE) -> bool:
+    def is_installed(self, bar: AnyBar) -> bool:
         # Make sure we can compile programs for this language.
         if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
             if self.compile_exe not in Language.warn_cache and config.args.verbose:
@@ -149,7 +149,7 @@ class Language:
             return False
         return True
 
-    def warn_fallback(self, bar: BAR_TYPE) -> None:
+    def warn_fallback(self, bar: AnyBar) -> None:
         if self.warned_fallback:
             return
         self.warned_fallback = True

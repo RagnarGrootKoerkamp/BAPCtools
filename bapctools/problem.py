@@ -29,7 +29,7 @@ from bapctools.expectations import Expectations, Person
 from bapctools.run import Submission
 from bapctools.test_case import TestCase, TestCaseOverrides, TestGroup
 from bapctools.util import (
-    BAR_TYPE,
+    AnyBar,
     drop_suffix,
     eprint,
     error,
@@ -529,7 +529,7 @@ class Problem:
             if (self.path / "data" / d).is_dir():
                 warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self, bar: BAR_TYPE) -> list[str]:
+    def _determine_statement_languages(self, bar: AnyBar) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -576,7 +576,7 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self, bar: BAR_TYPE) -> None:
+    def _read_settings(self, bar: AnyBar) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
@@ -607,7 +607,7 @@ class Problem:
     def register_program_callback(self, path: Path, c: Callable[["Program"], None]) -> None:
         self.program_callbacks[path].append(c)
 
-    def get_test_group_yaml(self, path: Path, bar: BAR_TYPE) -> TestGroup:
+    def get_test_group_yaml(self, path: Path, bar: AnyBar) -> TestGroup:
         """
         Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
@@ -1358,7 +1358,7 @@ class Problem:
         self._test_case_hashes: dict[str, TestCase] = {}
 
     # Returns None for new test_cases or the TestCase object it equals.
-    def matches_existing_test_case(self, t: TestCase, bar: BAR_TYPE) -> Optional[TestCase]:
+    def matches_existing_test_case(self, t: TestCase, bar: AnyBar) -> Optional[TestCase]:
         h = t.core_hash(bar)
         if h in self._test_case_hashes:
             return self._test_case_hashes[h]
