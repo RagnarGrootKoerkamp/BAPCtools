@@ -336,7 +336,7 @@ class ProgressBar:
                 self.item = next(iter(self.in_progress))
             self.draw_bar()
 
-    def start(self, item: ItemType = "") -> "ProgressBar":
+    def start(self, item: ItemType) -> "ProgressBar":
         with self:
             # start may only be called on the root bar.
             assert self.parent is None
@@ -550,11 +550,10 @@ class PrintBar:
         if self.parent is not None:
             self.parent._set_logged()
 
-    def start(self, item: Optional[ItemType] = None) -> "PrintBar":
+    def start(self, item: ItemType) -> "PrintBar":
         bar_copy = copy.copy(self)
         bar_copy.item = item
-        if item is not None:
-            bar_copy.item_width = max(bar_copy.item_width or 0, ProgressBar.item_len(item) + 1)
+        bar_copy.item_width = max(bar_copy.item_width or 0, ProgressBar.item_len(item) + 1)
         if bar_copy.max_len is not None:
             bar_copy.item_width = bar_copy.max_len + 1
         bar_copy.parent = self
