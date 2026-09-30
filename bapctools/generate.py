@@ -1851,7 +1851,10 @@ class GeneratorConfig:
             self.root_dir = self._parse_root(self.yaml, bar)
         except ParseError as e:
             self.n_parse_error += 1
-            bar.start(e.path).error(e.message)
+            if e.path:
+                bar.start(e.path).error(e.message)
+            else:
+                bar.error(e.message)
 
         if self.n_parse_error:
             bar.error("could not be parsed")

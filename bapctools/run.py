@@ -31,6 +31,7 @@ from bapctools.util import (
     error,
     ExecResult,
     ExecStatus,
+    PrintBar,
     ProgressBar,
     remove_path,
     shorten_path,
@@ -797,15 +798,12 @@ while True:
         if not self.problem.output_validator():
             return
 
-        bar = ProgressBar(f"Running {self.name}", max_len=1, count=1)
-        bar.start()
+        bar = PrintBar(f"Running {self.name}")
 
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            name = f"Run {tc}"
-            bar.update(1, len(name))
-            localbar = bar.start(name)
+            localbar = bar.start(f"Run {tc}")
             # Reinitialize the underlying program, so that changes to the source
             # code can be picked up in build.
             super().__init__(
@@ -877,8 +875,6 @@ while True:
                     f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                 )
             eprint()
-
-            localbar.done()
 
             if not is_tty:
                 break
