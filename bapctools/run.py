@@ -84,7 +84,7 @@ class Run:
 
     # Return an ExecResult object amended with verdict.
     def run(self, bar: AnyBar, *, interaction: bool | Path = False) -> ExecResult:
-        submission_args = self.test_case.get_test_case_yaml(bar).args
+        submission_args = self.test_case.get_test_case_yaml(bar).args or []
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
                 self, bar=bar, interaction=interaction, submission_args=submission_args
@@ -108,9 +108,7 @@ class Run:
                 max_duration = 0.0
                 tle_result = None
                 for pass_id in itertools.count(1):
-                    result = self.submission.run(
-                        self.in_path, self.out_path, args=submission_args or []
-                    )
+                    result = self.submission.run(self.in_path, self.out_path, args=submission_args)
 
                     # write an interaction file for samples
                     if interaction:
@@ -687,42 +685,42 @@ while True:
     sys.stderr.buffer.write(l)
 """
                 submission_args = test_case.get_test_case_yaml(localbar).args or []
+
+                def run_submission() -> ExecResult:
+                    if config.args.verbose:
+                        data = run.in_path.read_text().removesuffix("\n")
+                        eprint(Fore.YELLOW, data, Style.RESET_ALL, sep="")
+                    with ExitStack() as cleanup:
+                        out_file = run.out_path.open("wb")
+                        cleanup.enter_context(out_file)
+                        tee = subprocess.Popen(
+                            [sys.executable, "-c", tee_code],
+                            stdin=subprocess.PIPE,
+                            stdout=None,
+                            stderr=out_file,
+                        )
+                        cleanup.enter_context(tee)
+                        assert tee.stdin is not None
+                        cleanup.callback(tee.stdin.close)
+
+                        in_file = run.in_path.open("rb")
+                        cleanup.enter_context(in_file)
+                        result = self._run(
+                            in_file, tee.stdin, False, submission_args, team_error=True
+                        )
+                        tee.stdin.close()
+                        tee.wait()
+
+                    assert result.err is None
+                    assert result.status != ExecStatus.REJECTED
+                    if result.duration >= self.problem.limits.time_limit:
+                        result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                    elif result.status == ExecStatus.ERROR:
+                        result.verdict = Verdict.RUNTIME_ERROR
+                        result.err = f"Exited with code {result.returncode}"
+                    return result
+
                 for pass_id in itertools.count(1):
-
-                    def run_submission() -> ExecResult:
-                        if config.args.verbose:
-                            data = run.in_path.read_text().removesuffix("\n")
-                            eprint(Fore.YELLOW, data, Style.RESET_ALL, sep="")
-                        with ExitStack() as cleanup:
-                            out_file = run.out_path.open("wb")
-                            cleanup.enter_context(out_file)
-                            tee = subprocess.Popen(
-                                [sys.executable, "-c", tee_code],
-                                stdin=subprocess.PIPE,
-                                stdout=None,
-                                stderr=out_file,
-                            )
-                            cleanup.enter_context(tee)
-                            assert tee.stdin is not None
-                            cleanup.callback(tee.stdin.close)
-
-                            in_file = run.in_path.open("rb")
-                            cleanup.enter_context(in_file)
-                            result = self._run(
-                                in_file, tee.stdin, False, submission_args, team_error=True
-                            )
-                            tee.stdin.close()
-                            tee.wait()
-
-                        assert result.err is None
-                        assert result.status != ExecStatus.REJECTED
-                        if result.duration >= self.problem.limits.time_limit:
-                            result.verdict = Verdict.TIME_LIMIT_EXCEEDED
-                        elif result.status == ExecStatus.ERROR:
-                            result.verdict = Verdict.RUNTIME_ERROR
-                            result.err = f"Exited with code {result.returncode}"
-                        return result
-
                     result = run_submission()
                     if result.verdict is None:
                         val_result = run._validate_output(localbar)
