@@ -605,30 +605,6 @@ class PrintBar:
         self.log(message, data, Fore.RED)
         exit1()
 
-    def finalize(
-        self,
-        *,
-        print_done: bool = True,
-        message: Optional[str] = None,
-        suppress_newline: bool = False,
-    ) -> bool:
-        # At most one of print_done and message may be passed.
-        if message:
-            assert print_done is True
-
-        # Print 'DONE' when nothing was printed yet but a summary was requested.
-        if print_done and not self.global_logged and not message:
-            message = f"{Fore.GREEN}Done{Style.RESET_ALL}"
-
-        if message:
-            self.log(message)
-
-        # When something was printed, add a newline between parts.
-        if (self.global_logged or message) and not suppress_newline:
-            eprint()
-
-        return self.global_logged and not suppress_newline
-
 
 AnyBar = PrintBar | ProgressBar
 

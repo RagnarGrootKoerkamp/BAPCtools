@@ -1857,7 +1857,8 @@ class GeneratorConfig:
             bar.error("could not be parsed")
         elif self.n_test_case_error:
             bar.warn("contains errors")
-        bar.finalize(print_done=False)
+        if bar.global_logged:
+            eprint()
 
     def _parse_root(self, raw_yaml: object, bar: PrintBar) -> DirectoryRule:
         if raw_yaml is None:
