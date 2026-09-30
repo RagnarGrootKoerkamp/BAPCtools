@@ -5,10 +5,10 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-tags: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
       # Make sure that `git describe` (used by Hatch to dynamically generate the version) knows the Git history, but no data about trees/blobs is needed.
@@ -20,14 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     container: ragnargrootkoerkamp/bapctools
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: bash test/yaml/validate_yaml.sh
 
   test-ubuntu:
     runs-on: ubuntu-latest
     container: ragnargrootkoerkamp/bapctools
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: git config --global --add safe.directory "$(pwd)"
       - run: git fetch --prune --unshallow --filter=tree:0
       - run: |
@@ -45,9 +45,9 @@ jobs:
       - run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: git fetch --prune --unshallow --filter=tree:0
-      - uses: Vampire/setup-wsl@v6
+      - uses: Vampire/setup-wsl@v7
         with:
             distribution: Ubuntu-24.04
             wsl-version: 2

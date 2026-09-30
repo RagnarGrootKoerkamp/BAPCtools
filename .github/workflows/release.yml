@@ -8,7 +8,7 @@ jobs:
   create-tag:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-tags: true
     - name: Bump version number
@@ -57,7 +57,7 @@ jobs:
         python-version: "3.10"
     - run: python3 -m pip install --user build
     - run: python3 -m build
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v7
       with:
         name: python-package-distributions
         path: dist/
@@ -72,7 +72,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v8
       with:
         name: python-package-distributions
         path: dist/
