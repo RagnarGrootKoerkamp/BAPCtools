@@ -11,6 +11,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, generate
 from bapctools.util import (
+    BAR_TYPE,
     ensure_symlink,
     fatal,
     glob,
@@ -79,7 +80,7 @@ def args_split(args: str) -> CommentedSeq:
     return splitted
 
 
-def upgrade_contest_yaml(contest_yaml_path: Path, bar: ProgressBar) -> None:
+def upgrade_contest_yaml(contest_yaml_path: Path, bar: BAR_TYPE) -> None:
     yaml_data = read_yaml(contest_yaml_path)
     if isinstance(yaml_data, CommentedMap) and "testsession" in yaml_data:
         ryaml_replace(yaml_data, "testsession", "test_session")
@@ -87,7 +88,7 @@ def upgrade_contest_yaml(contest_yaml_path: Path, bar: ProgressBar) -> None:
         bar.log("renaming 'testsession' to 'test_session'")
 
 
-def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_data(problem_path: Path, bar: BAR_TYPE) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
         ("data/invalid_answers", "data/invalid_answer"),
@@ -99,7 +100,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
         new_path = problem_path / new_name
         if old_path.is_dir():
             if new_path.exists():
-                bar.error(f"can't rename '{old_name}', '{new_name}' already exists", resume=True)
+                bar.error(f"can't rename '{old_name}', '{new_name}' already exists")
                 continue
             bar.log(f"renaming '{old_name}' to '{new_name}'")
             old_path.rename(new_path)
@@ -117,10 +118,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
                     p.relative_to(problem_path) for p in (old_path, new_path)
                 ]
                 if new_path.exists():
-                    bar.error(
-                        f"can't rename '{old_rel_path}', '{new_rel_path}' already exists",
-                        resume=True,
-                    )
+                    bar.error(f"can't rename '{old_rel_path}', '{new_rel_path}' already exists")
                     continue
                 bar.log(f"renaming '{old_rel_path}' to '{new_rel_path}'")
                 old_path.rename(new_path)
@@ -142,7 +140,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
         if f.with_suffix(".in").exists():  # Prevent reading test_group.yaml, which has no *.in file
             test_case_yaml = read_yaml(f, empty=CommentedMap())
             if not isinstance(test_case_yaml, CommentedMap):
-                bar.error(f"can't not parse {name}. SKIPPED.", resume=True)
+                bar.error(f"can't not parse {name}. SKIPPED.")
                 continue
             test_case_yamls[f] = test_case_yaml
 
@@ -185,18 +183,18 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             bar.log(f"created empty .ans.download file for '{name}'")
 
 
-def rename_testdata_to_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
+def rename_testdata_to_test_group_yaml(problem_path: Path, bar: BAR_TYPE) -> None:
     for f in (problem_path / "data").rglob("testdata.yaml"):
         new_name = f.with_name("test_group.yaml")
         rename_log = f"'{f.relative_to(problem_path)}' to '{new_name.relative_to(problem_path)}'"
         if new_name.exists():
-            bar.error(f"can't rename {rename_log}, target already exists", resume=True)
+            bar.error(f"can't rename {rename_log}, target already exists")
             continue
         bar.log(f"renaming {rename_log}")
         f.rename(new_name)
 
 
-def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_test_group_yaml(problem_path: Path, bar: BAR_TYPE) -> None:
     rename = [
         ("output_validator_flags", OutputValidator.args_key),
         ("input_validator_flags", InputValidator.args_key),
@@ -206,15 +204,14 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
         name = f.relative_to(problem_path / "data")
         data = read_yaml(f, empty=CommentedMap())
         if not isinstance(data, CommentedMap):
-            bar.error(f"can't not parse {name}. SKIPPED.", resume=True)
+            bar.error(f"can't not parse {name}. SKIPPED.")
             continue
 
         for old, new in rename:
             if old in data:
                 if new in data:
                     bar.error(
-                        f"can't change '{old}', '{new}' already exists in {f.relative_to(problem_path)}",
-                        resume=True,
+                        f"can't change '{old}', '{new}' already exists in {f.relative_to(problem_path)}"
                     )
                     continue
                 ryaml_replace(data, old, new)
@@ -225,7 +222,7 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
         write_yaml(data, f)
 
 
-def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_generators_yaml(problem_path: Path, bar: BAR_TYPE) -> None:
     generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
@@ -233,7 +230,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if yaml_data is None:
         return
     if not isinstance(yaml_data, CommentedMap):
-        bar.error("can't not parse generators.yaml. SKIPPED.", resume=True)
+        bar.error("can't not parse generators.yaml. SKIPPED.")
         return
 
     changed = False
@@ -256,8 +253,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if old_name in data:
                 if new_name in data:
                     bar.error(
-                        f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
-                        resume=True,
+                        f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml"
                     )
                     continue
                 bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
@@ -343,7 +339,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             cur_path = f"{path}.test_group.yaml"
             print_path = f" ({cur_path})"
             if not isinstance(test_group_yaml, CommentedMap):
-                bar.error(f"can't parse generators.yaml{print_path}. SKIPPED.", resume=True)
+                bar.error(f"can't parse generators.yaml{print_path}. SKIPPED.")
                 return False
 
             rename = [
@@ -354,8 +350,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 if old in test_group_yaml:
                     if new in test_group_yaml:
                         bar.error(
-                            f"can't change '{old}', '{new}' already exists in generators.yaml{print_path}",
-                            resume=True,
+                            f"can't change '{old}', '{new}' already exists in generators.yaml{print_path}"
                         )
                         continue
                     bar.log(f"changing '{old}' to '{new}' in generators.yaml{print_path}")
@@ -469,11 +464,11 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         write_yaml(yaml_data, generators_yaml)
 
 
-def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_statement(problem_path: Path, bar: BAR_TYPE) -> None:
     old_statement_dir = problem_path / "problem_statement"
     if (old_statement_dir / "problem.tex").is_file():
         if (old_statement_dir / "problem.en.tex").exists():
-            bar.error("can't rename 'problem.tex', 'problem.en.tex' already exists", resume=True)
+            bar.error("can't rename 'problem.tex', 'problem.en.tex' already exists")
         else:
             bar.log("renaming 'problem.tex' to 'problem.en.tex'")
             (old_statement_dir / "problem.tex").rename(old_statement_dir / "problem.en.tex")
@@ -481,7 +476,7 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
     new_statement_dir = problem_path / "statement"
     if (old_statement_dir).is_dir():
         if new_statement_dir.exists():
-            bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
+            bar.error("can't rename 'problem_statement/', 'statement/' already exists")
         else:
             bar.log("renaming 'problem_statement/' to 'statement/'")
             old_statement_dir.rename(new_statement_dir)
@@ -493,15 +488,14 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
     for pattern, dest_name in move:
         dest_path = problem_path / dest_name
         if dest_path.exists() and not dest_path.is_dir():
-            bar.error(f"'{dest_name}' is not a directory", resume=True)
+            bar.error(f"'{dest_name}' is not a directory")
             continue
 
         for f in new_statement_dir.glob(pattern):
             dest = dest_path / f.relative_to(new_statement_dir)
             if dest.exists():
                 bar.error(
-                    f"can't move '{f.relative_to(problem_path)}', '{dest.relative_to(problem_path)}' already exists",
-                    resume=True,
+                    f"can't move '{f.relative_to(problem_path)}', '{dest.relative_to(problem_path)}' already exists"
                 )
                 continue
             bar.log(f"moving '{f.relative_to(problem_path)}' to '{dest.relative_to(problem_path)}'")
@@ -509,7 +503,7 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
             shutil.move(f, dest)
 
 
-def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_format_validators(problem_path: Path, bar: BAR_TYPE) -> None:
     rename = [
         ("input_format_validators", InputValidator.source_dir),
         ("answer_format_validators", AnswerValidator.source_dir),
@@ -519,21 +513,18 @@ def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
         new_path = problem_path / new_name
         if old_path.is_dir():
             if new_path.exists():
-                bar.error(f"can't rename '{old_name}', '{new_name}' already exists", resume=True)
+                bar.error(f"can't rename '{old_name}', '{new_name}' already exists")
                 continue
             bar.log(f"renaming '{old_name}' to '{new_name}'")
             old_path.rename(new_path)
 
 
-def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_output_validators(problem_path: Path, bar: BAR_TYPE) -> None:
     old_path = problem_path / "output_validators"
     new_path = problem_path / OutputValidator.source_dir
     if old_path.is_dir():
         if new_path.exists():
-            bar.error(
-                f"can't rename '{old_path.name}/', '{new_path.name}/' already exists",
-                resume=True,
-            )
+            bar.error(f"can't rename '{old_path.name}/', '{new_path.name}/' already exists")
             return
         content = glob(old_path, "*")
         if len(content) == 1 and content[0].is_dir():
@@ -550,7 +541,7 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
                 bar.warn("There seem to be multiple output validators, this is no longer allowed")
 
 
-def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
+def upgrade_problem_yaml(problem_path: Path, bar: BAR_TYPE) -> None:
     assert is_problem_directory(problem_path)
     data = read_yaml(problem_path / "problem.yaml", empty=CommentedMap())
     if not isinstance(data, CommentedMap):
@@ -563,9 +554,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     if "validation" in data:
         if "type" in data:
-            bar.error(
-                "can't change 'validation', 'type' already exists in problem.yaml", resume=True
-            )
+            bar.error("can't change 'validation', 'type' already exists in problem.yaml")
         else:
             bar.log("change 'validation' to 'type' in problem.yaml")
             type = CommentedSeq()
@@ -584,9 +573,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     if "author" in data:
         if "credits" in data:
-            bar.error(
-                "can't change 'author', 'credits' already exists in problem.yaml", resume=True
-            )
+            bar.error("can't change 'author', 'credits' already exists in problem.yaml")
         else:
             bar.log("change 'author' to 'credits.authors' in problem.yaml")
             authors = CommentedSeq(
@@ -616,8 +603,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         if "time_multiplier" in limits or "time_safety_margin" in limits:
             if "time_multipliers" in limits:
                 bar.error(
-                    "can't change 'limits.time_multiplier/limits.time_safety_margin', 'limits.time_multipliers' already exists in problem.yaml",
-                    resume=True,
+                    "can't change 'limits.time_multiplier/limits.time_safety_margin', 'limits.time_multipliers' already exists in problem.yaml"
                 )
             else:
                 bar.log(
@@ -645,8 +631,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     def add_args(new_data: dict[str, Any]) -> bool:
         if OutputValidator.args_key in new_data:
             bar.error(
-                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in test_group.yaml",
-                resume=True,
+                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in test_group.yaml"
             )
             return False
         bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in test_group.yaml")
@@ -663,7 +648,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if generators_path.exists():
                 generators_data = read_yaml(generators_path, empty=CommentedMap())
                 if not isinstance(generators_data, CommentedMap):
-                    bar.error(f"can't not parse {generators_path}. SKIPPED.", resume=True)
+                    bar.error(f"can't not parse {generators_path}. SKIPPED.")
                 else:
                     if "test_group.yaml" not in generators_data:
                         if "data" in generators_data:
@@ -683,7 +668,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     test_group_data = CommentedMap()
 
                 if not isinstance(test_group_data, CommentedMap):
-                    bar.error(f"can't not parse {test_group_path}. SKIPPED.", resume=True)
+                    bar.error(f"can't not parse {test_group_path}. SKIPPED.")
                 elif add_args(test_group_data):
                     write_yaml(test_group_data, test_group_path)
         else:
@@ -695,8 +680,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             data["limits"] = CommentedMap()
         if "time_limit" in data["limits"]:
             bar.error(
-                "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml",
-                resume=True,
+                "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml"
             )
         else:
             bar.log("change '.timelimit' file to 'limits.time_limit' in problem.yaml")
@@ -719,8 +703,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 data["limits"] = CommentedMap()
             if "time_limit" in data["limits"]:
                 bar.error(
-                    "can't change 'domjudge-problem.ini' file, 'limits.time_limit' already exists in problem.yaml",
-                    resume=True,
+                    "can't change 'domjudge-problem.ini' file, 'limits.time_limit' already exists in problem.yaml"
                 )
             else:
                 bar.log("change 'domjudge-problem.ini' file to 'limits.time_limit' in problem.yaml")
@@ -728,21 +711,6 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 domjudge_path.unlink()
 
     write_yaml(data, problem_path / "problem.yaml")
-
-
-def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
-    bar.start(problem_path.name)
-
-    upgrade_data(problem_path, bar)
-    rename_testdata_to_test_group_yaml(problem_path, bar)
-    upgrade_test_group_yaml(problem_path, bar)
-    upgrade_generators_yaml(problem_path, bar)
-    upgrade_statement(problem_path, bar)
-    upgrade_format_validators(problem_path, bar)
-    upgrade_output_validators(problem_path, bar)
-    upgrade_problem_yaml(problem_path, bar)
-
-    bar.done()
 
 
 def upgrade(problem_dir: Optional[Path]) -> None:
@@ -765,7 +733,21 @@ def upgrade(problem_dir: Optional[Path]) -> None:
             upgrade_contest_yaml(contest_dir / "contest.yaml", bar)
         bar.done()
 
+    def upgrade(problem_path: Path, bar: ProgressBar) -> None:
+        bar.start(problem_path.name)
+
+        upgrade_data(problem_path, bar)
+        rename_testdata_to_test_group_yaml(problem_path, bar)
+        upgrade_test_group_yaml(problem_path, bar)
+        upgrade_generators_yaml(problem_path, bar)
+        upgrade_statement(problem_path, bar)
+        upgrade_format_validators(problem_path, bar)
+        upgrade_output_validators(problem_path, bar)
+        upgrade_problem_yaml(problem_path, bar)
+
+        bar.done()
+
     for path in paths:
-        _upgrade(path, bar)
+        upgrade(path, bar)
 
     bar.finalize()

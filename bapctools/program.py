@@ -13,6 +13,7 @@ from colorama import Fore
 
 from bapctools import config, languages
 from bapctools.util import (
+    BAR_TYPE,
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
@@ -25,7 +26,6 @@ from bapctools.util import (
     hash_file,
     once,
     PrintBar,
-    ProgressBar,
     read_yaml,
     remove_path,
     write_yaml,
@@ -198,7 +198,7 @@ class Program:
 
     # checks all languages and sorts them
     def _get_language_candidates(
-        self, bar: ProgressBar
+        self, bar: BAR_TYPE
     ) -> list[tuple[languages.Language, list[Path]]]:
         candidates = []
         for lang in languages.languages():
@@ -207,13 +207,13 @@ class Program:
                 candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
-    def _set_language(self, language: languages.Language, bar: ProgressBar) -> None:
+    def _set_language(self, language: languages.Language, bar: BAR_TYPE) -> None:
         restrictions: Final[Sequence[str]] = getattr(self.__class__, "languages", tuple())
         if restrictions and language.code not in restrictions:
             bar.warn(f"selected language {language.code} is not permitted for this program")
         self.language = language
 
-    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path], bar: BAR_TYPE) -> tuple[Path, Path, str]:
         binary = self.tmpdir / languages.BINARY_NAME
         mainfile = None
         if not self.has_deps:
@@ -230,7 +230,7 @@ class Program:
         return (binary, mainfile, str(mainclass))
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: ProgressBar) -> bool:
+    def _get_language(self, bar: BAR_TYPE) -> bool:
         candidates = self._get_language_candidates(bar)
 
         fallback = False
@@ -263,7 +263,7 @@ class Program:
         bar.error(f"No language detected for {self.path}.")
         return False
 
-    def _checks(self, bar: ProgressBar) -> None:
+    def _checks(self, bar: BAR_TYPE) -> None:
         for f in self.source_files:
             if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
                 bar.warn(
@@ -280,7 +280,7 @@ class Program:
                         if isinstance(self, Submission):
                             bar.log("Should not depend on bits/stdc++.h")
                         else:
-                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
+                            bar.error("Must not depend on bits/stdc++.h.")
                         break
 
         # Warn for known bad (non-deterministic) patterns in generators
@@ -325,7 +325,7 @@ class Program:
                             break
 
     # Return True on success.
-    def _compile(self, bar: ProgressBar) -> bool:
+    def _compile(self, bar: BAR_TYPE) -> bool:
         # Remove all non-source files.
         for f in self.tmpdir.glob("*"):
             if f not in self.input_files:
@@ -364,7 +364,7 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar: ProgressBar) -> bool:
+    def build(self, bar: BAR_TYPE) -> bool:
         assert not self.built
         self.built = True
 
@@ -496,9 +496,11 @@ class Generator(Program):
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
     def run(
-        self, bar: ProgressBar, cwd: Path, name: str, args: Sequence[str | Path] = []
+        self, bar: BAR_TYPE, cwd: Path, name: str, args: Optional[Sequence[str | Path]] = None
     ) -> ExecResult:
         assert self.run_command is not None
+        if args is None:
+            args = []
 
         in_path = cwd / (name + ".in")
         stdout_path = cwd / (name + ".in_")

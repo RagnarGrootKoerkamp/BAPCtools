@@ -75,6 +75,7 @@ class GeneratorTask:
         result = self.generator.run(localbar, cwd, name, self.seed)
         self.fuzz.queue.ensure_alive()
         if not result.status:
+            localbar.done()
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         if ".ans" in self.rule.hardcoded:
             ansfile.write_text(self.rule.hardcoded[".ans"])
@@ -163,10 +164,6 @@ class SubmissionTask:
         self.tmp_id = tmp_id
 
     def run(self, bar: ProgressBar) -> None:
-        self._run(bar)
-        self.generator_task.fuzz.finish_task(self.tmp_id)
-
-    def _run(self, bar: ProgressBar) -> None:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.test_case)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
@@ -177,6 +174,8 @@ class SubmissionTask:
             localbar.done(False, f"{result.verdict}!")
         else:
             localbar.done()
+
+        self.generator_task.fuzz.finish_task(self.tmp_id)
 
 
 class FuzzProgressBar(ProgressBar):

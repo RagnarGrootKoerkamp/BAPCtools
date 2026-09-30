@@ -276,9 +276,7 @@ class GeneratorInvocation(Invocation):
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(
-        self, bar: ProgressBar, cwd: Path, name: str, seed: int, retries: int = 1
-    ) -> ExecResult:
+    def run(self, bar: BAR_TYPE, cwd: Path, name: str, seed: int, retries: int = 1) -> ExecResult:
         assert isinstance(self.program, Generator), "Generator program must be built!"
 
         for retry in range(retries):
@@ -312,7 +310,7 @@ class SolutionInvocation(Invocation):
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar: ProgressBar, cwd: Path) -> ExecResult:
+    def run(self, bar: BAR_TYPE, cwd: Path) -> ExecResult:
         assert isinstance(self.program, Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
@@ -332,7 +330,7 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar: ProgressBar, cwd: Path, t: "TestCaseRule") -> bool:
+    def generate_interaction(self, bar: BAR_TYPE, cwd: Path, t: "TestCaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
@@ -808,7 +806,7 @@ class TestCaseRule(Rule):
         self,
         problem: Problem,
         generator_config: "GeneratorConfig",
-        bar: ProgressBar,
+        bar: BAR_TYPE,
         dst: Path,
     ) -> None:
         assert self.process
@@ -862,7 +860,7 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: ProgressBar,
+        bar: BAR_TYPE,
     ) -> bool:
         assert self.process
 
@@ -888,7 +886,6 @@ class TestCaseRule(Rule):
                     command = self.generator.cache_command(seed)
                     bar.warn(f"Failed generator command: {command}")
                 bar.debug("Use generate --no-validators to ignore validation results.")
-                bar.done()
                 return False
         else:
             for h in input_validator_hashes:
@@ -901,7 +898,7 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: ProgressBar,
+        bar: BAR_TYPE,
     ) -> bool:
         assert self.process
 
@@ -947,7 +944,6 @@ class TestCaseRule(Rule):
         ):
             if not config.args.no_validators:
                 bar.debug("Use generate --no-validators to ignore validation results.")
-                bar.done()
                 return False
         else:
             for h in ans_out_validator_hashes:
@@ -957,10 +953,7 @@ class TestCaseRule(Rule):
         return True
 
     def generate(
-        self,
-        problem: Problem,
-        generator_config: "GeneratorConfig",
-        parent_bar: ProgressBar,
+        self, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
     ) -> None:
         assert self.process
 
@@ -1526,6 +1519,7 @@ class TestCaseRule(Rule):
 
         # Step 2: generate .in if needed (and possible other files)
         if not generate_from_rule():
+            bar.done()
             return
 
         test_case: Optional[TestCase] = None
@@ -1533,36 +1527,45 @@ class TestCaseRule(Rule):
             # Step 3: check .in if needed
             test_case = TestCase(problem, infile, short_path=self.path / self.name)
             if not self.validate_in(problem, test_case, meta_yaml, bar):
+                bar.done()
                 return
 
             # Step 3.1: check patterns
             if not check_match(test_case, "in"):
+                bar.done()
                 return
 
             # Step 4: generate .ans and .interaction if needed
             if not generate_from_solution(test_case):
+                bar.done()
                 return
             # Step 4.1: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
             if not generate_empty_interactive_sample_ans():
+                bar.done()
                 return
             # Step 4.2: link ans files
             if not generate_linked("ans"):
+                bar.done()
                 return
 
             # Step 5: validate .ans (and .out if it exists)
             if not self.validate_ans_and_out(problem, test_case, meta_yaml, bar):
+                bar.done()
                 return
 
             # Step 5.1: check patterns
             if not check_match(test_case, "ans"):
+                bar.done()
                 return
 
             # Step 6: generate visualization if needed
             if not generate_visualization(test_case):
+                bar.done()
                 return
         else:
             # Step 4.2: link ans files (This is independent of the infile)
             if not generate_linked("ans"):
+                bar.done()
                 return
 
         # Step 7: warn if statement/download files are inconsistent
@@ -1691,7 +1694,7 @@ class DirectoryRule(Rule):
         # - Link included test cases.
         #   - Input of included test cases are re-validated with the
         #     directory-specific input validator flags.
-        bar.start(self.path)
+        localbar = bar.start(self.path)
 
         # Create the directory.
         dir_path = problem.path / "data" / self.path
@@ -1711,16 +1714,16 @@ class DirectoryRule(Rule):
                     # different -> overwrite
                     generator_config.remove(test_group_yaml_path)
                     test_group_yaml_path.write_text(yaml_text)
-                    bar.log("CHANGED: test_group.yaml")
+                    localbar.log("CHANGED: test_group.yaml")
             else:
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
-                bar.log("NEW: test_group.yaml")
+                localbar.log("NEW: test_group.yaml")
         elif self.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
-            bar.log("REMOVED: test_group.yaml")
-        bar.done()
+            localbar.log("REMOVED: test_group.yaml")
+        localbar.done()
 
     def generate_includes(
         self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
@@ -1733,30 +1736,30 @@ class DirectoryRule(Rule):
             if not generator_config.process_test_case(new_case):
                 continue
 
-            bar.start(new_case)
+            localbar = bar.start(new_case)
             generator_config.failed += 1
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
             new_infile = problem.path / "data" / self.path / (target.name + ".in")
 
             if not t.process:
-                bar.warn(f"Included case {target} was not processed.")
-                bar.done()
+                localbar.warn(f"Included case {target} was not processed.")
+                localbar.done()
                 continue
 
             if not t.generate_success:
-                bar.error(f"Included case {target} has errors.")
-                bar.done()
+                localbar.error(f"Included case {target} has errors.")
+                localbar.done()
                 continue
 
             if not infile.is_file():
-                bar.warn(f"{target}.in does not exist.")
-                bar.done()
+                localbar.warn(f"{target}.in does not exist.")
+                localbar.done()
                 continue
 
             if not ansfile.is_file():
-                bar.warn(f"{target}.ans does not exist.")
-                bar.done()
+                localbar.warn(f"{target}.ans does not exist.")
+                localbar.done()
                 continue
 
             # Check if the test case was already validated.
@@ -1774,7 +1777,7 @@ class DirectoryRule(Rule):
             t.link(problem, generator_config, bar, new_infile)
             generator_config.failed -= 1
             generator_config.included += 1
-            bar.done()
+            localbar.done()
 
 
 # Returns the numbered name
@@ -1856,7 +1859,7 @@ class GeneratorConfig:
             bar.warn("contains errors")
         bar.finalize(print_done=False)
 
-    def _parse_root(self, raw_yaml: object, bar: BAR_TYPE) -> DirectoryRule:
+    def _parse_root(self, raw_yaml: object, bar: PrintBar) -> DirectoryRule:
         if raw_yaml is None:
             raw_yaml = {}
 
@@ -2321,7 +2324,7 @@ class GeneratorConfig:
 
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path: Path, bar: ProgressBar, silent: bool = False) -> None:
+    def _remove_unknown(self, path: Path, bar: BAR_TYPE, silent: bool = False) -> None:
         local = path.relative_to(self.problem.path / "data")
         keep = any(
             (

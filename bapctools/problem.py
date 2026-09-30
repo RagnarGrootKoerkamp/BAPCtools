@@ -295,11 +295,7 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(
-        self,
-        parser: YamlParser,
-        problem: "Problem",
-    ):
+    def __init__(self, parser: YamlParser, problem: "Problem"):
         if isinstance(parser.remaining.get("name", None), str):
             parser.remaining["name"] = {"en": parser.remaining["name"]}
 
@@ -1475,6 +1471,7 @@ class Problem:
                         return
                 if ret.status == ExecStatus.TIMEOUT:
                     localbar.error("Output validator got TIMEOUT", data)
+                    localbar.done()
                     return
                 if ret.status == ExecStatus.ERROR:
                     if ret.returncode == 0:
@@ -1488,6 +1485,7 @@ class Problem:
                         localbar.error(
                             f"Output validator crashed (exit code: {ret.returncode})", data
                         )
+                    localbar.done()
                     return
                 assert ret.status == ExecStatus.ACCEPTED
                 if not has_nextpass:
@@ -1499,12 +1497,14 @@ class Problem:
                             f"Output validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
                             data,
                         )
+                        localbar.done()
                     return
 
                 assert self.limits.validation_passes is not None
                 if pass_id >= self.limits.validation_passes:
                     success = False
                     localbar.error("Output validator exceeded limit of validation_passes", data)
+                    localbar.done()
                     return
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
@@ -1833,6 +1833,7 @@ class Problem:
             if file.name.endswith(".interaction"):
                 if not validate.check_interaction(self, file, localbar, startswith=prefix):
                     success = False
+                    localbar.done()
                     return
             else:
                 validate.sanity_check_override(self, file, localbar)
