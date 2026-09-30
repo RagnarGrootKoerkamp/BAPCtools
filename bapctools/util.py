@@ -141,6 +141,23 @@ class Named(Protocol):
     def name(self) -> str: ...
 
 
+# The base functionallity of a bar.
+# Note that this can't handle any items.
+class AnyBar(Protocol):
+    def part_done(
+        self,
+        success: bool = True,
+        message: str = "",
+        data: Optional[str] = None,
+        warn_instead_of_error: bool = False,
+    ) -> None: ...
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
+    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
+    def warn(self, message: str, data: Optional[str] = None) -> None: ...
+    def error(self, message: str, data: Optional[str] = None) -> None: ...
+    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn: ...
+
+
 ItemType = str | Path | Named
 
 
@@ -605,7 +622,7 @@ class PrintBar:
         exit1()
 
 
-AnyBar = PrintBar | ProgressBar
+# AnyBar = PrintBar | ProgressBar
 
 
 # Given a command line argument, return the first match:
