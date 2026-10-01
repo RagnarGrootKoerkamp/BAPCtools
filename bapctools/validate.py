@@ -1,8 +1,11 @@
 import re
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
+
+from typing_extensions import override
 
 from bapctools import config, languages
 from bapctools.program import Program
@@ -83,7 +86,7 @@ FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[languages.Language]] = [
 ]
 
 
-class Validator(Program):
+class Validator(ABC, Program):
     """Base class for AnswerValidator, InputValidator, and OutputValidator.
 
     They can all take constraints.
@@ -239,14 +242,14 @@ class Validator(Program):
 
         return ret
 
+    @abstractmethod
     def run(
         self,
         test_case: "TestCase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[Sequence[str | Path]] = None,
-    ) -> ExecResult:
-        raise Exception("Abstract method")
+    ) -> ExecResult: ...
 
 
 class InputValidator(Validator):
@@ -269,6 +272,7 @@ class InputValidator(Validator):
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
+    @override
     def run(
         self,
         test_case: "TestCase",
@@ -332,6 +336,7 @@ class AnswerValidator(Validator):
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
+    @override
     def run(
         self,
         test_case: "TestCase",
@@ -386,6 +391,7 @@ class OutputValidator(Validator):
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
+    @override
     def run(
         self,
         test_case: "TestCase",

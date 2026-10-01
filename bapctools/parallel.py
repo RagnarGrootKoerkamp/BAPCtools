@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any, Generic, Literal, Optional, TypeVar
 
+from typing_extensions import override
+
 from bapctools import config, util
 
 T = TypeVar("T")
@@ -75,6 +77,7 @@ class SequentialQueue(AbstractQueue[T]):
         super().__init__(f, pin=pin)
 
     # Add one task. Higher priority => done first
+    @override
     def put(self, task: T, priority: int = 0) -> None:
         # no task will be handled after self.abort() so skip adding
         if self.aborted:
@@ -84,6 +87,7 @@ class SequentialQueue(AbstractQueue[T]):
         heapq.heappush(self.tasks, QueueItem(task, priority, self.total_tasks))
 
     # Execute all tasks.
+    @override
     def done(self) -> None:
         if self.pin:
             cores = list(os.sched_getaffinity(0))  # type: ignore[attr-defined]
@@ -185,6 +189,7 @@ class ParallelQueue(AbstractQueue[T]):
             raise first_error
 
     # Add one task. Higher priority => done first
+    @override
     def put(self, task: T, priority: int = 0) -> None:
         with self.mutex:
             # no task should be added after .done() was called
@@ -204,6 +209,7 @@ class ParallelQueue(AbstractQueue[T]):
             self._handle_first_error()
 
     # Wait for all tasks to be done and stop all threads
+    @override
     def done(self) -> None:
         self.finish = True
 
