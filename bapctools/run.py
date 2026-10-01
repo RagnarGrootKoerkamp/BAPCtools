@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import IO, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
+from typing_extensions import override
 
 from bapctools import (
     config,
@@ -348,6 +349,7 @@ class Submission(Program):
 
         return set(permitted)
 
+    @override
     def _get_language_candidates(self, bar: AnyBar) -> list[tuple[Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
@@ -369,6 +371,7 @@ class Submission(Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
+    @override
     def _set_language(self, language: Language, bar: AnyBar) -> None:
         restriction = self.problem.settings.languages
         if restriction and language.code not in restriction:
@@ -377,6 +380,7 @@ class Submission(Program):
             bar.warn(f"selected language {language.code} is not permitted")
         super()._set_language(language, bar)
 
+    @override
     def _get_entry_point(self, files: list[Path], bar: AnyBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)

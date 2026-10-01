@@ -9,12 +9,14 @@ from typing import Any, Optional
 
 import argcomplete
 from colorama import Fore, Style
+from typing_extensions import override
 
 
 class ActionHelpFormatter(argparse.RawTextHelpFormatter):
     def __init__(self, prog: str) -> None:
         super().__init__(prog, max_help_position=35)
 
+    @override
     def _format_action(self, action: argparse.Action) -> str:
         if isinstance(action, argparse._SubParsersAction):
             self._dedent()
@@ -23,6 +25,7 @@ class ActionHelpFormatter(argparse.RawTextHelpFormatter):
             return self._join_parts(parts)
         return super()._format_action(action)
 
+    @override
     def add_usage(
         self,
         usage: Optional[str],

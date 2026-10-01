@@ -15,6 +15,7 @@ from queue import SimpleQueue
 from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
+from typing_extensions import override
 
 from bapctools import config
 from bapctools.util import (
@@ -201,6 +202,7 @@ class Relay(threading.Thread):
         self.switches = 0
         self._last = (False, False)
 
+    @override
     def run(self) -> None:
         try:
             exit = False

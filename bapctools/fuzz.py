@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from colorama import Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from typing_extensions import override
 
 from bapctools import config, generate, parallel
 from bapctools.problem import Problem
@@ -189,6 +190,7 @@ class FuzzProgressBar(ProgressBar):
         super().__init__(prefix, max_len)
         self.queue = queue
 
+    @override
     def _print(self, *args: Any, **kwargs: Any) -> None:
         self.queue.ensure_alive()
         super()._print(*args, **kwargs)

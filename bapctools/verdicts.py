@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
+from typing_extensions import override
 
 from bapctools import config
 from bapctools.test_case import TestCase
@@ -650,12 +651,14 @@ class TableProgressBar(ProgressBar):
         if exit:
             self.io.notify()
 
+    @override
     def _print(self, *args: Any, **kwargs: Any) -> None:
         assert self._is_locked()
         kwargs.setdefault("sep", "")
         kwargs["flush"] = False  # drop all flushes...
         self.io.print(*args, **kwargs)
 
+    @override
     def start(self, item: ItemType = "") -> ProgressBar:
         from bapctools.run import Run
 
@@ -663,6 +666,7 @@ class TableProgressBar(ProgressBar):
         self.table.start_run(item)
         return super().start(item)
 
+    @override
     def done(
         self,
         success: bool = True,
@@ -678,6 +682,7 @@ class TableProgressBar(ProgressBar):
         self.table.done_run(self.item)
         super().done(success, message, data, print_item=print_item, force_log=force_log)
 
+    @override
     def finalize(
         self,
         *,
