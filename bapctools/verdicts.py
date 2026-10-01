@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -21,47 +21,23 @@ if TYPE_CHECKING:
 class Verdict(Enum):
     """The verdict of a test case or test group"""
 
-    ACCEPTED = 1
-    WRONG_ANSWER = 2
-    TIME_LIMIT_EXCEEDED = 3
-    RUNTIME_ERROR = 4
-    JUDGE_ERROR = 5
-    COMPILER_ERROR = 6
+    ACCEPTED = (1, "AC", Fore.GREEN)
+    WRONG_ANSWER = (2, "WA", Fore.RED)
+    TIME_LIMIT_EXCEEDED = (3, "TLE", Fore.MAGENTA)
+    RUNTIME_ERROR = (4, "RTE", Fore.YELLOW)
+    JUDGE_ERROR = (5, "JE", Fore.RED)
+    COMPILER_ERROR = (6, "CE", Fore.RED)
+
+    def __init__(self, order: int, short: str, color: str):
+        self.order = order
+        self.short = short
+        self.color = color
 
     def __str__(self) -> str:
         return self.name.replace("_", " ")
 
     def __lt__(self, other: "Verdict") -> bool:
-        return self.value < other.value
-
-    def short(self) -> str:
-        return {
-            Verdict.ACCEPTED: "AC",
-            Verdict.WRONG_ANSWER: "WA",
-            Verdict.TIME_LIMIT_EXCEEDED: "TLE",
-            Verdict.RUNTIME_ERROR: "RTE",
-            Verdict.JUDGE_ERROR: "JE",
-            Verdict.COMPILER_ERROR: "CE",
-        }[self]
-
-    def color(self) -> str:
-        return {
-            Verdict.ACCEPTED: Fore.GREEN,
-            Verdict.WRONG_ANSWER: Fore.RED,
-            Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
-            Verdict.RUNTIME_ERROR: Fore.YELLOW,
-            Verdict.JUDGE_ERROR: Fore.RED,
-            Verdict.COMPILER_ERROR: Fore.RED,
-        }[self]
-
-
-VERDICTS: Final[Sequence[Verdict]] = [
-    Verdict.ACCEPTED,
-    Verdict.WRONG_ANSWER,
-    Verdict.TIME_LIMIT_EXCEEDED,
-    Verdict.RUNTIME_ERROR,
-    Verdict.COMPILER_ERROR,
-]
+        return self.order < other.order
 
 
 class RunUntil(Enum):
@@ -78,14 +54,14 @@ def to_char(v: Optional[Verdict | Literal[False]], lower: bool = False) -> str:
         return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
         char = str(v)[0].lower() if lower else str(v)[0].upper()
-        return f"{v.color()}{char}{Style.RESET_ALL}"
+        return f"{v.color}{char}{Style.RESET_ALL}"
 
 
 def to_string(v: Optional[Verdict | Literal[False]]) -> str:
     if v is None or v is False:
         return to_char(v)
     else:
-        return f"{v.color()}{v}{Style.RESET_ALL}"
+        return f"{v.color}{v}{Style.RESET_ALL}"
 
 
 def from_string(s: str) -> Verdict:

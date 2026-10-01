@@ -68,7 +68,7 @@ EXPECTATION_VERDICTS: Final[Sequence[Verdict]] = [
     Verdict.RUNTIME_ERROR,
 ]
 KNOWN_EXPECTATION_VERDICTS: Final[Mapping[str, Verdict]] = {
-    v.short(): v for v in EXPECTATION_VERDICTS
+    v.short: v for v in EXPECTATION_VERDICTS
 }
 
 SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
@@ -137,7 +137,7 @@ class TestCaseExpectation:
         self.permitted: set[Verdict] = extract_verdicts("permitted")
         self.required: set[Verdict] = extract_verdicts("required", self.permitted)
         if not self.required.issubset(self.permitted):
-            missing = ",".join(v.short() for v in self.required - self.permitted)
+            missing = ",".join(v.short for v in self.required - self.permitted)
             parser.bar.warn(
                 f"`{parser.parent_path}` has [{missing}] as required but not as permitted"
             )

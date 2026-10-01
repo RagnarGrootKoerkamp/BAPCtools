@@ -339,7 +339,7 @@ class Submission(Program):
         if len(permitted) == 0:
             return None
         if len(self.path.parts) >= 3 and self.path.parts[-3] == "submissions":
-            # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
+            # Submissions in any of the legacy dirs should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0]
             if subdir in ["accepted", "wrong_answer", "time_limit_exceeded", "run_time_error"]:
@@ -524,7 +524,7 @@ class Submission(Program):
             permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
             if not got_permitted:
-                permittedmsg = f"permitted: [{','.join([v.short() for v in permitted])}]"
+                permittedmsg = f"permitted: [{','.join([v.short for v in permitted])}]"
                 data = "  ".join([permittedmsg, data])
 
             duration_style = ""
@@ -550,7 +550,7 @@ class Submission(Program):
             )
             test_case = f"{run.name}{Style.RESET_ALL}{passmsg}"
             style_len = len(f"{Style.RESET_ALL}")
-            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {test_case:{max_test_case_len + style_len}}"
+            message = f"{color}{result.verdict.short:>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {test_case:{max_test_case_len + style_len}}"
 
             # Update padding since we already print the test case name after the verdict.
             localbar.item_width = padding_len
@@ -589,8 +589,8 @@ class Submission(Program):
                     passed_cur_required = True
                     message = None
             if not passed_cur_required:
-                requiredmsg = ",".join([v.short() for v in expectation.required])
-                gotmsg = ",".join([v.short() for v in got])
+                requiredmsg = ",".join([v.short for v in expectation.required])
+                gotmsg = ",".join([v.short for v in got])
                 msg = [f"required: [{requiredmsg}]"]
                 if expectation.test_case_glob is not None:
                     msg += ["for", expectation.test_case_glob]
@@ -625,7 +625,7 @@ class Submission(Program):
         if bar.logged:
             color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
-        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_print_name:{max_test_case_len}}{Style.RESET_ALL}"
+        message = f"{color}{salient_print_verdict.short:>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_print_name:{max_test_case_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_test_case()
@@ -647,7 +647,7 @@ class Submission(Program):
                 Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
             )
 
-            message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
+            message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short:>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
         printed_newline = bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
