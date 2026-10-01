@@ -276,7 +276,7 @@ class ARGS:
         self.web: bool = get_arg("web", False)
         self.write: bool = get_arg("write", False)
 
-        if RUNNING_TEST or True:
+        if RUNNING_TEST:
             keys = [key for key in self.__dict__ if not key.startswith("_")]
             for a, b in zip(keys, keys[1:]):
                 assert a < b, f"{a} > {b}"
