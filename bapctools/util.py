@@ -693,7 +693,7 @@ def drop_suffix(path: Path, suffixes: Sequence[str]) -> Path:
 
 
 # Drops the first two path components <problem>/<type>/
-def print_name(path: Path, keep_type: bool = False) -> str:
+def print_name(path: Path, *, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
@@ -1018,7 +1018,7 @@ def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str
 
 
 # glob, but without hidden files
-def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path]:
+def glob(path: Path, expression: str, *, include_hidden: bool = False) -> list[Path]:
     def keep(p: Path) -> bool:
         if not include_hidden:
             for d in p.parts:
@@ -1076,7 +1076,9 @@ def remove_path(path: Path) -> None:
 
 
 # When output is True, copy the file when args.cp is true.
-def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
+def ensure_symlink(
+    link: Path, target: Path, *, output: bool = False, relative: bool = False
+) -> bool:
     try:
         # on windows copy if necessary
         if is_windows() and not windows_can_symlink:
@@ -1463,8 +1465,8 @@ def validator_exec_code_map(returncode: int) -> ExecStatus:
 def exec_command(
     command: Sequence[str | Path],
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
-    crop: bool = True,
     *,
+    crop: bool = True,
     preexec_fn: bool = True,
     timeout: Optional[int] = None,
     memory: Optional[int] = None,
