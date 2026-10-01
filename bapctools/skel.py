@@ -44,12 +44,12 @@ def new_contest() -> None:
 
     # Ask for all required infos.
     title = ask_variable_string("name", config.args.contestname)
-    subtitle = ask_variable_string("subtitle", "", True).replace("_", "-")
+    subtitle = ask_variable_string("subtitle", "", allow_empty=True).replace("_", "-")
     dirname = ask_variable_string("dirname", _alpha_num(title))
     author = ask_variable_string("author", f"The {title} Jury").replace("_", "-")
     test_session = ask_variable_bool("test session", False)
     year = ask_variable_string("year", str(datetime.datetime.now().year))
-    source_url = ask_variable_string("source url", "", True)
+    source_url = ask_variable_string("source url", "", allow_empty=True)
     license = ask_variable_choice("license", config.KNOWN_LICENSES)
     rights_owner = ask_variable_string(
         "rights owner (if left empty, defaults to problem author)", "", allow_empty=True
@@ -139,10 +139,12 @@ def new_problem() -> None:
     }
 
     source_name = ask_variable_string(
-        "source", variables.get("source", variables.get("name", "")), True
+        "source", variables.get("source", variables.get("name", "")), allow_empty=True
     )
     if source_name:
-        source_url = ask_variable_string("source url", variables.get("source_url", ""), True)
+        source_url = ask_variable_string(
+            "source url", variables.get("source_url", ""), allow_empty=True
+        )
         variables["source"] = (
             f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}\n"
         )

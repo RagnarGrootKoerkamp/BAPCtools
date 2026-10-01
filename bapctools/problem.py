@@ -1032,6 +1032,7 @@ class Problem:
     def validators(
         self,
         cls: type[AnyValidator],
+        *,
         check_constraints: bool = False,
         strict: bool = False,
         print_warn: bool = True,
@@ -1047,11 +1048,11 @@ class Problem:
             singleton list(OutputValidator) if cls is OutputValidator
             list(Validator) otherwise, maybe empty
         """
-        validators = self._validators(cls, check_constraints)
+        validators = self._validators(cls, check_constraints=check_constraints)
         if not strict and cls == AnswerValidator and self.settings.ans_is_output:
             validators = (
                 *validators,
-                *self._validators(OutputValidator, check_constraints),
+                *self._validators(OutputValidator, check_constraints=check_constraints),
             )
 
         # Check that the proper number of validators is present
@@ -1081,7 +1082,7 @@ class Problem:
 
     @once_per_instance
     def _validators(
-        self, cls: type[AnyValidator], check_constraints: bool = False
+        self, cls: type[AnyValidator], *, check_constraints: bool = False
     ) -> Sequence[AnyValidator]:
         if cls == OutputValidator:
             if self.custom_output:
@@ -1618,7 +1619,7 @@ class Problem:
             bar.debug(f"writing generated invalid test cases to: {base_path}")
 
         return self._validate_data(
-            validate.Mode.INVALID, False, "Generic Invalidation", test_cases, True
+            validate.Mode.INVALID, False, "Generic Invalidation", test_cases, extra=True
         )
 
     def validate_valid_extra_data(self) -> bool:
@@ -1683,7 +1684,7 @@ class Problem:
             bar.debug(f"writing generated valid test cases to: {base_path}")
 
         return self._validate_data(
-            validate.Mode.VALID_OUTPUT, False, "Generic output validation", test_cases, True
+            validate.Mode.VALID_OUTPUT, False, "Generic output validation", test_cases, extra=True
         )
 
     def _validate_data(
@@ -1692,6 +1693,7 @@ class Problem:
         constraints: bool | ConstraintsDict,
         action: str,
         test_cases: Sequence[TestCase],
+        *,
         extra: bool = False,
     ) -> bool:
         # If there are no test cases, validation succeeds

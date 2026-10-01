@@ -362,7 +362,7 @@ def read_personal_config(problem_dir: Optional[Path]) -> None:
         config.args.add_if_not_set(config.ARGS(config_file, **config_data))
 
 
-def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True) -> None:
+def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = True) -> None:
     # Don't zero newly allocated memory for this and any subprocess
     # Will likely only have an effect on linux
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)

@@ -29,7 +29,7 @@ class QueueItem(Generic[T]):
 
 
 class AbstractQueue(Generic[T], ABC):
-    def __init__(self, f: Callable[[T], Any], pin: bool) -> None:
+    def __init__(self, f: Callable[[T], Any], *, pin: bool) -> None:
         self.f = f
         self.pin = pin
         self.num_threads = 1
@@ -71,8 +71,8 @@ class AbstractQueue(Generic[T], ABC):
 
 
 class SequentialQueue(AbstractQueue[T]):
-    def __init__(self, f: Callable[[T], Any], pin: bool) -> None:
-        super().__init__(f, pin)
+    def __init__(self, f: Callable[[T], Any], *, pin: bool) -> None:
+        super().__init__(f, pin=pin)
 
     # Add one task. Higher priority => done first
     def put(self, task: T, priority: int = 0) -> None:
@@ -102,8 +102,14 @@ class SequentialQueue(AbstractQueue[T]):
 
 
 class ParallelQueue(AbstractQueue[T]):
-    def __init__(self, f: Callable[[T], Any], pin: bool, num_threads: int) -> None:
-        super().__init__(f, pin)
+    def __init__(
+        self,
+        f: Callable[[T], Any],
+        num_threads: int,
+        *,
+        pin: bool,
+    ) -> None:
+        super().__init__(f, pin=pin)
 
         assert num_threads and type(num_threads) is int
         self.num_threads = num_threads
@@ -229,7 +235,7 @@ class ParallelQueue(AbstractQueue[T]):
                 self.all_done.notify_all()
 
 
-def new_queue(f: Callable[[T], Any], pin: bool = False) -> AbstractQueue[T]:
+def new_queue(f: Callable[[T], Any], *, pin: bool = False) -> AbstractQueue[T]:
     """
     f(task): the function to run on each queue item.
 
@@ -239,13 +245,13 @@ def new_queue(f: Callable[[T], Any], pin: bool = False) -> AbstractQueue[T]:
 
     num_threads = config.args.jobs
     if num_threads:
-        return ParallelQueue(f, pin, num_threads)
+        return ParallelQueue(f, num_threads, pin=pin)
     else:
-        return SequentialQueue(f, pin)
+        return SequentialQueue(f, pin=pin)
 
 
-def run_tasks(f: Callable[[T], Any], tasks: Sequence[T], pin: bool = False) -> None:
-    queue = new_queue(f, pin)
+def run_tasks(f: Callable[[T], Any], tasks: Sequence[T], *, pin: bool = False) -> None:
+    queue = new_queue(f, pin=pin)
     for task in tasks:
         queue.put(task)
     queue.done()

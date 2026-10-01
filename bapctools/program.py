@@ -44,7 +44,7 @@ def create_aliases() -> None:
     langs = languages.languages()
     bar = PrintBar()
 
-    def create_alias(code: str, alias: str, use_compile: bool) -> None:
+    def create_alias(code: str, alias: str, *, use_compile: bool) -> None:
         language = None
         fallback = False
         exe = None

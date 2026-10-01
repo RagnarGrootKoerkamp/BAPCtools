@@ -265,7 +265,7 @@ class Run:
 
 class Submission(Program):
     def __init__(
-        self, problem: "Problem", path: Path, skip_double_build_warning: bool = False
+        self, problem: "Problem", path: Path, *, skip_double_build_warning: bool = False
     ) -> None:
         super().__init__(
             problem,

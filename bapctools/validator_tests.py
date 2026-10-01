@@ -110,7 +110,7 @@ def _list_valid_generators() -> Sequence[VALID_GENERATOR_TYPE]:
     # returns a function that can be called to register a new generator for valid tests
     # can be used on its own or as decorator for a function
     def register(
-        name: Optional[str] = None, space_change: bool = False, case_change: bool = False
+        name: Optional[str] = None, *, space_change: bool = False, case_change: bool = False
     ) -> Callable[[T], T]:
         def decorator(func: T) -> T:
             nonlocal name

@@ -149,6 +149,7 @@ class AnyBar(Protocol):
         success: bool = True,
         message: str = "",
         data: Optional[str] = None,
+        *,
         warn_instead_of_error: bool = False,
     ) -> None: ...
     def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
@@ -468,6 +469,7 @@ class ProgressBar:
         success: bool = True,
         message: str = "",
         data: Optional[str] = None,
+        *,
         warn_instead_of_error: bool = False,
     ) -> None:
         if not success:
@@ -576,6 +578,7 @@ class PrintBar:
         success: bool = True,
         message: str = "",
         data: Optional[str] = None,
+        *,
         warn_instead_of_error: bool = False,
     ) -> None:
         if not success:
@@ -758,7 +761,7 @@ class YamlParser:
     def _key_path(self, key: str) -> str:
         return key if self.parent_path is None else f"{self.parent_path}.{key}"
 
-    def check_unknown_keys(self, warn: bool = True) -> None:
+    def check_unknown_keys(self, *, warn: bool = True) -> None:
         func = self.bar.warn if warn else self.bar.log
         for key in self.remaining:
             if not isinstance(key, str):
@@ -947,7 +950,7 @@ def write_yaml(data: object, path: Optional[Path] = None) -> Optional[str]:
     return None
 
 
-def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+def _ask_variable(name: str, default: Optional[str] = None, *, allow_empty: bool = False) -> str:
     if config.args.defaults:
         if not default and not allow_empty:
             fatal(f"{name} has no default")
@@ -961,7 +964,9 @@ def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = 
             return val
 
 
-def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+def ask_variable_string(
+    name: str, default: Optional[str] = None, *, allow_empty: bool = False
+) -> str:
     if use_questionary:
         import questionary
 
@@ -974,7 +979,7 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
         )
     else:
         text = f" ({default})" if default else ""
-        return _ask_variable(name + text, default if default else "", allow_empty)
+        return _ask_variable(name + text, default if default else "", allow_empty=allow_empty)
 
 
 def ask_variable_bool(name: str, default: bool = True) -> bool:
