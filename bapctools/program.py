@@ -39,7 +39,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 @once
 def create_aliases() -> None:
     h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
-    tmpdir = (Path(tempfile.gettempdir()) / ("bapctools_" + h) / ".aliases").resolve()
+    tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}" / ".aliases").resolve()
 
     langs = languages.languages()
     bar = PrintBar()
@@ -501,8 +501,8 @@ class Generator(Program):
         if args is None:
             args = []
 
-        in_path = cwd / (name + ".in")
-        stdout_path = cwd / (name + ".in_")
+        in_path = cwd / f"{name}.in"
+        stdout_path = cwd / f"{name}.in_"
 
         # Clean the directory, but not the meta_.yaml file.
         for f in cwd.iterdir():

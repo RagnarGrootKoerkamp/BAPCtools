@@ -66,8 +66,8 @@ class GeneratorTask:
         remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)
         name = "testcase"
-        infile = cwd / (name + ".in")
-        ansfile = cwd / (name + ".ans")
+        infile = cwd / f"{name}.in"
+        ansfile = cwd / f"{name}.ans"
 
         localbar = bar.start(f"{self.i}: {self.command}")
         localbar.done(force_log=True)
@@ -82,7 +82,7 @@ class GeneratorTask:
             ansfile.write_text(self.rule.hardcoded[".ans"])
         localbar.done()
 
-        test_case = TestCase(self.fuzz.problem, infile, short_path=dir / (name + ".in"))
+        test_case = TestCase(self.fuzz.problem, infile, short_path=dir / f"{name}.in")
 
         # Validate the generated .in.
         localbar = bar.start(f"{self.i}: validate input")

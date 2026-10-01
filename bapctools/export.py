@@ -705,7 +705,7 @@ def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
     elif isinstance(yaml_response, dict) and "message" in yaml_response:
         verbose("RESPONSE: " + yaml_response["message"])
     else:
-        verbose("RESPONSE:\n" + r.text)
+        verbose(f"RESPONSE:\n{r.text}")
     r.raise_for_status()
 
 

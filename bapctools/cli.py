@@ -107,7 +107,7 @@ def change_directory() -> Optional[Path]:
 def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     # We create one tmpdir per contest.
     h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
-    tmpdir = (Path(tempfile.gettempdir()) / ("bapctools_" + h)).resolve()
+    tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}").resolve()
     tmpdir.mkdir(parents=True, exist_ok=True)
 
     def fallback_problems() -> list[tuple[Path, str]]:
@@ -725,9 +725,9 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 if not build_problem_slides:
                     log(f"No problem has {slideglob.name}, skipping problem slides")
 
-            outfile = contest_name + ".zip"
+            outfile = f"{contest_name}.zip"
             if config.args.kattis:
-                outfile = contest_name + "-kattis.zip"
+                outfile = f"{contest_name}-kattis.zip"
             export.build_contest_zip(problems, problem_zips, outfile, languages)
 
         if action in ["update_problems_yaml"]:

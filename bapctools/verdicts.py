@@ -493,10 +493,10 @@ class VerdictTable:
                 for child in reversed(self.results[-1].children[node]):
                     if self.results[-1]._is_test_group(child):
                         if first:
-                            stack.append((child, indent + pipe + " ", "└╴", True))
+                            stack.append((child, f"{indent}{pipe} ", "└╴", True))
                             first = False
                         else:
-                            stack.append((child, indent + pipe + " ", "├╴", False))
+                            stack.append((child, f"{indent}{pipe} ", "├╴", False))
                     else:
                         verdicts.append(self._get_verdict(len(self.results) - 1, child, False))
                 if verdicts:
@@ -569,7 +569,7 @@ class VerdictTable:
                 # pad/truncate submission names to not break table layout
                 name = submission.as_posix()
                 if len(name) > self.name_width:
-                    name = "..." + name[-self.name_width + 3 :]
+                    name = f"...{name[-self.name_width + 3 :]}"
                 padding = " " * (self.name_width - len(name))
                 printed_text.append(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}")
                 printed = self.name_width + 1

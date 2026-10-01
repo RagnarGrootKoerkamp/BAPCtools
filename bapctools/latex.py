@@ -485,7 +485,7 @@ def build_problem_pdfs(
 def find_logo() -> Path:
     for directory in ["", "../"]:
         for extension in ["pdf", "png", "jpg"]:
-            logo = Path(directory + "logo." + extension)
+            logo = Path(f"{directory}logo.{extension}")
             if logo.exists():
                 return logo
     return config.RESOURCES_ROOT / "latex" / "images" / "logo-not-found.pdf"

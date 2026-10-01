@@ -817,7 +817,7 @@ class Problem:
                         continue
                     base = drop_suffix(file, [ext])
                     # add .in to make .with_suffix() work
-                    files.add(base.with_name(base.name + ".in"))
+                    files.add(base.with_name(f"{base.name}.in"))
         overrides = []
 
         has_raw = False
@@ -1312,7 +1312,7 @@ class Problem:
 
             name = case.name
             if len(name) > name_col_width:
-                name = "..." + name[-name_col_width + 3 :]
+                name = f"...{name[-name_col_width + 3 :]}"
             padding = " " * (name_col_width - len(name))
             eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
