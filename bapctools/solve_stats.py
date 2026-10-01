@@ -118,7 +118,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
     judgement_types[PENDING] = {"id": PENDING, "name": "pending"}
 
     bar.start("Judgements")
-    for j in call_api_get_json(url_prefix + "judgements"):
+    for j in call_api_get_json(f"{url_prefix}judgements"):
         # Firstly, only one judgement should be 'valid': in case of rejudgings, this should be the "active" judgement.
         # Secondly, note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.

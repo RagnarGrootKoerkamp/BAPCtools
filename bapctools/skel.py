@@ -272,7 +272,7 @@ def copy_skel_dir(problems: list[Problem]) -> None:
     skeldir, preserve_symlinks = get_skel_dir(problem.path)
 
     for d in config.args.directory:
-        sources = [skeldir / d, skeldir / d.parent / (d.name + ".template")]
+        sources = [skeldir / d, skeldir / d.parent / f"{d.name}.template"]
         target = problem.path / d
 
         if d.is_absolute():

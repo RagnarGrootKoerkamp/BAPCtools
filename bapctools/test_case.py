@@ -569,16 +569,16 @@ class TestCase:
                 targetdir.mkdir(parents=True, exist_ok=True)
                 intarget = targetdir / infile.name
                 infile.rename(intarget)
-                bar.log("Moved to " + print_name(intarget))
+                bar.log(f"Moved to {print_name(intarget)}")
                 ansfile = self.ans_path
                 if ansfile.is_file():
                     anstarget = intarget.with_suffix(".ans")
                     ansfile.rename(anstarget)
-                    bar.log("Moved to " + print_name(anstarget))
+                    bar.log(f"Moved to {print_name(anstarget)}")
 
             # Remove test case if specified.
             elif mode == validate.Mode.INPUT and config.args.remove:
-                bar.log(Fore.RED + "REMOVING TESTCASE!" + Style.RESET_ALL)
+                bar.log(f"{Fore.RED}REMOVING TESTCASE!{Style.RESET_ALL}")
                 if self.in_path.exists():
                     self.in_path.unlink()
                 if self.ans_path.exists():

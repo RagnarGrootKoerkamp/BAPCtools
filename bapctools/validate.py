@@ -99,7 +99,7 @@ class Validator(Program):
     """
 
     def __repr__(self) -> str:
-        return type(self).__name__ + ": " + str(self.path)
+        return type(self).__name__ + f": {self.path}"
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class Validator(Program):
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
         if check_constraints:
-            self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + "_check_constraints")
+            self.tmpdir: Path = self.tmpdir.parent / f"{self.tmpdir.name}_check_constraints"
         self.check_constraints = check_constraints
 
     def _run_helper(

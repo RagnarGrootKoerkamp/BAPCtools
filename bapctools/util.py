@@ -305,7 +305,7 @@ class ProgressBar:
         fill = "#" * done + "-" * (bar_width - 2 - done)
         if len(text) <= len(fill):
             fill = fill[: -len(text)] + text
-        return "[" + fill + "]"
+        return f"[{fill}]"
 
     def draw_bar(self) -> None:
         assert self._is_locked()
@@ -975,7 +975,7 @@ def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: b
 
         return cast(
             "str",
-            questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+            questionary.text(f"{name}:", default=default or "", validate=validate).unsafe_ask(),
         )
     else:
         text = f" ({default})" if default else ""
@@ -988,7 +988,7 @@ def ask_variable_bool(name: str, default: bool = True) -> bool:
 
         return cast(
             "bool",
-            questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+            questionary.confirm(f"{name}?", default=default, auto_enter=False).unsafe_ask(),
         )
     else:
         text = " (Y/n)" if default else " (y/N)"
@@ -1003,7 +1003,7 @@ def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str
         return cast(
             "str",
             questionary.select(
-                name + ":", choices=choices, default=default, style=plain
+                f"{name}:", choices=choices, default=default, style=plain
             ).unsafe_ask(),
         )
     else:
@@ -1295,18 +1295,16 @@ def crop_output(output: str) -> str:
     cropped = False
     # Cap number of lines
     if numlines > 30:
-        output = "\n".join(lines[:25])
-        output += "\n"
+        output = "\n".join(lines[:25]) + "\n"
         cropped = True
 
     # Cap total length.
     if len(output) > 2000:
-        output = output[:2000]
-        output += "[...]\n"
+        output = f"{output[:2000]}[...]\n"
         cropped = True
 
     if cropped:
-        output += Fore.YELLOW + "Use -e to show more." + Style.RESET_ALL
+        output += f"{Fore.YELLOW}Use -e to show more.{Style.RESET_ALL}"
     return output
 
 

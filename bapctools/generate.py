@@ -335,7 +335,7 @@ class SolutionInvocation(Invocation):
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
 
-        test_case = TestCase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
+        test_case = TestCase(self.problem, in_path, short_path=t.path.parent / f"{t.name}.in")
         assert isinstance(self.program, Submission)
         r = Run(self.problem, self.program, test_case)
 
@@ -392,7 +392,7 @@ solution: /{config.args.default_solution}"""
             else:
                 yaml_path = problem.path / "generators" / "generators.yaml"
                 raw = yaml_path.read_text()
-                raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
+                raw = f"solution: /{solution.relative_to(problem.path)}\n{raw}"
                 yaml_path.write_text(raw)
                 bar.log(
                     f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
@@ -581,7 +581,7 @@ class TestCaseRule(Rule):
 
             # files to consider for hashing
             hashes = {}
-            if not config.FILE_NAME_REGEX.fullmatch(name + ".in"):
+            if not config.FILE_NAME_REGEX.fullmatch(f"{name}.in"):
                 raise ParseError("Test case does not have a valid name.")
 
             if name == "test_group":
@@ -666,7 +666,7 @@ class TestCaseRule(Rule):
                 if Path(copy_entry).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
                     parser.bar.warn(f"`copy: {copy_entry}` should not include the extension.")
                 self.copy = resolve_path(copy_entry, allow_absolute=False, allow_relative=True)
-                self.copy = problem.path / self.copy.parent / (self.copy.name + ".in")
+                self.copy = problem.path / self.copy.parent / f"{self.copy.name}.in"
                 if self.copy.is_file():
                     self.in_is_generated = False
                 self.rule["copy"] = str(self.copy)
@@ -814,7 +814,7 @@ class TestCaseRule(Rule):
         identical_exts = set()
 
         src_dir = problem.path / "data" / self.path.parent
-        src = src_dir / (self.name + ".in")
+        src = src_dir / f"{self.name}.in"
 
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = src.with_suffix(ext)
@@ -977,7 +977,7 @@ class TestCaseRule(Rule):
             return
 
         target_dir = problem.path / "data" / self.path.parent
-        target_infile = target_dir / (self.name + ".in")
+        target_infile = target_dir / f"{self.name}.in"
 
         # E.g. bapctmp/problem/data/<hash>.in
         cwd = problem.tmpdir / "data" / self.hash
@@ -1073,9 +1073,9 @@ class TestCaseRule(Rule):
             if self.copy:
                 rule_hashes["source_hash"] = self.hash
             for ext, string in self.hardcoded.items():
-                rule_hashes["hardcoded_" + ext[1:]] = hash_string(string)
+                rule_hashes[f"hardcoded_{ext[1:]}"] = hash_string(string)
             for link, target in self.linked.items():
-                rule_hashes["linked_" + link[1:]] = hash_string(target)
+                rule_hashes[f"linked_{link[1:]}"] = hash_string(target)
             if self.generator:
                 rule_hashes["generator_hash"] = self.generator.hash(seed=self.seed)
                 rule_hashes["generator"] = self.generator.cache_command(seed=self.seed)
@@ -1738,9 +1738,9 @@ class DirectoryRule(Rule):
 
             localbar = bar.start(new_case)
             generator_config.failed += 1
-            infile = problem.path / "data" / target.parent / (target.name + ".in")
-            ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
-            new_infile = problem.path / "data" / self.path / (target.name + ".in")
+            infile = problem.path / "data" / target.parent / f"{target.name}.in"
+            ansfile = problem.path / "data" / target.parent / f"{target.name}.ans"
+            new_infile = problem.path / "data" / self.path / f"{target.name}.in"
 
             if not t.process:
                 localbar.warn(f"Included case {target} was not processed.")
@@ -2476,7 +2476,7 @@ data/*
         for d in directory_rules:
             for c in d.data:
                 if isinstance(c, TestCaseRule):
-                    test_case_filter.add(data / c.path.parent / (c.name + ".in"))
+                    test_case_filter.add(data / c.path.parent / f"{c.name}.in")
 
         ts_pair = self.problem.prepare_run()
         if not ts_pair:

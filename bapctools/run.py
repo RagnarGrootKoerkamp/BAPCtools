@@ -519,7 +519,7 @@ class Submission(Program):
                     continue
                 if data and not data.endswith("\n"):
                     data += "\n"
-                data += f"{f.name}:" + localbar._format_data(t) + "\n"
+                data += f"{f.name}:{localbar._format_data(t)}\n"
 
             permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
