@@ -52,9 +52,9 @@ class TestInput:
             ext = self.short_path.suffix
             name = self.short_path.with_suffix("")
             assert name.suffix in [".in"]
-            self.name = str(name.with_suffix(ext))
+            self.name = name.with_suffix(ext).as_posix()
         else:
-            self.name = str(self.short_path.with_suffix(""))
+            self.name = self.short_path.with_suffix("").as_posix()
 
 
 class WrappedSubmission:
