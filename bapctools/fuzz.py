@@ -297,7 +297,7 @@ class Fuzz:
 
         printbar.item_width = max_len + 1
         for submission, verdicts in self.summary.items():
-            msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))
+            msg = ", ".join(f"{v.color}{v.short}{Style.RESET_ALL}" for v in sorted(verdicts))
             printbar.start(submission).log(msg, color="")
         if not self.summary:
             printbar.item_width = 0
