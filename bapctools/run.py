@@ -616,6 +616,7 @@ class Submission(Program):
         self.verdict = verdict
 
         (salient_test_case, salient_duration) = verdicts.salient_test_case()
+        salient_print_name = salient_test_case.with_suffix("").as_posix()
         salient_print_verdict = self.verdict
         salient_tle = salient_print_verdict == Verdict.TIME_LIMIT_EXCEEDED
 
@@ -636,7 +637,7 @@ class Submission(Program):
         if bar.logged:
             color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
-        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_test_case.as_posix():{max_test_case_len}}{Style.RESET_ALL}"
+        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_print_name:{max_test_case_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_test_case()
