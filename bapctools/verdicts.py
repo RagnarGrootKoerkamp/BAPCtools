@@ -679,14 +679,12 @@ class TableProgressBar(ProgressBar):
         kwargs["flush"] = False  # drop all flushes...
         self.io.print(*args, **kwargs)
 
-    def start(self, item: ItemType = "") -> "TableProgressBar":
+    def start(self, item: ItemType = "") -> ProgressBar:
         from bapctools.run import Run
 
         assert isinstance(item, Run)
         self.table.start_run(item)
-        copy = super().start(item)
-        assert isinstance(copy, TableProgressBar)
-        return copy
+        return super().start(item)
 
     def done(
         self,
