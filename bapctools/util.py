@@ -261,11 +261,6 @@ class ProgressBar:
         self.count += count
         self.item_width = max(self.item_width, max_len + 1) if self.item_width else max_len + 1
 
-    def add_item(self, item: ItemType) -> None:
-        assert self.count is not None
-        self.count += 1
-        self.item_width = max(self.item_width, ProgressBar.item_len(item))
-
     def clearline(self) -> None:
         if config.args.no_bar:
             return
