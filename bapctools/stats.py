@@ -165,7 +165,7 @@ class Column:
             return None
         return self.function(problem)
 
-    def format(self, value: Optional[int | float | str], plain: bool = False) -> str:
+    def format(self, value: Optional[int | float | str], *, plain: bool = False) -> str:
         color = ""
         msg = ""
         if value is None:

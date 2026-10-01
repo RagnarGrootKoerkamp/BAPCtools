@@ -106,6 +106,7 @@ class Validator(Program):
         problem: "Problem",
         path: Path,
         subdir: str,
+        *,
         skip_double_build_warning: bool = False,
         check_constraints: bool = False,
     ) -> None:
@@ -470,7 +471,7 @@ def _has_consecutive_whitespaces(file_bytes: bytes) -> bool:
 
 
 def sanity_check(
-    problem: "Problem", path: Path, bar: AnyBar, strict_whitespace: bool = True
+    problem: "Problem", path: Path, bar: AnyBar, *, strict_whitespace: bool = True
 ) -> None:
     """
     Does some generic checks on input, answer, or output files of a test case, including

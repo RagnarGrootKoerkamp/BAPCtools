@@ -427,7 +427,7 @@ def build_latex_pdf(
 # 2. Create tmpdir/<problem>/latex/<language>/{samples,constants}.tex.
 # 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
 def build_problem_pdf(
-    problem: "Problem", language: str, build_type: PdfType = PdfType.PROBLEM, web: bool = False
+    problem: "Problem", language: str, build_type: PdfType = PdfType.PROBLEM, *, web: bool = False
 ) -> bool:
     """
     Arguments:
@@ -454,7 +454,7 @@ def build_problem_pdf(
 
 
 def build_problem_pdfs(
-    problem: "Problem", build_type: PdfType = PdfType.PROBLEM, web: bool = False
+    problem: "Problem", build_type: PdfType = PdfType.PROBLEM, *, web: bool = False
 ) -> bool:
     """Build PDFs for various languages. If list of languages is specified,
     (either via config files or --lang arguments), build those. Otherwise
@@ -479,7 +479,7 @@ def build_problem_pdfs(
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
         fatal("--watch does not work with multiple languages. Please use --lang")
-    return all(build_problem_pdf(problem, lang, build_type, web) for lang in languages)
+    return all(build_problem_pdf(problem, lang, build_type, web=web) for lang in languages)
 
 
 def find_logo() -> Path:
@@ -497,6 +497,7 @@ def build_contest_pdf(
     tmpdir: Path,
     language: str,
     build_type: PdfType = PdfType.PROBLEM,
+    *,
     web: bool = False,
 ) -> bool:
     builddir = tmpdir / contest / "latex" / language
@@ -598,10 +599,11 @@ def build_contest_pdfs(
     tmpdir: Path,
     lang: Optional[str] = None,
     build_type: PdfType = PdfType.PROBLEM,
+    *,
     web: bool = False,
 ) -> bool:
     if lang:
-        return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web)
+        return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web=web)
 
     bar = PrintBar(contest)
     """Build contest PDFs for all available languages"""
@@ -617,7 +619,8 @@ def build_contest_pdfs(
     if config.args.watch and len(languages) > 1:
         bar.fatal("--watch does not work with multiple languages. Please use --lang")
     return all(
-        build_contest_pdf(contest, problems, tmpdir, lang, build_type, web) for lang in languages
+        build_contest_pdf(contest, problems, tmpdir, lang, build_type, web=web)
+        for lang in languages
     )
 
 

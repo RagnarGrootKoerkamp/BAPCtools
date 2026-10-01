@@ -49,7 +49,7 @@ class RunUntil(Enum):
     ALL = 3
 
 
-def to_char(v: Optional[Verdict | Literal[False]], lower: bool = False) -> str:
+def to_char(v: Optional[Verdict | Literal[False]], *, lower: bool = False) -> str:
     if v is None or v is False:
         return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
@@ -417,7 +417,8 @@ class VerdictTable:
     def _get_verdict(self, s: int, test_case: Path, check_sample: bool = True) -> str:
         res = f"{Style.DIM}-{Style.RESET_ALL}"
         if s < len(self.results) and self.results[s][test_case] not in [None, False]:
-            res = to_char(self.results[s][test_case], check_sample and test_case in self.samples)
+            lower = check_sample and test_case in self.samples
+            res = to_char(self.results[s][test_case], lower=lower)
         elif s + 1 == len(self.results) and test_case in self.current_test_cases:
             res = Style.DIM + to_char(None)
         return res

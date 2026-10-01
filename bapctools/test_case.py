@@ -355,8 +355,8 @@ class TestCase:
     def validate_format(
         self,
         mode: validate.Mode,
-        *,
         bar: AnyBar,
+        *,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
@@ -367,8 +367,8 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.INPUT,
                     self.problem.validators(InputValidator, check_constraints=check_constraints),
-                    self.root == "invalid_input",
-                    bar=bar,
+                    bar,
+                    expect_rejection=self.root == "invalid_input",
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -376,8 +376,8 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.ANSWER,
                     self.problem.validators(AnswerValidator, check_constraints=check_constraints),
-                    self.root == "invalid_answer",
-                    bar=bar,
+                    bar,
+                    expect_rejection=self.root == "invalid_answer",
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -386,7 +386,7 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.INPUT,
-                    bar=bar,
+                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -397,7 +397,7 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,
-                    bar=bar,
+                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -409,8 +409,8 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.INVALID,
                     self.problem.validators(OutputValidator),
-                    True,
-                    bar=bar,
+                    bar,
+                    expect_rejection=True,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -420,7 +420,7 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.INPUT,
-                    bar=bar,
+                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -429,7 +429,7 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,
-                    bar=bar,
+                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -439,8 +439,8 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.VALID_OUTPUT,
                     self.problem.validators(OutputValidator),
-                    False,
-                    bar=bar,
+                    bar,
+                    expect_rejection=False,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -451,9 +451,9 @@ class TestCase:
         self,
         mode: validate.Mode,
         validators: Sequence[AnyValidator],
-        expect_rejection: bool,
-        *,
         bar: AnyBar,
+        *,
+        expect_rejection: bool,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:

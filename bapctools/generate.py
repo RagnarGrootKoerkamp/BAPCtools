@@ -2184,7 +2184,7 @@ class GeneratorConfig:
         return False
 
     def build(
-        self, build_visualizers: bool = True, skip_double_build_warning: bool = False
+        self, *, build_visualizers: bool = True, skip_double_build_warning: bool = False
     ) -> None:
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
@@ -2331,7 +2331,7 @@ class GeneratorConfig:
 
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path: Path, bar: AnyBar, silent: bool = False) -> None:
+    def _remove_unknown(self, path: Path, bar: AnyBar, *, silent: bool = False) -> None:
         local = path.relative_to(self.problem.path / "data")
         keep = any(
             (
@@ -2348,7 +2348,7 @@ class GeneratorConfig:
                         for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                             tmp = f.with_suffix(ext)
                             if tmp.is_file():
-                                self._remove_unknown(f.with_suffix(ext), bar, True)
+                                self._remove_unknown(f.with_suffix(ext), bar, silent=True)
                 for f in sorted(path.glob("*")):
                     self._remove_unknown(f, bar)
         else:
@@ -2626,7 +2626,7 @@ def clean_trash(problem: Problem, time_limit: int = 10 * 60, size_lim: int = 102
 
 
 # Clean data/ and tmpdir/data/
-def clean_data(problem: Problem, data: bool = True, cache: bool = True) -> None:
+def clean_data(problem: Problem, *, data: bool = True, cache: bool = True) -> None:
     dirs = [
         problem.path / "data" if data else None,
         problem.tmpdir / "data" if cache else None,
@@ -2640,7 +2640,7 @@ def generate(problem: Problem) -> bool:
     clean_trash(problem)
 
     if config.args.clean:
-        clean_data(problem, True, True)
+        clean_data(problem, data=True, cache=True)
         return True
 
     gen_config = GeneratorConfig(problem, config.args.test_cases)
