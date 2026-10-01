@@ -66,7 +66,7 @@ class Run:
         self.test_case = test_case
         self.name: str = self.test_case.name
         self.skip = skip
-        self.result = None
+        self.result: Optional[ExecResult] = None
 
         self.tmpdir: Path = (
             self.problem.tmpdir

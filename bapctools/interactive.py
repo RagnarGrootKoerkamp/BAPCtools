@@ -189,7 +189,7 @@ class Relay(threading.Thread):
         # We assume that the output validator knows what it does and directly propagate
         # a closed stream. For the submission on the other hand we only propagte a closed
         # stream after the submission died
-        vs, sv = "<>"
+        vs, sv = "<", ">"
         if log is not None and log.isatty():
             vs = f"{Fore.YELLOW}{vs}{Style.RESET_ALL}"
             sv = f"{Fore.CYAN}{sv}{Style.RESET_ALL}"

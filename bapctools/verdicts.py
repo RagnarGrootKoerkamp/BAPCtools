@@ -179,6 +179,7 @@ class Verdicts:
         """update our state based on the run (can set multiple nodes)"""
         with self:
             assert run.result is not None
+            assert run.result.verdict is not None
             self.duration[run.test_case.short_path] = run.result.duration
             self._set_verdict_for_node(
                 run.test_case.short_path, run.result.verdict, run.result.timeout_expired
