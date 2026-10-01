@@ -416,7 +416,7 @@ def build_latex_pdf(
         bar.warn(f"{rel_path} is larger than {config.ICPC_IMAGE_LIMIT} KiB")
 
     assert not config.args.watch
-    ensure_symlink(dest_path, built_pdf, True)
+    ensure_symlink(dest_path, built_pdf, output=True)
 
     bar.log(f"PDF written to {dest_path}\n")
     return True
