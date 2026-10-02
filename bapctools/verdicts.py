@@ -29,7 +29,7 @@ class Verdict(Enum):
     JUDGE_ERROR = (5, "JE", Fore.RED)
     COMPILER_ERROR = (6, "CE", Fore.RED)
 
-    def __init__(self, order: int, short: str, color: str):
+    def __init__(self, order: int, short: str, color: str) -> None:
         self.order = order
         self.short = short
         self.color = color
