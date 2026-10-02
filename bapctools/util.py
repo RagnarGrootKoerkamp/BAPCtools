@@ -540,12 +540,12 @@ if hasattr(signal, "SIGWINCH"):
 class PrintBar:
     def __init__(
         self,
-        prefix: Optional[str | Path] = None,
+        prefix: Optional[str] = None,
         max_len: Optional[int] = None,
         *,
         item: Optional[ItemType] = None,
     ) -> None:
-        self.prefix: Optional[str] = str(prefix) if prefix else None
+        self.prefix: Optional[str] = prefix
         self.item_width: Optional[int] = None
         self.max_len: Optional[int] = max_len
         if item is not None:
