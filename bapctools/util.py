@@ -287,6 +287,7 @@ class ProgressBar:
         return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
 
     def get_bar(self) -> str:
+        assert self.parent is None
         bar_width = self.bar_width()
         if self.count is None or bar_width < 4:
             return ""
@@ -300,6 +301,7 @@ class ProgressBar:
 
     def draw_bar(self) -> None:
         assert self._is_locked()
+        assert self.parent is None
         if config.args.no_bar:
             return
         bar = self.get_bar()
@@ -359,6 +361,8 @@ class ProgressBar:
             self.in_progress.add(item)
             bar_copy = copy.copy(self)
             bar_copy.parent = self
+            bar_copy.logged = False
+            bar_copy.count = 0
 
             self.draw_bar()
             return bar_copy
@@ -566,6 +570,7 @@ class PrintBar:
         if bar_copy.max_len is not None:
             bar_copy.item_width = bar_copy.max_len + 1
         bar_copy.parent = self
+        bar_copy.global_logged = False
         return bar_copy
 
     def part_done(
