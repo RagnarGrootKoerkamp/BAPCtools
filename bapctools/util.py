@@ -324,12 +324,10 @@ class ProgressBar:
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
         assert self.item is not None
-        if self.parent:
-            self.parent.in_progress.remove(self.item)
-            if self.parent.item is self.item:
-                self.parent.item = None
-        else:
-            self.in_progress.remove(self.item)
+        root = self.parent or self
+        root.in_progress.remove(self.item)
+        if root.item is self.item:
+            root.item = None
         self.item = None
 
     # Resume the ongoing progress bar after a log/done.
@@ -342,7 +340,7 @@ class ProgressBar:
             return
 
         if len(self.in_progress) > 0:
-            if self.item is None or self.item not in self.in_progress:
+            if self.item not in self.in_progress:
                 self.item = next(iter(self.in_progress))
             self.draw_bar()
 
