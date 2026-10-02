@@ -141,6 +141,9 @@ class Named(Protocol):
     def name(self) -> str: ...
 
 
+ItemType = str | Path | Named
+
+
 # The base functionallity of a bar.
 # Note that this can't handle any items.
 class AnyBar(Protocol):
@@ -157,9 +160,6 @@ class AnyBar(Protocol):
     def warn(self, message: str, data: Optional[str] = None) -> None: ...
     def error(self, message: str, data: Optional[str] = None) -> None: ...
     def fatal(self, message: str, data: Optional[str] = None) -> NoReturn: ...
-
-
-ItemType = str | Path | Named
 
 
 # A class that draws a progressbar.
@@ -256,11 +256,6 @@ class ProgressBar:
 
     def bar_width(self) -> int:
         return self.total_width() - len(self.prefix) - 2 - self.item_width
-
-    def update(self, count: int, max_len: int) -> None:
-        assert self.count is not None
-        self.count += count
-        self.item_width = max(self.item_width, max_len + 1) if self.item_width else max_len + 1
 
     def clearline(self) -> None:
         if config.args.no_bar:
