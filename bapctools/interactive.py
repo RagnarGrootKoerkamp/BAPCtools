@@ -19,7 +19,7 @@ from typing_extensions import override
 
 from bapctools import config
 from bapctools.util import (
-    AnyBar,
+    BaseBar,
     ExecResult,
     ExecStatus,
     is_windows,
@@ -320,7 +320,7 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    bar: AnyBar,
+    bar: BaseBar,
     *,
     # False: Return as part of ExecResult
     # True: print to stdout

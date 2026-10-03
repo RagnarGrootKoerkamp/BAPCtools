@@ -24,7 +24,7 @@ from bapctools.languages import Language
 from bapctools.program import Program
 from bapctools.test_case import TestCase
 from bapctools.util import (
-    AnyBar,
+    BaseBar,
     crop_line,
     crop_output,
     ensure_symlink,
@@ -84,7 +84,7 @@ class Run:
         ensure_symlink(self.in_path, self.test_case.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, bar: AnyBar, *, interaction: bool | Path = False) -> ExecResult:
+    def run(self, bar: BaseBar, *, interaction: bool | Path = False) -> ExecResult:
         submission_args = self.test_case.get_test_case_yaml(bar).args or []
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
@@ -221,7 +221,7 @@ class Run:
             or config.args.action in ["all", "time_limit"]
         )
 
-    def _check_nextpass(self, bar: AnyBar) -> bool:
+    def _check_nextpass(self, bar: BaseBar) -> bool:
         has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
         if not self.problem.multi_pass:
             if has_nextpass:
@@ -239,7 +239,7 @@ class Run:
         # use nextpass.in as next input
         shutil.move(self.feedbackdir / "nextpass.in", self.in_path)
 
-    def _validate_output(self, bar: AnyBar) -> Optional[ExecResult]:
+    def _validate_output(self, bar: BaseBar) -> Optional[ExecResult]:
         output_validator = self.problem.output_validator()
         if not output_validator:
             return None
@@ -249,7 +249,7 @@ class Run:
             args=self.test_case.get_test_case_yaml(bar).output_validator_args,
         )
 
-    def _visualize_output(self, bar: AnyBar) -> Optional[ExecResult]:
+    def _visualize_output(self, bar: BaseBar) -> Optional[ExecResult]:
         if config.args.no_visualizer:
             return None
         output_visualizer = self.problem.visualizer(OutputVisualizer)
@@ -350,7 +350,7 @@ class Submission(Program):
         return set(permitted)
 
     @override
-    def _get_language_candidates(self, bar: AnyBar) -> list[tuple[Language, list[Path]]]:
+    def _get_language_candidates(self, bar: BaseBar) -> list[tuple[Language, list[Path]]]:
         if self.expectations.language is None:
             return super()._get_language_candidates(bar)
         candidates = []
@@ -372,7 +372,7 @@ class Submission(Program):
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
     @override
-    def _set_language(self, language: Language, bar: AnyBar) -> None:
+    def _set_language(self, language: Language, bar: BaseBar) -> None:
         restriction = self.problem.settings.languages
         if restriction and language.code not in restriction:
             bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
@@ -381,7 +381,7 @@ class Submission(Program):
         super()._set_language(language, bar)
 
     @override
-    def _get_entry_point(self, files: list[Path], bar: AnyBar) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path], bar: BaseBar) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
             return super()._get_entry_point(files, bar)
         entrypoint = self.expectations.entrypoint
@@ -561,7 +561,7 @@ class Submission(Program):
             localbar.done(got_permitted, message, data, print_item=False)
 
         parallel.run_tasks(process_run, runs, pin=True)
-        bar.item_width -= max_test_case_len + 1
+        bar.item_width = padding_len
 
         # We already printed a message if permitted is not satisfied
         passed_permitted = True

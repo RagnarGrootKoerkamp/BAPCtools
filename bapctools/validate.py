@@ -10,7 +10,7 @@ from typing_extensions import override
 from bapctools import config, languages
 from bapctools.program import Program
 from bapctools.util import (
-    AnyBar,
+    BaseBar,
     ExecResult,
     ExecStatus,
     remove_path,
@@ -477,7 +477,7 @@ def _has_consecutive_whitespaces(file_bytes: bytes) -> bool:
 
 
 def sanity_check(
-    problem: "Problem", path: Path, bar: AnyBar, *, strict_whitespace: bool = True
+    problem: "Problem", path: Path, bar: BaseBar, *, strict_whitespace: bool = True
 ) -> None:
     """
     Does some generic checks on input, answer, or output files of a test case, including
@@ -550,7 +550,7 @@ def sanity_check(
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
 
 
-def _sanity_check_override(file_bytes: bytes, bar: AnyBar, name: str) -> None:
+def _sanity_check_override(file_bytes: bytes, bar: BaseBar, name: str) -> None:
     if len(file_bytes) == 0:
         return
     if _has_invalid_byte(file_bytes, other_whitespaces=False):
@@ -563,7 +563,7 @@ def _sanity_check_override(file_bytes: bytes, bar: AnyBar, name: str) -> None:
         bar.warn(f"{name} contains consecutive whitespace characters")
 
 
-def sanity_check_override(problem: "Problem", path: Path, bar: AnyBar) -> None:
+def sanity_check_override(problem: "Problem", path: Path, bar: BaseBar) -> None:
     """
     Does some generic checks on override files, including
 
@@ -591,7 +591,7 @@ def sanity_check_override(problem: "Problem", path: Path, bar: AnyBar) -> None:
 
 
 def check_interaction(
-    problem: "Problem", path: Path, bar: AnyBar, *, startswith: bytes = b""
+    problem: "Problem", path: Path, bar: BaseBar, *, startswith: bytes = b""
 ) -> bool:
     """
     Checks the override as well as some specific checks for .interaction files, including

@@ -18,6 +18,7 @@ import sys
 import tempfile
 import threading
 import time
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import ExitStack, suppress
 from dataclasses import dataclass
@@ -45,6 +46,7 @@ from colorama import Fore, Style
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.constructor import DuplicateKeyError
+from typing_extensions import override
 
 from bapctools import config
 
@@ -144,37 +146,14 @@ class Named(Protocol):
 ItemType = str | Path | Named
 
 
-# The base functionallity of a bar.
-# Note that this can't handle any items.
-class AnyBar(Protocol):
-    def part_done(
-        self,
-        success: bool = True,
-        message: str = "",
-        data: Optional[str] = None,
-        *,
-        warn_instead_of_error: bool = False,
-    ) -> None: ...
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
-    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
-    def warn(self, message: str, data: Optional[str] = None) -> None: ...
-    def error(self, message: str, data: Optional[str] = None) -> None: ...
-    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn: ...
-
-
-# A class that draws a progressbar.
-# Construct with a constant prefix, the max length of the items to process, and
-# the number of items to process.
-# When count is None, the bar itself isn't shown.
-# Start each loop with bar.start(current_item), end it with bar.done(message).
-# Optionally, multiple errors can be logged using bar.log(error). If so, the
-# final message on bar.done() will be ignored.
-class ProgressBar:
+# The base functionallity of a bar, i.e., printing stuff
+# Note that this intentionally does not contain functions
+# to change the item, i.e., no start, done, finalize. This
+# has to be done by an actual bar
+class BaseBar(ABC):
     # Lock on all IO via this class.
     lock = threading.RLock()
     lock_depth = 0
-
-    current_bar: Optional["ProgressBar"] = None
 
     columns = shutil.get_terminal_size().columns
 
@@ -190,10 +169,142 @@ class ProgressBar:
 
     @staticmethod
     def item_len(item: ItemType) -> int:
-        return len(ProgressBar.item_text(item))
+        return len(BaseBar.item_text(item))
+
+    @staticmethod
+    def action(
+        prefix: Optional[str],
+        item: Optional[ItemType],
+        width: Optional[int] = None,
+        total_width: Optional[int] = None,
+    ) -> str:
+        if width is not None and total_width is not None:
+            if prefix is None and width > total_width:
+                width = total_width
+            if prefix is not None and len(prefix) + 2 + width > total_width:
+                width = total_width - len(prefix) - 2
+        text = BaseBar.item_text(item)
+        if width is not None and len(text) > width:
+            text = text[:width]
+        if width is None or width <= 0:
+            width = 0
+        prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
+        return f"{prefix}{text:<{width}}"
+
+    @staticmethod
+    def process_warning(message: str, item: Optional[ItemType]) -> str:
+        item_name = BaseBar.action(None, item, None, None)
+        if item_name and f"{item_name} {message}" in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        if message in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        config.n_warn += 1
+        return message
+
+    @staticmethod
+    def _format_data(data: Optional[str]) -> str:
+        if not data:
+            return ""
+        prefix = "  " if data.count("\n") <= 1 else "\n"
+        data = crop_output(data).removesuffix("\n")
+        return f"{prefix}{Fore.YELLOW}{data}{Style.RESET_ALL}"
+
+    def __init__(
+        self, prefix: Optional[str], max_len: Optional[int], item: Optional[ItemType] = None
+    ) -> None:
+        self.prefix: Optional[str] = prefix
+        self.max_len: Optional[int] = max_len
+        self.item: Optional[ItemType] = item
+        self.item_width: Optional[int] = None
+
+        if item is not None:
+            self.item_width = BaseBar.item_len(item) + 1
+        if max_len is not None:
+            self.item_width = max_len + 1
+
+        BaseBar.columns = shutil.get_terminal_size().columns
+
+    def __enter__(self) -> None:
+        BaseBar.lock.__enter__()
+        BaseBar.lock_depth += 1
+
+    def __exit__(self, *args: Any) -> None:
+        BaseBar.lock_depth -= 1
+        BaseBar.lock.__exit__(*args)
 
     def _is_locked(self) -> bool:
-        return ProgressBar.lock_depth > 0
+        return BaseBar.lock_depth > 0
+
+    @abstractmethod
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
+
+    # Same as log, but only in verbose mode.
+    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        if config.args.verbose:
+            self.log(message, data, color)
+
+    def warn(self, message: str, data: Optional[str] = None) -> None:
+        if config.args.suppress_warnings < 1:
+            with self:
+                message = BaseBar.process_warning(message, self.item)
+                self.log(message, data, Fore.YELLOW)
+
+    def error(self, message: str, data: Optional[str] = None) -> None:
+        if config.args.suppress_warnings < 2:
+            with self:
+                config.n_error += 1
+                self.log(message, data, Fore.RED)
+
+    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn:
+        with self:
+            config.n_error += 1
+            self.log(message, data, Fore.RED)
+            exit1()
+
+    # Log an intermediate line if it's an error or we're in verbose mode.
+    def part_done(
+        self,
+        success: bool = True,
+        message: str = "",
+        data: Optional[str] = None,
+        *,
+        warn_instead_of_error: bool = False,
+    ) -> None:
+        if not success:
+            assert message
+            if warn_instead_of_error:
+                BaseBar.process_warning(message, self.item)
+            else:
+                config.n_error += 1
+        if config.args.verbose or not success:
+            with self:
+                if success:
+                    self.log(message, data)
+                elif warn_instead_of_error:
+                    self.warn(message, data)
+                else:
+                    self.error(message, data)
+
+
+if hasattr(signal, "SIGWINCH"):
+
+    def update_columns(_: Any, __: Any) -> None:
+        cols, rows = shutil.get_terminal_size()
+        BaseBar.columns = cols
+
+    signal.signal(signal.SIGWINCH, update_columns)
+
+
+# A class that draws a progressbar.
+# Construct with a constant prefix, the max length of the items to process, and
+# the number of items to process.
+# When count is None, the bar itself isn't shown.
+# Start each item with bar.start(current_item), end it with bar.done(message).
+# Optionally, multiple errors can be logged using the normal bar operations like
+# bar.log(), bar.error(), etc.
+# If anything was logged the final message on bar.done() will be suppressed.
+class ProgressBar(BaseBar):
+    current_bar: Optional["ProgressBar"] = None
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(
@@ -213,35 +324,19 @@ class ProgressBar:
         if items is not None and max_len is None:
             max_len = max((ProgressBar.item_len(x) for x in items), default=0)
         assert max_len is not None
-        self.prefix: str = prefix  # The prefix to always print
-        self.item_width: int = max_len + 1  # The max length of the items we're processing
+
+        super().__init__(prefix, max_len)
+
         self.count: Optional[int] = count  # The number of items we're processing
         self.i: int = 0
-        ProgressBar.columns = shutil.get_terminal_size().columns
         emptyline = " " * self.total_width() + "\r"
         self.carriage_return: str = emptyline if is_windows() else "\033[K"
-        self.logged: bool = False
+        self.needs_leading_newline: bool = needs_leading_newline
         self.global_logged: bool = False
+        self.logged: bool = False
 
-        # For parallel contexts, start() will return a copy to preserve the item name.
-        # The parent still holds some global state:
-        # - global_logged
-        # - IO lock
-        # - the counter
-        # - items in progress
         self.parent: Optional[ProgressBar] = None
         self.in_progress: set[ItemType] = set()
-        self.item: Optional[ItemType] = None
-
-        self.needs_leading_newline: bool = needs_leading_newline
-
-    def __enter__(self) -> None:
-        ProgressBar.lock.__enter__()
-        ProgressBar.lock_depth += 1
-
-    def __exit__(self, *args: Any) -> None:
-        ProgressBar.lock_depth -= 1
-        ProgressBar.lock.__exit__(*args)
 
     def _print(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("sep", "")
@@ -249,12 +344,11 @@ class ProgressBar:
         eprint(*args, **kwargs)
 
     def total_width(self) -> int:
-        cols = ProgressBar.columns
-        if is_windows():
-            cols -= 1
-        return cols
+        return BaseBar.columns - 1 if is_windows() else BaseBar.columns
 
     def bar_width(self) -> int:
+        assert self.prefix is not None
+        assert self.item_width is not None
         return self.total_width() - len(self.prefix) - 2 - self.item_width
 
     def clearline(self) -> None:
@@ -263,28 +357,8 @@ class ProgressBar:
         assert self._is_locked()
         self._print(self.carriage_return, end="", flush=False)
 
-    @staticmethod
-    def action(
-        prefix: Optional[str],
-        item: Optional[ItemType],
-        width: Optional[int] = None,
-        total_width: Optional[int] = None,
-    ) -> str:
-        if width is not None and total_width is not None:
-            if prefix is None and width > total_width:
-                width = total_width
-            if prefix is not None and len(prefix) + 2 + width > total_width:
-                width = total_width - len(prefix) - 2
-        text = ProgressBar.item_text(item)
-        if width is not None and len(text) > width:
-            text = text[:width]
-        if width is None or width <= 0:
-            width = 0
-        prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
-        return f"{prefix}{text:<{width}}"
-
     def get_prefix(self) -> str:
-        return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
+        return BaseBar.action(self.prefix, self.item, self.item_width, self.total_width())
 
     def get_bar(self) -> str:
         assert self.parent is None
@@ -311,16 +385,6 @@ class ProgressBar:
         else:
             self._print(prefix, bar, end="\r")
 
-    @staticmethod
-    def process_warning(message: str, item: Optional[ItemType]) -> str:
-        item_name = ProgressBar.action(None, item, None, None)
-        if item_name and f"{item_name} {message}" in config.args.ignore_warning:
-            return f"{message} (ignored)"
-        if message in config.args.ignore_warning:
-            return f"{message} (ignored)"
-        config.n_warn += 1
-        return message
-
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
         assert self.item is not None
@@ -344,6 +408,39 @@ class ProgressBar:
                 self.item = next(iter(self.in_progress))
             self.draw_bar()
 
+    # Log can be called multiple times to make multiple persistent lines.
+    # Make sure that the message does not end in a newline.
+    @override
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        with self:
+            self.clearline()
+            self.logged = True
+
+            root = self.parent or self
+            root.global_logged = True
+            if root.needs_leading_newline:
+                root._print()
+                root.needs_leading_newline = False
+
+            self._print(
+                self.get_prefix(),
+                color,
+                message,
+                BaseBar._format_data(data),
+                Style.RESET_ALL,
+            )
+            root._resume()
+
+    # Skip an item.
+    def skip(self) -> None:
+        with self:
+            self.i += 1
+
+    # For parallel contexts, start() will return a copy to preserve the item name.
+    # The parent still holds some global state:
+    # - global_logged
+    # - the counter
+    # - items in progress
     def start(self, item: ItemType) -> "ProgressBar":
         with self:
             # start may only be called on the root bar.
@@ -360,68 +457,10 @@ class ProgressBar:
             bar_copy = copy.copy(self)
             bar_copy.parent = self
             bar_copy.logged = False
-            bar_copy.count = 0
+            bar_copy.count = None
 
             self.draw_bar()
             return bar_copy
-
-    @staticmethod
-    def _format_data(data: Optional[str]) -> str:
-        if not data:
-            return ""
-        prefix = "  " if data.count("\n") <= 1 else "\n"
-        return prefix + Fore.YELLOW + crop_output(data).removesuffix("\n") + Style.RESET_ALL
-
-    # Log can be called multiple times to make multiple persistent lines.
-    # Make sure that the message does not end in a newline.
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        with self:
-            self.clearline()
-            self.logged = True
-
-            root = self.parent or self
-            root.global_logged = True
-            if root.needs_leading_newline:
-                root._print()
-                root.needs_leading_newline = False
-
-            self._print(
-                self.get_prefix(),
-                color,
-                message,
-                ProgressBar._format_data(data),
-                Style.RESET_ALL,
-            )
-            root._resume()
-
-    # Same as log, but only in verbose mode.
-    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        if config.args.verbose:
-            self.log(message, data, color)
-
-    def warn(self, message: str, data: Optional[str] = None) -> None:
-        with self.lock:
-            if config.args.suppress_warnings < 1:
-                message = ProgressBar.process_warning(message, self.item)
-                self.log(message, data, Fore.YELLOW)
-
-    # Error by default removes the current item from the in_progress set.
-    def error(self, message: str, data: Optional[str] = None) -> None:
-        with self:
-            if config.args.suppress_warnings < 2:
-                config.n_error += 1
-                self.log(message, data, Fore.RED)
-
-    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn:
-        with self:
-            config.n_error += 1
-            self.log(message, data, Fore.RED)
-            exit1()
-
-    # Skip an item.
-    def skip(self) -> None:
-        with self:
-            self.i += 1
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(
@@ -458,31 +497,6 @@ class ProgressBar:
                 self._release_item()
             if self.parent:
                 self.parent._resume()
-
-    # Log an intermediate line if it's an error or we're in verbose mode.
-    # Return True when something was printed
-    def part_done(
-        self,
-        success: bool = True,
-        message: str = "",
-        data: Optional[str] = None,
-        *,
-        warn_instead_of_error: bool = False,
-    ) -> None:
-        if not success:
-            assert message
-            if warn_instead_of_error:
-                ProgressBar.process_warning(message, self.item)
-            else:
-                config.n_error += 1
-        if config.args.verbose or not success:
-            with self:
-                if success:
-                    self.log(message, data)
-                elif warn_instead_of_error:
-                    self.warn(message, data)
-                else:
-                    self.error(message, data)
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
@@ -525,17 +539,8 @@ class ProgressBar:
         return self.global_logged and not suppress_newline
 
 
-if hasattr(signal, "SIGWINCH"):
-
-    def update_columns(_: Any, __: Any) -> None:
-        cols, rows = shutil.get_terminal_size()
-        ProgressBar.columns = cols
-
-    signal.signal(signal.SIGWINCH, update_columns)
-
-
-# A simple bar that only holds a task prefix
-class PrintBar:
+# A simple bar that holds a constant prefix and item
+class PrintBar(BaseBar):
     def __init__(
         self,
         prefix: Optional[str] = None,
@@ -543,14 +548,7 @@ class PrintBar:
         *,
         item: Optional[ItemType] = None,
     ) -> None:
-        self.prefix: Optional[str] = prefix
-        self.item_width: Optional[int] = None
-        self.max_len: Optional[int] = max_len
-        if item is not None:
-            self.item_width = ProgressBar.item_len(item) + 1
-        if self.max_len is not None:
-            self.item_width = self.max_len + 1
-        self.item: Optional[ItemType] = item
+        super().__init__(prefix, max_len, item)
         self.global_logged: bool = False
         self.parent: Optional[PrintBar] = None
 
@@ -561,6 +559,13 @@ class PrintBar:
         if self.parent is not None:
             self.parent._set_logged()
 
+    @override
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        with self:
+            self._set_logged()
+            prefix = BaseBar.action(self.prefix, self.item, self.item_width, None)
+            eprint(prefix, color, message, BaseBar._format_data(data), Style.RESET_ALL, sep="")
+
     def start(self, item: ItemType) -> "PrintBar":
         bar_copy = copy.copy(self)
         bar_copy.item = item
@@ -570,55 +575,6 @@ class PrintBar:
         bar_copy.parent = self
         bar_copy.global_logged = False
         return bar_copy
-
-    def part_done(
-        self,
-        success: bool = True,
-        message: str = "",
-        data: Optional[str] = None,
-        *,
-        warn_instead_of_error: bool = False,
-    ) -> None:
-        if not success:
-            assert message
-            if warn_instead_of_error:
-                ProgressBar.process_warning(message, self.item)
-            else:
-                config.n_error += 1
-        if config.args.verbose or not success:
-            if success:
-                self.log(message, data)
-            elif warn_instead_of_error:
-                self.warn(message, data)
-            else:
-                self.error(message, data)
-
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        self._set_logged()
-        prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None)
-        eprint(prefix, color, message, ProgressBar._format_data(data), Style.RESET_ALL, sep="")
-
-    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        if config.args.verbose:
-            self.log(message, data, color)
-
-    def warn(self, message: str, data: Optional[str] = None) -> None:
-        if config.args.suppress_warnings < 1:
-            message = ProgressBar.process_warning(message, self.item)
-            self.log(message, data, Fore.YELLOW)
-
-    def error(self, message: str, data: Optional[str] = None) -> None:
-        if config.args.suppress_warnings < 2:
-            config.n_error += 1
-            self.log(message, data, Fore.RED)
-
-    def fatal(self, message: str, data: Optional[str] = None) -> NoReturn:
-        config.n_error += 1
-        self.log(message, data, Fore.RED)
-        exit1()
-
-
-# AnyBar = PrintBar | ProgressBar
 
 
 # Given a command line argument, return the first match:
@@ -745,7 +701,7 @@ class YamlParser:
         source: str,
         yaml: dict[object, object],
         parent_path: Optional[str] = None,
-        bar: Optional[AnyBar] = None,
+        bar: Optional[BaseBar] = None,
     ):
         assert isinstance(yaml, dict)
         self.errors = 0
@@ -1128,7 +1084,7 @@ def has_substitute(
 def substitute(
     data: str,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: AnyBar = PrintBar(),
+    bar: BaseBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> str:
@@ -1151,7 +1107,7 @@ def copy_and_substitute(
     inpath: Path,
     outpath: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: AnyBar = PrintBar(),
+    bar: BaseBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1170,7 +1126,7 @@ def copy_and_substitute(
 def substitute_file_variables(
     path: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: AnyBar = PrintBar(),
+    bar: BaseBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1180,7 +1136,7 @@ def substitute_file_variables(
 def substitute_dir_variables(
     dirname: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: AnyBar = PrintBar(),
+    bar: BaseBar = PrintBar(),
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
 ) -> None:
@@ -1195,7 +1151,7 @@ def copytree_and_substitute(
     src: Path,
     dst: Path,
     variables: Optional[Mapping[str, Optional[object]]],
-    bar: AnyBar = PrintBar(),
+    bar: BaseBar = PrintBar(),
     *,
     exist_ok: bool = True,
     preserve_symlinks: bool = True,
