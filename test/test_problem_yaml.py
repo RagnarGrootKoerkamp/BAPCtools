@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from bapctools import config, problem
-from bapctools.util import PrintBar, ProgressBar, YamlParser
+from bapctools.util import BaseBar, YamlParser
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -75,10 +75,9 @@ class TestProblemYaml:
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
 
-        for bar_type in [PrintBar, ProgressBar]:
-            monkeypatch.setattr(bar_type, "fatal", fatal)
-            monkeypatch.setattr(bar_type, "error", error)
-            monkeypatch.setattr(bar_type, "warn", warn)
+        monkeypatch.setattr(BaseBar, "fatal", fatal)
+        monkeypatch.setattr(BaseBar, "error", error)
+        monkeypatch.setattr(BaseBar, "warn", warn)
         for module in ["bapctools.expectations", "bapctools.problem", "bapctools.util"]:
             monkeypatch.setattr(f"{module}.fatal", fatal)
             monkeypatch.setattr(f"{module}.error", error)
