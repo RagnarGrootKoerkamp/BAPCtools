@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Final, Literal, Optional, TypeVar
 
 from colorama import Fore, Style
+from typing_extensions import Self
 
 import bapctools
 
@@ -295,7 +296,7 @@ class ARGS:
                 setattr(self, key, getattr(args, key))
                 self._set.add(key)
 
-    def copy(self) -> "ARGS":
+    def copy(self) -> Self:
         res = copy.copy(self)
         res._set = copy.copy(res._set)
         return res

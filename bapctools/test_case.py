@@ -8,10 +8,7 @@ from typing import Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
-from bapctools import (
-    config,
-    validate,
-)
+from bapctools import config, validate
 from bapctools.util import (
     BaseBar,
     combine_hashes_dict,

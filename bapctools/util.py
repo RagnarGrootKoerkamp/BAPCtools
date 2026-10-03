@@ -46,7 +46,7 @@ from colorama import Fore, Style
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.constructor import DuplicateKeyError
-from typing_extensions import override
+from typing_extensions import override, Self
 
 from bapctools import config
 
@@ -184,9 +184,9 @@ class BaseBar(ABC):
             if prefix is not None and len(prefix) + 2 + width > total_width:
                 width = total_width - len(prefix) - 2
         text = BaseBar.item_text(item)
-        if width is not None and len(text) > width:
+        if width is not None:
             text = text[:width]
-        if width is None or width <= 0:
+        if width is None or width < 0:
             width = 0
         prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
         return f"{prefix}{text:<{width}}"
@@ -441,7 +441,7 @@ class ProgressBar(BaseBar):
     # - global_logged
     # - the counter
     # - items in progress
-    def start(self, item: ItemType) -> "ProgressBar":
+    def start(self, item: ItemType) -> Self:
         with self:
             # start may only be called on the root bar.
             assert self.parent is None
@@ -566,7 +566,7 @@ class PrintBar(BaseBar):
             prefix = BaseBar.action(self.prefix, self.item, self.item_width, None)
             eprint(prefix, color, message, BaseBar._format_data(data), Style.RESET_ALL, sep="")
 
-    def start(self, item: ItemType) -> "PrintBar":
+    def start(self, item: ItemType) -> Self:
         bar_copy = copy.copy(self)
         bar_copy.item = item
         bar_copy.item_width = max(bar_copy.item_width or 0, ProgressBar.item_len(item) + 1)
