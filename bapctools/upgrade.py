@@ -11,7 +11,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, generate
 from bapctools.util import (
-    AnyBar,
+    BaseBar,
     ensure_symlink,
     fatal,
     glob,
@@ -80,7 +80,7 @@ def args_split(args: str) -> CommentedSeq:
     return splitted
 
 
-def upgrade_contest_yaml(contest_yaml_path: Path, bar: AnyBar) -> None:
+def upgrade_contest_yaml(contest_yaml_path: Path, bar: BaseBar) -> None:
     yaml_data = read_yaml(contest_yaml_path)
     if isinstance(yaml_data, CommentedMap) and "testsession" in yaml_data:
         ryaml_replace(yaml_data, "testsession", "test_session")
@@ -88,7 +88,7 @@ def upgrade_contest_yaml(contest_yaml_path: Path, bar: AnyBar) -> None:
         bar.log("renaming 'testsession' to 'test_session'")
 
 
-def upgrade_data(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_data(problem_path: Path, bar: BaseBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
         ("data/invalid_answers", "data/invalid_answer"),
@@ -183,7 +183,7 @@ def upgrade_data(problem_path: Path, bar: AnyBar) -> None:
             bar.log(f"created empty .ans.download file for '{name}'")
 
 
-def rename_testdata_to_test_group_yaml(problem_path: Path, bar: AnyBar) -> None:
+def rename_testdata_to_test_group_yaml(problem_path: Path, bar: BaseBar) -> None:
     for f in (problem_path / "data").rglob("testdata.yaml"):
         new_name = f.with_name("test_group.yaml")
         rename_log = f"'{f.relative_to(problem_path)}' to '{new_name.relative_to(problem_path)}'"
@@ -194,7 +194,7 @@ def rename_testdata_to_test_group_yaml(problem_path: Path, bar: AnyBar) -> None:
         f.rename(new_name)
 
 
-def upgrade_test_group_yaml(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_test_group_yaml(problem_path: Path, bar: BaseBar) -> None:
     rename = [
         ("output_validator_flags", OutputValidator.args_key),
         ("input_validator_flags", InputValidator.args_key),
@@ -222,7 +222,7 @@ def upgrade_test_group_yaml(problem_path: Path, bar: AnyBar) -> None:
         write_yaml(data, f)
 
 
-def upgrade_generators_yaml(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_generators_yaml(problem_path: Path, bar: BaseBar) -> None:
     generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
@@ -464,7 +464,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: AnyBar) -> None:
         write_yaml(yaml_data, generators_yaml)
 
 
-def upgrade_statement(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_statement(problem_path: Path, bar: BaseBar) -> None:
     old_statement_dir = problem_path / "problem_statement"
     if (old_statement_dir / "problem.tex").is_file():
         if (old_statement_dir / "problem.en.tex").exists():
@@ -503,7 +503,7 @@ def upgrade_statement(problem_path: Path, bar: AnyBar) -> None:
             shutil.move(f, dest)
 
 
-def upgrade_format_validators(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_format_validators(problem_path: Path, bar: BaseBar) -> None:
     rename = [
         ("input_format_validators", InputValidator.source_dir),
         ("answer_format_validators", AnswerValidator.source_dir),
@@ -519,7 +519,7 @@ def upgrade_format_validators(problem_path: Path, bar: AnyBar) -> None:
             old_path.rename(new_path)
 
 
-def upgrade_output_validators(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_output_validators(problem_path: Path, bar: BaseBar) -> None:
     old_path = problem_path / "output_validators"
     new_path = problem_path / OutputValidator.source_dir
     if old_path.is_dir():
@@ -541,7 +541,7 @@ def upgrade_output_validators(problem_path: Path, bar: AnyBar) -> None:
                 bar.warn("There seem to be multiple output validators, this is no longer allowed")
 
 
-def upgrade_problem_yaml(problem_path: Path, bar: AnyBar) -> None:
+def upgrade_problem_yaml(problem_path: Path, bar: BaseBar) -> None:
     assert is_problem_directory(problem_path)
     data = read_yaml(problem_path / "problem.yaml", empty=CommentedMap())
     if not isinstance(data, CommentedMap):

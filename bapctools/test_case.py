@@ -13,7 +13,7 @@ from bapctools import (
     validate,
 )
 from bapctools.util import (
-    AnyBar,
+    BaseBar,
     combine_hashes_dict,
     ExecStatus,
     fatal,
@@ -44,7 +44,7 @@ class TestGroup:
         file: Optional[Path],
         yaml_data: object,
         parent: Optional["TestGroup"],
-        bar: AnyBar,
+        bar: BaseBar,
     ) -> None:
         if parent is None:
             self.args: Sequence[str] = []
@@ -156,7 +156,7 @@ class TestGroup:
         problem: "Problem",
         file: Path,
         parent: "TestGroup",
-        bar: AnyBar,
+        bar: BaseBar,
         *,
         filename: Optional[Path] = None,
     ) -> "TestGroup":
@@ -275,7 +275,7 @@ class TestCase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def get_test_case_yaml(self, bar: AnyBar) -> TestGroup:
+    def get_test_case_yaml(self, bar: BaseBar) -> TestGroup:
         assert self.in_path.is_file()
 
         if self._test_case_yaml is not None:
@@ -294,7 +294,7 @@ class TestCase:
         return self._test_case_yaml
 
     # Returns a hash of the core part of the test case (the part that is usually supposed to be unique)
-    def core_hash(self, bar: AnyBar) -> str:
+    def core_hash(self, bar: BaseBar) -> str:
         # Store the hashes of the generated files for this test case
         hashes = {}
 
@@ -320,7 +320,7 @@ class TestCase:
 
         return combine_hashes_dict(hashes)
 
-    def validator_hashes(self, cls: type[AnyValidator], bar: AnyBar) -> dict[str, dict[str, str]]:
+    def validator_hashes(self, cls: type[AnyValidator], bar: BaseBar) -> dict[str, dict[str, str]]:
         """
         Returns
         -------
@@ -355,7 +355,7 @@ class TestCase:
     def validate_format(
         self,
         mode: validate.Mode,
-        bar: AnyBar,
+        bar: BaseBar,
         *,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
@@ -451,7 +451,7 @@ class TestCase:
         self,
         mode: validate.Mode,
         validators: Sequence[AnyValidator],
-        bar: AnyBar,
+        bar: BaseBar,
         *,
         expect_rejection: bool,
         constraints: Optional[ConstraintsDict] = None,
