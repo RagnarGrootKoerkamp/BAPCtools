@@ -576,6 +576,16 @@ class PrintBar(BaseBar):
         return bar_copy
 
 
+def home_config_dir() -> Path:
+    if is_windows():
+        home_dir = Path(os.getenv("APPDATA", Path.home()))
+    elif is_mac():
+        home_dir = Path.home() / "Library" / "Application Support"
+    else:
+        home_dir = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return home_dir / "bapctools"
+
+
 # Given a command line argument, return the first match:
 # - absolute
 # - relative to the 'type' directory for the current problem
@@ -587,16 +597,6 @@ class PrintBar(BaseBar):
 def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     p = problem.path
     return [p / type, p, p.parent, config.current_working_directory]
-
-
-def home_config_dir() -> Path:
-    if is_windows():
-        home_dir = Path(os.getenv("APPDATA", Path.home()))
-    elif is_mac():
-        home_dir = Path.home() / "Library" / "Application Support"
-    else:
-        home_dir = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return home_dir / "bapctools"
 
 
 def resolve_path_argument(
@@ -1356,7 +1356,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: "Optional[resource.struct_rusage]" = None
+    rusage: Optional["resource.struct_rusage"] = None
 
     # If wait4 is available, store resource usage information.
     if hasattr(os, "wait4"):
