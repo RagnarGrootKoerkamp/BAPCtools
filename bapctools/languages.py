@@ -135,7 +135,7 @@ class Language:
         if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
             if self.compile_exe not in Language.warn_cache and config.args.verbose:
                 Language.warn_cache.add(self.compile_exe)
-                bar.debug(
+                bar.verbose(
                     f"Compile program {self.compile_exe} not found for language {self.name}. Falling back to lower priority languages."
                 )
             return False
@@ -143,7 +143,7 @@ class Language:
         if self.run_exe is not None and shutil.which(self.run_exe) is None:
             if self.run_exe not in Language.warn_cache and config.args.verbose:
                 Language.warn_cache.add(self.run_exe)
-                bar.debug(
+                bar.verbose(
                     f"Run program {self.run_exe} not found for language {self.name}. Falling back to lower priority languages."
                 )
             return False
@@ -153,7 +153,7 @@ class Language:
         if self.warned_fallback:
             return
         self.warned_fallback = True
-        bar.debug(f"Falling back to {self.name}.")
+        bar.verbose(f"Falling back to {self.name}.")
 
 
 BINARY_NAME: Final[str] = "run"

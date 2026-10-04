@@ -239,7 +239,7 @@ class BaseBar(ABC):
     def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
 
     # Same as log, but only in verbose mode.
-    def debug(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+    def verbose(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         if config.args.verbose:
             self.log(message, data, color)
 
