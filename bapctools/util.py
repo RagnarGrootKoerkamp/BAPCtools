@@ -434,6 +434,7 @@ class ProgressBar(BaseBar):
     def skip(self) -> None:
         with self:
             self.i += 1
+            self.draw_bar()
 
     # For parallel contexts, start() will return a copy to preserve the item name.
     # The parent still holds some global state:
@@ -449,7 +450,6 @@ class ProgressBar(BaseBar):
                 f"Starting more items than the max of {self.count}"
             )
 
-            # assert self.item is None
             self.item = item
             self.logged = False
             self.in_progress.add(item)
