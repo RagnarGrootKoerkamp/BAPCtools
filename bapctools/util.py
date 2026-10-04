@@ -289,8 +289,7 @@ class BaseBar(ABC):
 if hasattr(signal, "SIGWINCH"):
 
     def update_columns(_: Any, __: Any) -> None:
-        cols, rows = shutil.get_terminal_size()
-        BaseBar.columns = cols
+        BaseBar.columns = shutil.get_terminal_size().columns
 
     signal.signal(signal.SIGWINCH, update_columns)
 
@@ -352,9 +351,9 @@ class ProgressBar(BaseBar):
         return self.total_width() - len(self.prefix) - 2 - self.item_width
 
     def clearline(self) -> None:
+        assert self._is_locked()
         if config.args.no_bar:
             return
-        assert self._is_locked()
         self._print(self.carriage_return, end="", flush=False)
 
     def get_prefix(self) -> str:
