@@ -1608,7 +1608,7 @@ class Problem:
                     full_path.with_suffix(write).write_bytes(content)
 
                     if config.args.verbose > 1:
-                        bar.debug(f"Generating {short_path}")
+                        bar.verbose(f"Generating {short_path}")
 
                     test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
@@ -1616,7 +1616,7 @@ class Problem:
                 sample_name = sample.relative_to(self.path / "data").with_suffix("")
                 bar.log(f"Generated invalid test cases based on: {sample_name}")
         if test_cases:
-            bar.debug(f"writing generated invalid test cases to: {base_path}")
+            bar.verbose(f"writing generated invalid test cases to: {base_path}")
 
         return self._validate_data(
             validate.Mode.INVALID, False, "Generic Invalidation", test_cases, extra=True
@@ -1673,7 +1673,7 @@ class Problem:
                 full_path.with_suffix(".out").write_bytes(content)
 
                 if config.args.verbose > 1:
-                    bar.debug(f"Generating {short_path}")
+                    bar.verbose(f"Generating {short_path}")
 
                 test_cases.append(TestCase(self, full_path, short_path=short_path))
             if used_sample:
@@ -1681,7 +1681,7 @@ class Problem:
                 sample_name = sample.relative_to(self.path / "data").with_suffix("")
                 bar.log(f"Generated valid test cases based on: {sample_name}")
         if test_cases:
-            bar.debug(f"writing generated valid test cases to: {base_path}")
+            bar.verbose(f"writing generated valid test cases to: {base_path}")
 
         return self._validate_data(
             validate.Mode.VALID_OUTPUT, False, "Generic output validation", test_cases, extra=True

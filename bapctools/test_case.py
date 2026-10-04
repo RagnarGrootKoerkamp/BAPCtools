@@ -532,7 +532,7 @@ class TestCase:
                     )
                 else:
                     color = Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW
-                    bar.debug(
+                    bar.verbose(
                         message,
                         data=data,
                         color=color,

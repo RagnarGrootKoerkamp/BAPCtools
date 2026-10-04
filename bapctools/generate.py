@@ -290,10 +290,10 @@ class GeneratorInvocation(Invocation):
 
         if not result.status:
             if retries > 1:
-                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
+                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
                 bar.error(f"Generator crashed {retry + 1} times", result.err)
             else:
-                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
+                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
                 bar.error("Generator crashed", result.err)
 
         if result.status and config.args.error and result.err:
@@ -320,10 +320,10 @@ class SolutionInvocation(Invocation):
         result = self.program.run(in_path, ans_path, cwd=cwd, generator_timeout=True)
 
         if result.status == ExecStatus.TIMEOUT:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
+            bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
             bar.error(f"Solution TIMEOUT after {result.duration:.1f}s")
         elif not result.status:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
+            bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
             bar.error("Solution crashed", result.err)
 
         if result.status and config.args.error and result.err:
@@ -885,7 +885,7 @@ class TestCaseRule(Rule):
                     seed = self.seed if self.generator.uses_seed else None
                     command = self.generator.cache_command(seed)
                     bar.warn(f"Failed generator command: {command}")
-                bar.debug("Use generate --no-validators to ignore validation results.")
+                bar.verbose("Use generate --no-validators to ignore validation results.")
                 return False
         else:
             for h in input_validator_hashes:
@@ -943,7 +943,7 @@ class TestCaseRule(Rule):
             warn_instead_of_error=config.args.no_validators,
         ):
             if not config.args.no_validators:
-                bar.debug("Use generate --no-validators to ignore validation results.")
+                bar.verbose("Use generate --no-validators to ignore validation results.")
                 return False
         else:
             for h in ans_out_validator_hashes:
@@ -1021,7 +1021,7 @@ class TestCaseRule(Rule):
 
                 if depends_on_seed:
                     if config.args.check_deterministic:
-                        bar.debug("Generator depends on seed.")
+                        bar.verbose("Generator depends on seed.")
                 else:
                     bar.log(
                         f"Generator `{self.generator.command_string}` likely does not depend on seed:",
@@ -1092,7 +1092,7 @@ class TestCaseRule(Rule):
                         bar, cwd, infile.stem, self.seed, self.config.retries
                     )
                     if result.err is not None:
-                        bar.debug("generator:", result.err)
+                        bar.verbose("generator:", result.err)
                     if not result.status:
                         return False
 
@@ -1174,7 +1174,7 @@ class TestCaseRule(Rule):
                     updated = True
 
                 if cache[name]:
-                    bar.debug(f"Found match for '{name}'': {cache[name]}")
+                    bar.verbose(f"Found match for '{name}'': {cache[name]}")
                 else:
                     bar.warn(f"Found no match for '{name}'")
 
@@ -1354,12 +1354,12 @@ class TestCaseRule(Rule):
                     use_feedback_image(feedbackdir, "output_visualizer")
 
             if result.status == ExecStatus.TIMEOUT:
-                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
                 bar.error(
                     f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration:.1f}s"
                 )
             elif not result.status:
-                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
                 bar.error(
                     f"{type(visualizer).visualizer_type.capitalize()} Visualizer crashed",
                     result.err,
@@ -2354,7 +2354,7 @@ class GeneratorConfig:
         else:
             self.remove(path)
             if silent:
-                bar.debug(f"REMOVED: {path.name}")
+                bar.verbose(f"REMOVED: {path.name}")
             else:
                 bar.log(f"REMOVED: {path.name}")
 
