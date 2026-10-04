@@ -1375,22 +1375,6 @@ class ResourcePopen(subprocess.Popen[bytes]):
                 self.rusage = res
             return (pid, sts)
 
-    else:
-
-        def _try_wait(self, wait_flags: int) -> tuple[int, int]:
-            """All callers to this function MUST hold self._waitpid_lock."""
-            try:
-                (pid, sts) = os.waitpid(self.pid, wait_flags)
-            except ChildProcessError:
-                # This happens if SIGCLD is set to be ignored or waiting
-                # for child processes has otherwise been disabled for our
-                # process.  This child is dead, we can't get the status.
-                pid = self.pid
-                sts = 0
-            else:
-                self.rusage = None
-            return (pid, sts)
-
 
 class AbortError(Exception):
     pass
