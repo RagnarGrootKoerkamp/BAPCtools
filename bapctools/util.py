@@ -205,7 +205,7 @@ class BaseBar(ABC):
     def _format_data(data: Optional[str]) -> str:
         if not data:
             return ""
-        prefix = "  " if data.count("\n") <= 1 else "\n"
+        prefix = "  " if "\n" not in data.removesuffix("\n") else "\n"
         data = crop_output(data).removesuffix("\n")
         return f"{prefix}{Fore.YELLOW}{data}{Style.RESET_ALL}"
 
