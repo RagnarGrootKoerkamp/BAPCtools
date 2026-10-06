@@ -294,6 +294,16 @@ if hasattr(signal, "SIGWINCH"):
     signal.signal(signal.SIGWINCH, update_columns)
 
 
+class ProgressBarLocal(threading.local):
+    def __init__(self) -> None:
+        self.item: Optional[ItemType] = None
+        self.logged: bool = False
+
+    def log(self) -> None:
+        if self.item:
+            self.logged = True
+
+
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
 # the number of items to process.
@@ -331,11 +341,10 @@ class ProgressBar(BaseBar):
         emptyline = " " * self.total_width() + "\r"
         self.carriage_return: str = emptyline if is_windows() else "\033[K"
         self.needs_leading_newline: bool = needs_leading_newline
-        self.global_logged: bool = False
         self.logged: bool = False
-
-        self.parent: Optional[ProgressBar] = None
         self.in_progress: set[ItemType] = set()
+        # thread local data used between bar.start() and bar.done()
+        self.local = ProgressBarLocal()
 
     def _print(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("sep", "")
@@ -356,11 +365,11 @@ class ProgressBar(BaseBar):
             return
         self._print(self.carriage_return, end="", flush=False)
 
-    def get_prefix(self) -> str:
-        return BaseBar.action(self.prefix, self.item, self.item_width, self.total_width())
+    def get_prefix(self, local: bool = False) -> str:
+        item = self.local.item if local else self.item
+        return BaseBar.action(self.prefix, item, self.item_width, self.total_width())
 
     def get_bar(self) -> str:
-        assert self.parent is None
         bar_width = self.bar_width()
         if self.count is None or bar_width < 4:
             return ""
@@ -374,7 +383,6 @@ class ProgressBar(BaseBar):
 
     def draw_bar(self) -> None:
         assert self._is_locked()
-        assert self.parent is None
         if config.args.no_bar:
             return
         bar = self.get_bar()
@@ -386,26 +394,20 @@ class ProgressBar(BaseBar):
 
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
-        assert self.item is not None
-        root = self.parent or self
-        root.in_progress.remove(self.item)
-        if root.item is self.item:
-            root.item = None
-        self.item = None
+        assert self.local.item is not None
+        self.in_progress.remove(self.local.item)
+        if self.local.item is self.item:
+            self.item = None
+        self.local.item = None
 
     # Resume the ongoing progress bar after a log/done.
-    # Should only be called for the root.
     def _resume(self) -> None:
         assert self._is_locked()
-        assert self.parent is None
-
         if config.args.no_bar:
             return
-
-        if len(self.in_progress) > 0:
-            if self.item not in self.in_progress:
-                self.item = next(iter(self.in_progress))
-            self.draw_bar()
+        if self.item not in self.in_progress:
+            self.item = next(iter(self.in_progress), None)
+        self.draw_bar()
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
@@ -414,21 +416,20 @@ class ProgressBar(BaseBar):
         with self:
             self.clearline()
             self.logged = True
+            self.local.log()
 
-            root = self.parent or self
-            root.global_logged = True
-            if root.needs_leading_newline:
-                root._print()
-                root.needs_leading_newline = False
+            if self.needs_leading_newline:
+                self._print()
+                self.needs_leading_newline = False
 
             self._print(
-                self.get_prefix(),
+                self.get_prefix(local=True),
                 color,
                 message,
                 BaseBar._format_data(data),
                 Style.RESET_ALL,
             )
-            root._resume()
+            self._resume()
 
     # Skip an item.
     def skip(self) -> None:
@@ -441,25 +442,19 @@ class ProgressBar(BaseBar):
     # - global_logged
     # - the counter
     # - items in progress
-    def start(self, item: ItemType) -> Self:
+    def start(self, item: ItemType) -> None:
+        assert self.local.item is None
         with self:
-            # start may only be called on the root bar.
-            assert self.parent is None
             self.i += 1
             assert self.count is None or self.i <= self.count, (
                 f"Starting more items than the max of {self.count}"
             )
 
             self.item = item
-            self.logged = False
+            self.local.item = item
+            self.local.logged = False
             self.in_progress.add(item)
-            bar_copy = copy.copy(self)
-            bar_copy.parent = self
-            bar_copy.logged = False
-            bar_copy.count = None
-
             self.draw_bar()
-            return bar_copy
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(
@@ -471,18 +466,15 @@ class ProgressBar(BaseBar):
         print_item: bool = True,
         force_log: bool = False,
     ) -> None:
+        assert self.local.item is not None
         if not success:
             assert message
         with self:
             self.clearline()
-
-            if self.item is None:
-                return
-
             if not print_item:
                 self._release_item()
 
-            if not self.logged:
+            if not self.local.logged:
                 if not success:
                     config.n_error += 1
                 if config.args.verbose or not success or force_log:
@@ -494,8 +486,7 @@ class ProgressBar(BaseBar):
 
             if print_item:
                 self._release_item()
-            if self.parent:
-                self.parent._resume()
+            self._resume()
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
@@ -508,28 +499,30 @@ class ProgressBar(BaseBar):
     ) -> None:
         with self:
             self.clearline()
-            assert self.parent is None
             assert self.count is None or self.i == self.count, (
                 f"Bar has done only {self.i} of {self.count} items"
             )
             assert self.item is None
+            assert self.local.item is None
+            assert not self.in_progress
+
             # At most one of print_done and message may be passed.
             if message:
                 assert print_done is True
 
             # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
-            if not self.global_logged and not message:
+            if not self.local.logged and not message:
                 self.item_width = 0
 
             # Print 'DONE' when nothing was printed yet but a summary was requested.
-            if print_done and not self.global_logged and not message:
+            if print_done and not self.logged and not message:
                 message = f"{Fore.GREEN}Done{Style.RESET_ALL}"
 
             if message:
                 self._print(self.get_prefix(), message)
 
             # When something was printed, add a newline between parts.
-            if (self.global_logged or message) and not suppress_newline:
+            if (self.logged or message) and not suppress_newline:
                 self._print()
 
         assert ProgressBar.current_bar is not None

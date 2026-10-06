@@ -953,11 +953,11 @@ class TestCaseRule(Rule):
         return True
 
     def generate(
-        self, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
     ) -> None:
         assert self.process
 
-        bar = parent_bar.start(self.path)
+        bar.start(self.path)
         generator_config.failed += 1
 
         if self.copy_of is not None and not self.intended_copy:
@@ -1694,7 +1694,7 @@ class DirectoryRule(Rule):
         # - Link included test cases.
         #   - Input of included test cases are re-validated with the
         #     directory-specific input validator flags.
-        localbar = bar.start(self.path)
+        bar.start(self.path)
 
         # Create the directory.
         dir_path = problem.path / "data" / self.path
@@ -1714,16 +1714,16 @@ class DirectoryRule(Rule):
                     # different -> overwrite
                     generator_config.remove(test_group_yaml_path)
                     test_group_yaml_path.write_text(yaml_text)
-                    localbar.log("CHANGED: test_group.yaml")
+                    bar.log("CHANGED: test_group.yaml")
             else:
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
-                localbar.log("NEW: test_group.yaml")
+                bar.log("NEW: test_group.yaml")
         elif self.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
-            localbar.log("REMOVED: test_group.yaml")
-        localbar.done()
+            bar.log("REMOVED: test_group.yaml")
+        bar.done()
 
     def generate_includes(
         self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
@@ -1736,30 +1736,30 @@ class DirectoryRule(Rule):
             if not generator_config.process_test_case(new_case):
                 continue
 
-            localbar = bar.start(new_case)
+            bar.start(new_case)
             generator_config.failed += 1
             infile = problem.path / "data" / target.parent / f"{target.name}.in"
             ansfile = problem.path / "data" / target.parent / f"{target.name}.ans"
             new_infile = problem.path / "data" / self.path / f"{target.name}.in"
 
             if not t.process:
-                localbar.warn(f"Included case {target} was not processed.")
-                localbar.done()
+                bar.warn(f"Included case {target} was not processed.")
+                bar.done()
                 continue
 
             if not t.generate_success:
-                localbar.error(f"Included case {target} has errors.")
-                localbar.done()
+                bar.error(f"Included case {target} has errors.")
+                bar.done()
                 continue
 
             if not infile.is_file():
-                localbar.warn(f"{target}.in does not exist.")
-                localbar.done()
+                bar.warn(f"{target}.in does not exist.")
+                bar.done()
                 continue
 
             if not ansfile.is_file():
-                localbar.warn(f"{target}.ans does not exist.")
-                localbar.done()
+                bar.warn(f"{target}.ans does not exist.")
+                bar.done()
                 continue
 
             # Check if the test case was already validated.
@@ -1777,7 +1777,7 @@ class DirectoryRule(Rule):
             t.link(problem, generator_config, bar, new_infile)
             generator_config.failed -= 1
             generator_config.included += 1
-            localbar.done()
+            bar.done()
 
 
 # Returns the numbered name
@@ -2236,9 +2236,9 @@ class GeneratorConfig:
             bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
 
             def build_program(p: Generator | Submission) -> None:
-                localbar = bar.start(p)
-                p.build(localbar)
-                localbar.done()
+                bar.start(p)
+                p.build(bar)
+                bar.done()
 
             parallel.run_tasks(build_program, programs)
 
@@ -2420,11 +2420,11 @@ data/*
 
         bar = ProgressBar("Adding", items=in_files)
         for in_file in sorted(in_files, key=lambda x: x.name):
-            localbar = bar.start(in_file)
+            bar.start(in_file)
             if not (self.problem.path / in_file).exists():
-                localbar.warn("file not found. SKIPPED.")
+                bar.warn("file not found. SKIPPED.")
             elif in_file in known:
-                localbar.log("already found in generators.yaml. SKIPPED.")
+                bar.log("already found in generators.yaml. SKIPPED.")
             else:
                 entry.append(CommentedMap())
                 path_in_gen = in_file.relative_to("generators")
@@ -2432,8 +2432,8 @@ data/*
                 new = CommentedMap({"copy": path_in_gen.with_suffix("").as_posix()})
                 new.fa.set_flow_style()
                 entry[-1][str(name)] = new
-                localbar.log("added to generators.yaml.")
-            localbar.done()
+                bar.log("added to generators.yaml.")
+            bar.done()
 
         if len(parent["data"]) == 0:
             parent["data"] = None
@@ -2581,14 +2581,14 @@ data/*
                     break
                 index = scores.index(score)
                 result = todo.pop(index)
-                localbar = bar.start(result)
+                bar.start(result)
                 if result.yaml in done:
                     # skip if another rule for the same count was already added
                     continue
                 done.append(result.yaml)
                 weights = result.update(weights)
-                localbar.log("moved to front")
-                localbar.done()
+                bar.log("moved to front")
+                bar.done()
 
             for _ in todo:
                 bar.skip()

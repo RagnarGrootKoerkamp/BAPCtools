@@ -476,8 +476,8 @@ class Submission(Program):
                 bar.skip()
                 return
 
-            localbar = bar.start(run)
-            result = run.run(localbar)
+            bar.start(run)
+            result = run.run(bar)
             assert result.verdict is not None
 
             # Print stderr whenever something is printed
@@ -485,9 +485,9 @@ class Submission(Program):
                 output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
                     "STDERR:"
-                    + localbar._format_data(result.err)
+                    + bar._format_data(result.err)
                     + f"\n{output_type}:"
-                    + localbar._format_data(result.out)
+                    + bar._format_data(result.out)
                     + "\n"
                 )
             else:
@@ -508,20 +508,18 @@ class Submission(Program):
                     ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
                     continue
                 if not f.is_file():
-                    localbar.warn(f"Validator wrote to {f} but it's not a file.")
+                    bar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
                 try:
                     t = f.read_text()
                 except UnicodeDecodeError:
-                    localbar.warn(
-                        f"Validator wrote to {f} but it cannot be parsed as unicode text."
-                    )
+                    bar.warn(f"Validator wrote to {f} but it cannot be parsed as unicode text.")
                     continue
                 if not t:
                     continue
                 if data and not data.endswith("\n"):
                     data += "\n"
-                data += f"{f.name}:{localbar._format_data(t)}\n"
+                data += f"{f.name}:{bar._format_data(t)}\n"
 
             permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
@@ -554,9 +552,12 @@ class Submission(Program):
             style_len = len(f"{Style.RESET_ALL}")
             message = f"{color}{result.verdict.short:>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {test_case:{max_test_case_len + style_len}}"
 
-            # Update padding since we already print the test case name after the verdict.
-            localbar.item_width = padding_len
-            localbar.done(got_permitted, message, data, print_item=False)
+            with bar:
+                # Update padding since we already print the test case name after the verdict.
+                bar.item_width = padding_len
+                bar.done(got_permitted, message, data, print_item=False)
+                bar.item_width = max_item_len + 1
+                bar._resume()
 
         parallel.run_tasks(process_run, runs, pin=True)
         bar.item_width = padding_len
@@ -671,10 +672,10 @@ class Submission(Program):
         bar = ProgressBar(self.name, items=test_cases)
         for test_case in test_cases:
             run = Run(self.problem, self, test_case)
-            localbar = bar.start(test_case)
+            bar.start(test_case)
             if not self.problem.interactive:
                 passmsg = "(pass 1)" if self.problem.multi_pass else ""
-                localbar.log(passmsg, color="")
+                bar.log(passmsg, color="")
 
                 # we want to directly see the output of the submission
                 # => we cannot reuse the interaciton file
@@ -687,7 +688,7 @@ while True:
     sys.stdout.buffer.flush()
     sys.stderr.buffer.write(l)
 """
-                submission_args = test_case.get_test_case_yaml(localbar).args or []
+                submission_args = test_case.get_test_case_yaml(bar).args or []
 
                 def run_submission() -> ExecResult:
                     if config.args.verbose:
@@ -726,8 +727,8 @@ while True:
                 for pass_id in itertools.count(1):
                     result = run_submission()
                     if result.verdict is None:
-                        val_result = run._validate_output(localbar)
-                        has_nextpass = run._check_nextpass(localbar)
+                        val_result = run._validate_output(bar)
+                        has_nextpass = run._check_nextpass(bar)
                         if val_result is not None and config.args.error:
                             result.err = val_result.err
                         if val_result is None:
@@ -772,9 +773,9 @@ while True:
                     eprint(ProgressBar.action(f"Running {self.name}", test_case.name + passmsg))
             else:
                 # Interactive problem.
-                localbar.log("(logging interaction)", color="")
+                bar.log("(logging interaction)", color="")
                 optional_result = interactive.run_interactive_test_case(
-                    run, bar=localbar, interaction=True, validator_error=True, team_error=True
+                    run, bar=bar, interaction=True, validator_error=True, team_error=True
                 )
                 if optional_result is None:
                     config.n_error += 1
@@ -791,7 +792,7 @@ while True:
                 else:
                     msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
                 eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}")
-            localbar.done()
+            bar.done()
         bar.finalize(suppress_newline=True)
 
     # Run the submission using stdin as input.

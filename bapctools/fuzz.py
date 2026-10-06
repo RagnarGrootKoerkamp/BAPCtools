@@ -70,53 +70,53 @@ class GeneratorTask:
         infile = cwd / f"{name}.in"
         ansfile = cwd / f"{name}.ans"
 
-        localbar = bar.start(f"{self.i}: {self.command}")
-        localbar.done(force_log=True)
+        bar.start(f"{self.i}: {self.command}")
+        bar.done(force_log=True)
 
-        localbar = bar.start(f"{self.i}: generate")
-        result = self.generator.run(localbar, cwd, name, self.seed)
+        bar.start(f"{self.i}: generate")
+        result = self.generator.run(bar, cwd, name, self.seed)
         self.fuzz.queue.ensure_alive()
         if not result.status:
-            localbar.done()
+            bar.done()
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         if ".ans" in self.rule.hardcoded:
             ansfile.write_text(self.rule.hardcoded[".ans"])
-        localbar.done()
+        bar.done()
 
         test_case = TestCase(self.fuzz.problem, infile, short_path=dir / f"{name}.in")
 
         # Validate the generated .in.
-        localbar = bar.start(f"{self.i}: validate input")
-        if not test_case.validate_format(Mode.INPUT, bar=localbar, constraints=None):
+        bar.start(f"{self.i}: validate input")
+        if not test_case.validate_format(Mode.INPUT, bar=bar, constraints=None):
             self.fuzz.queue.ensure_alive()
-            localbar.done()
+            bar.done()
             return False
         self.fuzz.queue.ensure_alive()
-        localbar.done()
+        bar.done()
 
         # Generate .ans.
         if not ansfile.is_file():
             if self.fuzz.problem.settings.ans_is_output:
                 if self.solution:
                     # Run the solution and validate the generated .ans.
-                    localbar = bar.start(f"{self.i}: generate ans")
+                    bar.start(f"{self.i}: generate ans")
                     if not self.solution.run(bar, cwd).status:
                         self.fuzz.queue.ensure_alive()
-                        localbar.done()
+                        bar.done()
                         return False
                     self.fuzz.queue.ensure_alive()
-                    localbar.done()
+                    bar.done()
             elif self.fuzz.problem.interactive or self.fuzz.problem.multi_pass:
                 ansfile.write_text("")
 
         if ansfile.is_file():
-            localbar = bar.start(f"{self.i}: validate output")
-            if not test_case.validate_format(Mode.ANSWER, bar=localbar):
+            bar.start(f"{self.i}: validate output")
+            if not test_case.validate_format(Mode.ANSWER, bar=bar):
                 self.fuzz.queue.ensure_alive()
-                localbar.done()
+                bar.done()
                 return False
             self.fuzz.queue.ensure_alive()
-            localbar.done()
+            bar.done()
         else:
             bar.error(f"{self.i}: {ansfile.name} was not generated.")
             return False
@@ -145,11 +145,11 @@ class GeneratorTask:
         self.fuzz.queue.ensure_alive()
         # only save rule if we set self.saved to True
         if save:
-            localbar = bar.start(f"{self.i}: {self.command}")
-            localbar.log("Saving test case in generators.yaml.")
+            bar.start(f"{self.i}: {self.command}")
+            bar.log("Saving test case in generators.yaml.")
             self.fuzz.save_test(self.get_command(), submission, verdict)
             self.fuzz.queue.ensure_alive()
-            localbar.done()
+            bar.done()
 
 
 class SubmissionTask:
@@ -167,15 +167,15 @@ class SubmissionTask:
 
     def run(self, bar: ProgressBar) -> None:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.test_case)
-        localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
-        result = r.run(localbar)
+        bar.start(f"{self.generator_task.i}: {self.submission.name}")
+        result = r.run(bar)
         assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar, self.submission, result.verdict)
-            localbar.done(False, f"{result.verdict}!")
+            bar.done(False, f"{result.verdict}!")
         else:
-            localbar.done()
+            bar.done()
 
         self.generator_task.fuzz.finish_task(self.tmp_id)
 

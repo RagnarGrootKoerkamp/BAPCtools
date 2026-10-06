@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
-from typing_extensions import override, Self
+from typing_extensions import override
 
 from bapctools import config
 from bapctools.test_case import TestCase
@@ -660,12 +660,12 @@ class TableProgressBar(ProgressBar):
         self.io.print(*args, **kwargs)
 
     @override
-    def start(self, item: ItemType = "") -> Self:
+    def start(self, item: ItemType = "") -> None:
         from bapctools.run import Run
 
         assert isinstance(item, Run)
         self.table.start_run(item)
-        return super().start(item)
+        super().start(item)
 
     @override
     def done(
@@ -679,8 +679,8 @@ class TableProgressBar(ProgressBar):
     ) -> None:
         from bapctools.run import Run
 
-        assert isinstance(self.item, Run)
-        self.table.done_run(self.item)
+        assert isinstance(self.local.item, Run)
+        self.table.done_run(self.local.item)
         super().done(success, message, data, print_item=print_item, force_log=force_log)
 
     @override

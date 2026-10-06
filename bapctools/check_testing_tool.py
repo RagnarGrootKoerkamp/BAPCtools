@@ -116,7 +116,7 @@ sys.exit(result.returncode)
         in_path = rundir / "testcase.in"
         ensure_symlink(in_path, testinput.in_path)
 
-        localbar = bar.start(testinput)
+        bar.start(testinput)
 
         result = testing_tool.run(in_path, self)
         submission_returncode = None
@@ -146,9 +146,9 @@ sys.exit(result.returncode)
         if result.out and result.err:
             data = (
                 "TESTING TOOL STDERR:"
-                + localbar._format_data(result.err)
+                + bar._format_data(result.err)
                 + "\nTESTING TOOL STDOUT:"
-                + localbar._format_data(result.out)
+                + bar._format_data(result.out)
                 + "\n"
             )
         elif result.err:
@@ -156,7 +156,7 @@ sys.exit(result.returncode)
         elif result.out:
             data = result.out
 
-        localbar.done(ok, ", ".join(message), data)
+        bar.done(ok, ", ".join(message), data)
         return ok
 
 
@@ -243,12 +243,12 @@ def run(
         testing_tool = TestingTool(problem, tool_files[0])
 
     bar = ProgressBar("Building testing tool", items=[testing_tool])
-    localbar = bar.start(testing_tool)
-    if not testing_tool.build(localbar):
-        localbar.done()
+    bar.start(testing_tool)
+    if not testing_tool.build(bar):
+        bar.done()
         return False
-    testing_tool.check_python_version(localbar)
-    localbar.done()
+    testing_tool.check_python_version(bar)
+    bar.done()
     bar.finalize(print_done=False)
 
     ok = True

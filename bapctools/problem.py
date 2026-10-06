@@ -990,9 +990,9 @@ class Problem:
         bar = ProgressBar("Build submissions", items=programs)
 
         def build_program(p: Submission) -> None:
-            localbar = bar.start(p)
-            p.build(localbar)
-            localbar.done()
+            bar.start(p)
+            p.build(bar)
+            bar.done()
 
         parallel.run_tasks(build_program, programs)
 
@@ -1014,9 +1014,9 @@ class Problem:
             return None
         visualizer = cls(self, path)
         bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
-        localbar = bar.start(visualizer)
-        visualizer.build(localbar)
-        localbar.done()
+        bar.start(visualizer)
+        visualizer.build(bar)
+        bar.done()
         bar.finalize(print_done=False)
         return visualizer if visualizer.ok else None
 
@@ -1128,9 +1128,9 @@ class Problem:
         bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
 
         def build_program(p: "Program") -> None:
-            localbar = bar.start(p)
-            p.build(localbar)
-            localbar.done()
+            bar.start(p)
+            p.build(bar)
+            bar.done()
 
         parallel.run_tasks(build_program, validators)
         bar.finalize(print_done=False)
@@ -1417,7 +1417,7 @@ class Problem:
 
         def run(run: CheckRun) -> None:
             nonlocal success
-            localbar = bar.start(run)
+            bar.start(run)
 
             submission = run.test_case.in_path.with_name("submission.out")
             submission.write_bytes(run.submission_data)
@@ -1452,56 +1452,54 @@ class Problem:
 
                 has_nextpass = nextpass.is_file()
                 if not self.multi_pass and has_nextpass:
-                    localbar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
+                    bar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
                     has_nextpass = False
 
                 if ret.status == ExecStatus.REJECTED:
                     if has_nextpass:
                         success = False
-                        localbar.error(
+                        bar.error(
                             "Output validator gave WRONG_ANSWER but created nextpass.in", data
                         )
-                        localbar.done()
+                        bar.done()
                         return
                     else:
-                        localbar.done(True, "rejected", data)
+                        bar.done(True, "rejected", data)
                         return
                 if ret.status == ExecStatus.TIMEOUT:
-                    localbar.error("Output validator got TIMEOUT", data)
-                    localbar.done()
+                    bar.error("Output validator got TIMEOUT", data)
+                    bar.done()
                     return
                 if ret.status == ExecStatus.ERROR:
                     if ret.returncode == 0:
                         success = False
-                        localbar.error(
+                        bar.error(
                             "Output validator exited with exit code 0, did you forget to exit with WA or AC?",
                             data,
                         )
                     else:
                         success = False
-                        localbar.error(
-                            f"Output validator crashed (exit code: {ret.returncode})", data
-                        )
-                    localbar.done()
+                        bar.error(f"Output validator crashed (exit code: {ret.returncode})", data)
+                    bar.done()
                     return
                 assert ret.status == ExecStatus.ACCEPTED
                 if not has_nextpass:
                     if run.allow_ac:
-                        localbar.done(True, "accepted", data, force_log=True)
+                        bar.done(True, "accepted", data, force_log=True)
                     else:
                         success = False
-                        localbar.error(
+                        bar.error(
                             f"Output validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
                             data,
                         )
-                        localbar.done()
+                        bar.done()
                     return
 
                 assert self.limits.validation_passes is not None
                 if pass_id >= self.limits.validation_passes:
                     success = False
-                    localbar.error("Output validator exceeded limit of validation_passes", data)
-                    localbar.done()
+                    bar.error("Output validator exceeded limit of validation_passes", data)
+                    bar.done()
                     return
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
@@ -1734,21 +1732,21 @@ class Problem:
         def process_test_case(test_case: TestCase) -> None:
             nonlocal success
 
-            localbar = bar.start(test_case.name)
+            bar.start(test_case.name)
 
             if mode == validate.Mode.INPUT and not test_case.in_path.is_symlink() and not extra:
-                t2 = self.matches_existing_test_case(test_case, localbar)
+                t2 = self.matches_existing_test_case(test_case, bar)
                 if t2 is not None:
-                    localbar.warn(
+                    bar.warn(
                         f"Duplicate test case: identical to {t2.name}. If this is intentional use symlinks/count/includes."
                     )
-                    localbar.done()
+                    bar.done()
                     return
 
             success &= test_case.validate_format(
-                mode, bar=localbar, constraints=constraints_dict, warn_instead_of_error=extra
+                mode, bar=bar, constraints=constraints_dict, warn_instead_of_error=extra
             )
-            localbar.done()
+            bar.done()
 
         parallel.run_tasks(process_test_case, test_cases)
         if missing:
@@ -1826,17 +1824,17 @@ class Problem:
             nonlocal success
 
             name = file.relative_to(data)
-            localbar = bar.start(name)
+            bar.start(name)
 
             if file.name.endswith(".interaction"):
-                if not validate.check_interaction(self, file, localbar, startswith=prefix):
+                if not validate.check_interaction(self, file, bar, startswith=prefix):
                     success = False
-                    localbar.done()
+                    bar.done()
                     return
             else:
-                validate.sanity_check_override(self, file, localbar)
+                validate.sanity_check_override(self, file, bar)
 
-            localbar.done()
+            bar.done()
 
         parallel.run_tasks(process_file, files)
         bar.finalize(print_done=True)
