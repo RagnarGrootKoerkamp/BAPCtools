@@ -1852,7 +1852,7 @@ class GeneratorConfig:
         except ParseError as e:
             self.n_parse_error += 1
             if e.path:
-                bar.start(e.path).error(e.message)
+                bar.with_item(e.path).error(e.message)
             else:
                 bar.error(e.message)
 
@@ -1860,7 +1860,7 @@ class GeneratorConfig:
             bar.error("could not be parsed")
         elif self.n_test_case_error:
             bar.warn("contains errors")
-        if bar.global_logged:
+        if bar.logged:
             eprint()
 
     def _parse_root(self, raw_yaml: object, bar: PrintBar) -> DirectoryRule:
@@ -2119,7 +2119,7 @@ class GeneratorConfig:
                         child_name = itertools.repeat(child_key)
 
                     child_path = ".".join(d.path.parts + (child_key or '""',))
-                    child_bar = parent_bar.start(child_path)
+                    child_bar = parent_bar.with_item(child_path)
                     if is_directory(child_yaml):
                         child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
                         cd = parse_directory(

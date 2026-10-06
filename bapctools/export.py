@@ -273,7 +273,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     f.unlink()
                     f.write_text(text)
 
-    bar = bar.start(f"{problem.name}.zip")
+    bar = bar.with_item(f"{problem.name}.zip")
 
     # move pdfs
     if not config.args.kattis:

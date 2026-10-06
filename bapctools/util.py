@@ -546,13 +546,13 @@ class PrintBar(BaseBar):
         item: Optional[ItemType] = None,
     ) -> None:
         super().__init__(prefix, max_len, item)
-        self.global_logged: bool = False
+        self.logged: bool = False
         self.parent: Optional[PrintBar] = None
 
     def _set_logged(self) -> None:
-        if self.global_logged:
+        if self.logged:
             return
-        self.global_logged = True
+        self.glogged = True
         if self.parent is not None:
             self.parent._set_logged()
 
@@ -563,14 +563,14 @@ class PrintBar(BaseBar):
             prefix = BaseBar.action(self.prefix, self.item, self.item_width, None)
             eprint(prefix, color, message, BaseBar._format_data(data), Style.RESET_ALL, sep="")
 
-    def start(self, item: ItemType) -> Self:
+    def with_item(self, item: ItemType) -> Self:
         bar_copy = copy.copy(self)
         bar_copy.item = item
         bar_copy.item_width = max(bar_copy.item_width or 0, ProgressBar.item_len(item) + 1)
         if bar_copy.max_len is not None:
             bar_copy.item_width = bar_copy.max_len + 1
         bar_copy.parent = self
-        bar_copy.global_logged = False
+        bar_copy.logged = False
         return bar_copy
 
 

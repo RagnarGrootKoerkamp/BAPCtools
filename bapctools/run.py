@@ -804,7 +804,7 @@ while True:
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            localbar = bar.start(f"Run {tc}")
+            localbar = bar.with_item(f"Run {tc}")
             # Reinitialize the underlying program, so that changes to the source
             # code can be picked up in build.
             super().__init__(
