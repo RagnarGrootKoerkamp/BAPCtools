@@ -2420,11 +2420,11 @@ data/*
 
         bar = ProgressBar("Adding", items=in_files)
         for in_file in sorted(in_files, key=lambda x: x.name):
-            bar.start(in_file)
+            localbar = bar.start(in_file)
             if not (self.problem.path / in_file).exists():
-                bar.warn("file not found. SKIPPED.")
+                localbar.warn("file not found. SKIPPED.")
             elif in_file in known:
-                bar.log("already found in generators.yaml. SKIPPED.")
+                localbar.log("already found in generators.yaml. SKIPPED.")
             else:
                 entry.append(CommentedMap())
                 path_in_gen = in_file.relative_to("generators")
@@ -2432,8 +2432,8 @@ data/*
                 new = CommentedMap({"copy": path_in_gen.with_suffix("").as_posix()})
                 new.fa.set_flow_style()
                 entry[-1][str(name)] = new
-                bar.log("added to generators.yaml.")
-            bar.done()
+                localbar.log("added to generators.yaml.")
+            localbar.done()
 
         if len(parent["data"]) == 0:
             parent["data"] = None

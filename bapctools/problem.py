@@ -1466,6 +1466,7 @@ class Problem:
                         localbar.error(
                             "Output validator gave WRONG_ANSWER but created nextpass.in", data
                         )
+                        localbar.done()
                         return
                     else:
                         localbar.done(True, "rejected", data)
