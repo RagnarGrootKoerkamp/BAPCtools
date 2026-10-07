@@ -602,11 +602,10 @@ def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: Sequence[str] = tuple()
 ) -> Optional[Path]:
-    if path.is_absolute():
-        return path
+    basedirs = [Path()] if path.is_absolute() else get_basedirs(problem, type)
     for suffix in [*suffixes, None]:
         suffixed_path = path if suffix is None else path.with_suffix(suffix)
-        for basedir in get_basedirs(problem, type):
+        for basedir in basedirs:
             p = basedir / suffixed_path
             if p.exists():
                 return p
