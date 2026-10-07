@@ -447,7 +447,7 @@ def build_problem_pdf(
         local_data if local_data.is_file() else config.RESOURCES_ROOT / "latex" / main_file,
         builddir / main_file,
         problem_data(problem, language),
-        bar=bar,
+        bar,
     )
 
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
@@ -532,7 +532,7 @@ def build_contest_pdf(
         ),
         builddir / "contest_data.tex",
         config_data,
-        bar=bar,
+        bar,
     )
 
     problems_data = ""
@@ -576,7 +576,7 @@ def build_contest_pdf(
         problems_data += substitute(
             per_problem_data_tex,
             problem_data(prob, language),
-            bar=bar,
+            bar,
         )
 
     if solutions:

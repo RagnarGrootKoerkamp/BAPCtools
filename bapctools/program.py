@@ -82,7 +82,6 @@ def create_aliases() -> None:
     create_alias("python3", "python3", use_compile=False)
     create_alias("c", "cc", use_compile=True)
     create_alias("cpp", "c++", use_compile=True)
-    _alias_setup_complete = True
 
 
 SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
@@ -415,8 +414,8 @@ class Program:
                     f,
                     tmpf,
                     self.problem.settings.constants,
+                    bar,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                    bar=bar,
                 )
             self.input_files.append(tmpf)
             hashes.append(hash_file(tmpf))

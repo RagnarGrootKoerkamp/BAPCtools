@@ -1,6 +1,5 @@
 from collections.abc import Mapping
 from multiprocessing import Pool
-from os import makedirs
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -164,7 +163,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
             stats[s.problem][s.time_slot][s.pending_judgement_type] += score
             stats_sum[s.problem][s.pending_judgement_type] += 1
 
-        makedirs("solve_stats/activity", exist_ok=True)
+        Path("solve_stats/activity").mkdir(parents=True, exist_ok=True)
         with Pool(num_jobs) as p:
             p.starmap(
                 plot_problem,
@@ -246,7 +245,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         "Active Teams": plot_active_teams,
     }
 
-    makedirs("solve_stats", exist_ok=True)
+    Path("solve_stats").mkdir(parents=True, exist_ok=True)
 
     bar = ProgressBar("Plotting", items=list(plots))
     for name, function in plots.items():

@@ -84,7 +84,8 @@ def download_submissions() -> None:
         bar.done()
 
     # When downloading submissions, we need to wait for the server to respond, so we can use more jobs
-    config.args.jobs *= 10
-    parallel.run_tasks(download_submission, list(submissions.values()))
+    with config.temporary_args():
+        config.args.jobs *= 10
+        parallel.run_tasks(download_submission, list(submissions.values()))
 
     bar.finalize()

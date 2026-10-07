@@ -88,7 +88,7 @@ class Run:
         submission_args = self.test_case.get_test_case_yaml(bar).args or []
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
-                self, bar=bar, interaction=interaction, submission_args=submission_args
+                self, bar, interaction=interaction, submission_args=submission_args
             )
             if result is None:
                 bar.error(f"No output validator found for test case {self.test_case.name}")
@@ -485,9 +485,9 @@ class Submission(Program):
                 output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
                     "STDERR:"
-                    + bar._format_data(result.err)
+                    + BaseBar._format_data(result.err)
                     + f"\n{output_type}:"
-                    + bar._format_data(result.out)
+                    + BaseBar._format_data(result.out)
                     + "\n"
                 )
             else:
@@ -519,7 +519,7 @@ class Submission(Program):
                     continue
                 if data and not data.endswith("\n"):
                     data += "\n"
-                data += f"{f.name}:{bar._format_data(t)}\n"
+                data += f"{f.name}:{BaseBar._format_data(t)}\n"
 
             permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
@@ -657,7 +657,7 @@ class Submission(Program):
             verdict_table.print(new_lines=0)
             verdict_table.last_printed = []
             eprint()
-        elif bar.global_logged:
+        elif bar.logged:
             eprint()
 
         return passed_permitted and passed_required
@@ -775,7 +775,7 @@ while True:
                 # Interactive problem.
                 bar.log("(logging interaction)", color="")
                 optional_result = interactive.run_interactive_test_case(
-                    run, bar=bar, interaction=True, validator_error=True, team_error=True
+                    run, bar, interaction=True, validator_error=True, team_error=True
                 )
                 if optional_result is None:
                     config.n_error += 1

@@ -876,7 +876,7 @@ class TestCaseRule(Rule):
 
         if not test_case.validate_format(
             validate.Mode.INPUT,
-            bar=bar,
+            bar,
             constraints=None,
             warn_instead_of_error=config.args.no_validators,
         ):
@@ -938,9 +938,7 @@ class TestCaseRule(Rule):
             return True
 
         if not test_case.validate_format(
-            mode,
-            bar=bar,
-            warn_instead_of_error=config.args.no_validators,
+            mode, bar, warn_instead_of_error=config.args.no_validators
         ):
             if not config.args.no_validators:
                 bar.verbose("Use generate --no-validators to ignore validation results.")
@@ -2504,8 +2502,7 @@ data/*
         test_case_paths = {t.in_path.relative_to(data).with_suffix("") for t in test_cases}
         max_test_case_len = max([len(str(t)) for t in test_case_paths])
         for d in directory_rules:
-            eprint()
-            eprint(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
+            eprint(f"\n{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
 
             # directory must be numbered
             assert isinstance(d.yaml, dict)

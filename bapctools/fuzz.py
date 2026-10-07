@@ -87,7 +87,7 @@ class GeneratorTask:
 
         # Validate the generated .in.
         bar.start(f"{self.i}: validate input")
-        if not test_case.validate_format(Mode.INPUT, bar=bar, constraints=None):
+        if not test_case.validate_format(Mode.INPUT, bar, constraints=None):
             self.fuzz.queue.ensure_alive()
             bar.done()
             return False
@@ -111,7 +111,7 @@ class GeneratorTask:
 
         if ansfile.is_file():
             bar.start(f"{self.i}: validate output")
-            if not test_case.validate_format(Mode.ANSWER, bar=bar):
+            if not test_case.validate_format(Mode.ANSWER, bar):
                 self.fuzz.queue.ensure_alive()
                 bar.done()
                 return False
