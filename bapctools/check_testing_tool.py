@@ -146,9 +146,9 @@ sys.exit(result.returncode)
         if result.out and result.err:
             data = (
                 "TESTING TOOL STDERR:"
-                + bar._format_data(result.err)
+                + BaseBar._format_data(result.err)
                 + "\nTESTING TOOL STDOUT:"
-                + bar._format_data(result.out)
+                + BaseBar._format_data(result.out)
                 + "\n"
             )
         elif result.err:
@@ -243,15 +243,20 @@ def run(
         testing_tool = TestingTool(problem, tool_files[0])
 
     bar = ProgressBar("Building testing tool", items=[testing_tool])
-    bar.start(testing_tool)
-    if not testing_tool.build(bar):
-        bar.done()
-        return False
-    testing_tool.check_python_version(bar)
-    bar.done()
-    bar.finalize(print_done=False)
 
-    ok = True
+    def build() -> bool:
+        bar.start(testing_tool)
+        if not testing_tool.build(bar):
+            bar.done()
+            return False
+        testing_tool.check_python_version(bar)
+        bar.done()
+        return True
+
+    ok = build()
+    bar.finalize(print_done=False)
+    if not ok:
+        return False
 
     max_submission_len = max([len(x.name) for x in wrapped_submissions])
     max_testinput_len = max(len(x.name) for x in testinputs)
@@ -278,7 +283,7 @@ def run(
         parallel.run_tasks(run_submission, testinputs, pin=True)
         ok &= cur_ok
         bar.finalize(suppress_newline=True)
-        if bar.global_logged:
+        if bar.logged:
             eprint()
 
     return ok

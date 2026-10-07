@@ -1196,7 +1196,7 @@ def copytree_and_substitute(
     else:
         try:
             data = src.read_text()
-            data = substitute(data, variables, pattern=pattern, bar=bar)
+            data = substitute(data, variables, bar, pattern=pattern)
             dst.write_text(data)
         except UnicodeDecodeError:
             # Do not substitute for binary files.

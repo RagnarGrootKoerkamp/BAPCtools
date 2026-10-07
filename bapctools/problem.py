@@ -779,9 +779,11 @@ class Problem:
             )
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
-            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT] else warn)(
-                f"Didn't find any test cases{ans}{val} in problem {self.name}. Skipping."
-            )
+            msg = f"Didn't find any test cases{ans}{val} in problem {self.name}. Skipping."
+            if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]:
+                log(msg)
+            else:
+                warn(msg)
 
         return tuple(test_cases)
 
@@ -1625,9 +1627,9 @@ class Problem:
         if not self.output_validator():
             return True
 
+        bar = PrintBar("Generic output validation")
         args = self.get_test_group_yaml(
-            self.path / "data" / "valid_output",
-            PrintBar("Generic output validation"),
+            self.path / "data" / "valid_output", bar
         ).output_validator_args
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
@@ -1638,7 +1640,6 @@ class Problem:
         samples = [s for s in samples if s.with_suffix(".ans").exists()]
         samples = samples[:2]
 
-        bar = PrintBar("Generic output validation")
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
@@ -1744,7 +1745,7 @@ class Problem:
                     return
 
             success &= test_case.validate_format(
-                mode, bar=bar, constraints=constraints_dict, warn_instead_of_error=extra
+                mode, bar, constraints=constraints_dict, warn_instead_of_error=extra
             )
             bar.done()
 
