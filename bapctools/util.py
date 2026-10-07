@@ -586,6 +586,11 @@ def home_config_dir() -> Path:
     return home_dir / "bapctools"
 
 
+def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
+    p = problem.path
+    return [p / type, p, p.parent, config.current_working_directory]
+
+
 # Given a command line argument, return the first match:
 # - absolute
 # - relative to the 'type' directory for the current problem
@@ -594,11 +599,6 @@ def home_config_dir() -> Path:
 # - relative to the current working directory
 #
 # Pass suffixes = ['.in'] to also try to find the file with the given suffix appended.
-def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
-    p = problem.path
-    return [p / type, p, p.parent, config.current_working_directory]
-
-
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: Sequence[str] = tuple()
 ) -> Optional[Path]:
