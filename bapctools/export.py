@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from bapctools import config
+from bapctools import bar, config
+from bapctools.bar import PrintBar
 from bapctools.contest import (
     call_api,
     call_api_get_json,
@@ -18,20 +19,14 @@ from bapctools.util import (
     ask_variable_bool,
     drop_suffix,
     ensure_symlink,
-    error,
-    fatal,
     glob,
     has_substitute,
     inc_label,
-    log,
     normalize_yaml_value,
-    PrintBar,
     read_yaml,
     remove_path,
     ryaml_filter,
     substitute,
-    verbose,
-    warn,
     write_yaml,
 )
 from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
@@ -50,9 +45,9 @@ def select_languages(problems: list[Problem]) -> list[str]:
         )
     if config.args.legacy and not config.args.kattis and len(languages) > 1:
         # legacy DOMjudge can handle at most one language
-        fatal("Multiple languages found, please specify one with --lang")
+        bar.fatal("Multiple languages found, please specify one with --lang")
     if not languages:
-        fatal("No language found")
+        bar.fatal("No language found")
     return languages
 
 
@@ -64,8 +59,9 @@ def remove_language_pdf_suffix(file: Path, lang: Optional[str]) -> Path:
         return file
 
 
+@bar.restore
 def build_samples_zip(problems: list[Problem], output: Path, languages: list[str]) -> None:
-    bar = PrintBar("Zip", len(output.name), item=output)
+    bar.make_global(PrintBar("Zip", len(output.name), item=output))
     bar.log("writing sample zip file")
     with ZipFile(output, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
         # Do not include contest PDF for kattis.
@@ -78,7 +74,9 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
 
         for problem in problems:
             if not problem.label:
-                fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
+                bar.fatal(
+                    f"Cannot create samples zip: Problem {problem.name} does not have a label!"
+                )
 
             outputdir = Path(problem.label)
             zf.writestr(f"{problem.label}/", "")
@@ -134,10 +132,11 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
     bar.log("done")
 
 
+@bar.restore
 def build_problem_zip(problem: Problem, output: Path) -> bool:
     """Make DOMjudge/Kattis ZIP file for specified problem."""
 
-    bar = PrintBar("Zip", len(problem.name) + 4, item=problem)
+    bar.make_global(PrintBar("Zip", len(problem.name) + 4, item=problem))
 
     from ruamel.yaml.comments import CommentedMap
 
@@ -268,12 +267,11 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         text,
                         problem.settings.constants,
                         pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                        bar=bar,
                     )
                     f.unlink()
                     f.write_text(text)
 
-    bar = bar.with_item(f"{problem.name}.zip")
+    bar.make_global(PrintBar("Zip", item=f"{problem.name}.zip"))
 
     # move pdfs
     if not config.args.kattis:
@@ -343,10 +341,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             ryaml_filter(limits, "time_limit")
         # validator_flags
         validator_flags = " ".join(
-            problem.get_test_group_yaml(
-                problem.path / "data",
-                PrintBar("Zip", item="Getting validator_flags for legacy export"),
-            ).output_validator_args
+            problem.get_test_group_yaml(problem.path / "data").output_validator_args
         )
         if validator_flags:
             yaml_data["validator_flags"] = validator_flags
@@ -464,13 +459,14 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 # solutions*.{lang}.pdf
 # problem-slides*.{lang}.pdf
 # Output is <outfile>
+@bar.restore
 def build_contest_zip(
     problems: list[Problem], zipfiles: list[Path], outfile: str, languages: list[str]
 ) -> None:
     if not config.args.kattis:  # Kattis does not use problems.yaml.
         update_problems_yaml(problems)
 
-    bar = PrintBar("Zip", len(outfile), item=outfile)
+    bar.make_global(PrintBar("Zip", len(outfile), item=outfile))
     bar.log("writing zip file")
 
     with ZipFile(outfile, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
@@ -516,19 +512,19 @@ def update_contest_id(cid: str) -> None:
     assert isinstance(data, dict)
     data["contest_id"] = cid
     write_yaml(data, contest_yaml_path)
-    log(f"Updated contest_id to {cid}")
+    bar.log(f"Updated contest_id to {cid}")
 
 
 def export_contest(cid: Optional[str]) -> str:
     if not contest_yaml().exists:
-        fatal("Exporting a contest only works if contest.yaml is available.")
+        bar.fatal("Exporting a contest only works if contest.yaml is available.")
 
     data = contest_yaml().dict()
     if cid:
         data["id"] = cid
 
-    verbose("Uploading contest.yaml:")
-    verbose(data)
+    bar.verbose("Uploading contest.yaml:")
+    bar.verbose(data)
     r = call_api(
         "POST",
         "/contests",
@@ -542,15 +538,15 @@ def export_contest(cid: Optional[str]) -> str:
     )
     if r.status_code == 400:
         try:
-            fatal(r.json()["message"])
+            bar.fatal(r.json()["message"])
         except Exception:
-            fatal(r.text)
+            bar.fatal(r.text)
     r.raise_for_status()
 
     new_cid = normalize_yaml_value(get_request_json(r), str)
     assert isinstance(new_cid, str)
 
-    log(f"Uploaded the contest to contest_id {new_cid}.")
+    bar.log(f"Uploaded the contest to contest_id {new_cid}.")
     if new_cid != cid:
         if ask_variable_bool("Update contest_id in contest.yaml automatically"):
             update_contest_id(new_cid)
@@ -565,7 +561,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
     # TODO #102 Perhaps there's a way that ProblemsYamlEntry can also be a ruamel.yaml CommentedMap?
     problems_yaml()
 
-    log("Updating problems.yaml")
+    bar.log("Updating problems.yaml")
     path = Path("problems.yaml")
     data = path.is_file() and read_yaml(path, empty=[])
     assert isinstance(data, list)
@@ -598,7 +594,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
                 break
         if not found:
             change = True
-            log(f"Add problem {problem.name}")
+            bar.log(f"Add problem {problem.name}")
             data.append(
                 {
                     "id": problem.name,
@@ -611,7 +607,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
 
     if colors:
         if len(data) != len(colors):
-            warn(
+            bar.warn(
                 f"Number of colors ({len(colors)}) is not equal to the number of problems ({len(data)})"
             )
         for d, c in zip(data, colors):
@@ -642,22 +638,22 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
             "Update problems.yaml with latest values"
         ):
             write_yaml(data, path)
-            log("Updated problems.yaml")
+            bar.log("Updated problems.yaml")
     else:
         if config.args.action == "update_problems_yaml":
-            log("Already up to date")
+            bar.log("Already up to date")
 
 
 def export_problems(problems: list[Problem], cid: str) -> object:
     if not contest_yaml().exists:
-        fatal("Exporting a contest only works if contest.yaml is available.")
+        bar.fatal("Exporting a contest only works if contest.yaml is available.")
 
     update_problems_yaml(problems)
 
     # Uploading problems.yaml
-    verbose("Uploading problems.yaml:")
+    bar.verbose("Uploading problems.yaml:")
     data = Path("problems.yaml").read_text()
-    verbose(data)
+    bar.verbose(data)
     r = call_api(
         "POST",
         f"/contests/{cid}/problems/add-data",
@@ -671,25 +667,25 @@ def export_problems(problems: list[Problem], cid: str) -> object:
     )
     if r.status_code == 400:
         try:
-            fatal(r.json()["message"])
+            bar.fatal(r.json()["message"])
         except Exception:
-            fatal(r.text)
+            bar.fatal(r.text)
     r.raise_for_status()
 
-    log(f"Uploaded problems.yaml for contest_id {cid}.")
+    bar.log(f"Uploaded problems.yaml for contest_id {cid}.")
     return get_request_json(r)  # Returns the API IDs of the added problems.
 
 
 # Export a single problem to the specified contest ID.
 def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
     if pid:
-        log(f"Export {problem.name} to id {pid}")
+        bar.log(f"Export {problem.name} to id {pid}")
     else:
-        log(f"Export {problem.name} to new id")
+        bar.log(f"Export {problem.name} to new id")
 
     zip_path = problem.path / f"{problem.name}.zip"
     if not zip_path.is_file():
-        error(f"Did not find {zip_path}. First run `bt zip`.")
+        bar.error(f"Did not find {zip_path}. First run `bt zip`.")
         return
     data = None if pid is None else {"problem": pid}
     with zip_path.open("rb") as zipfile:
@@ -701,11 +697,11 @@ def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
         )
     yaml_response = get_request_json(r)
     if isinstance(yaml_response, dict) and "messages" in yaml_response:
-        verbose("RESPONSE:\n" + "\n".join(yaml_response["messages"]))
+        bar.verbose("RESPONSE:\n" + "\n".join(yaml_response["messages"]))
     elif isinstance(yaml_response, dict) and "message" in yaml_response:
-        verbose("RESPONSE: " + yaml_response["message"])
+        bar.verbose("RESPONSE: " + yaml_response["message"])
     else:
-        verbose(f"RESPONSE:\n{r.text}")
+        bar.verbose(f"RESPONSE:\n{r.text}")
     r.raise_for_status()
 
 
@@ -717,14 +713,14 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
     else:
         cid = contest_yaml().contest_id
         if cid is not None:
-            log(f"Reusing contest id {cid} from contest.yaml")
+            bar.log(f"Reusing contest id {cid} from contest.yaml")
     if not any(contest["id"] == cid for contest in get_contests()):
         cid = export_contest(cid)
     assert cid is not None
 
     if len(languages) != 1:
         # TODO: fix this
-        fatal("DOMjudge does not yet support multiple languages")
+        bar.fatal("DOMjudge does not yet support multiple languages")
 
     with open(f"contest.{languages[0]}.pdf", "rb") as pdf_file:
         r = call_api(
@@ -733,10 +729,10 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
             files={"problemset": ("contest.pdf", pdf_file, "application/pdf")},
         )
     if r.status_code == 404:
-        log("Your DOMjudge does not support contest.pdf. Skipping.")
+        bar.log("Your DOMjudge does not support contest.pdf. Skipping.")
     else:
         r.raise_for_status()
-        log("Uploaded contest.pdf.")
+        bar.log("Uploaded contest.pdf.")
 
     # Query the internal DOMjudge problem IDs.
     ccs_problems = call_api_get_json(f"/contests/{cid}/problems")
@@ -765,7 +761,7 @@ def check_if_user_has_team() -> None:
     # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
     users = call_api_get_json("/users")
     if not any(user["username"] == config.args.username and user["team"] for user in users):
-        warn(f'User "{config.args.username}" is not associated with a team.')
-        warn("Therefore, the jury submissions will not be run by the judgehosts.")
+        bar.warn(f'User "{config.args.username}" is not associated with a team.')
+        bar.warn("Therefore, the jury submissions will not be run by the judgehosts.")
         if ask_variable_bool("Continue export to DOMjudge", False):
-            fatal("Aborted.")
+            bar.fatal("Aborted.")

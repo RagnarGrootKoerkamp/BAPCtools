@@ -15,33 +15,27 @@ from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from typing_extensions import TypeIs
 
-from bapctools import config, parallel, validate
+from bapctools import bar, config, parallel, validate
+from bapctools.bar import PrintBar, ProgressBar
 from bapctools.problem import Problem
 from bapctools.program import Generator, Program
 from bapctools.run import Run, Submission
 from bapctools.test_case import TestCase
 from bapctools.util import (
-    BaseBar,
     combine_hashes,
     combine_hashes_dict,
     ensure_symlink,
-    eprint,
-    error,
     ExecResult,
     ExecStatus,
     get_basedirs,
     hash_file_content,
     hash_string,
-    log,
     path_size,
-    PrintBar,
-    ProgressBar,
     read_yaml,
     remove_path,
     ryaml_get_or_add,
     shorten_path,
     substitute,
-    warn,
     write_yaml,
     YamlParser,
 )
@@ -276,13 +270,11 @@ class GeneratorInvocation(Invocation):
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(self, bar: BaseBar, cwd: Path, name: str, seed: int, retries: int = 1) -> ExecResult:
+    def run(self, cwd: Path, name: str, seed: int, retries: int = 1) -> ExecResult:
         assert isinstance(self.program, Generator), "Generator program must be built!"
 
         for retry in range(retries):
-            result = self.program.run(
-                bar, cwd, name, args=self._sub_args(seed=(seed + retry) % 2**31)
-            )
+            result = self.program.run(cwd, name, args=self._sub_args(seed=(seed + retry) % 2**31))
             if result.status:
                 break
             if result.status == ExecStatus.TIMEOUT:
@@ -310,7 +302,7 @@ class SolutionInvocation(Invocation):
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar: BaseBar, cwd: Path) -> ExecResult:
+    def run(self, cwd: Path) -> ExecResult:
         assert isinstance(self.program, Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
@@ -330,7 +322,7 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar: BaseBar, cwd: Path, t: "TestCaseRule") -> bool:
+    def generate_interaction(self, cwd: Path, t: "TestCaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
@@ -340,7 +332,7 @@ class SolutionInvocation(Invocation):
         r = Run(self.problem, self.program, test_case)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = r.run(bar, interaction=interaction_path)
+        result = r.run(interaction=interaction_path)
         if result.verdict != Verdict.ACCEPTED:
             bar.error(f"could not generate .interaction, submission got {result.verdict}")
             return False
@@ -355,7 +347,6 @@ def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
     solution = None
     stored_solution = problem.tmpdir / ".default_solution"
-    bar = PrintBar("generators.yaml")
     if config.args.default_solution:
         if generator_config.has_yaml:
             bar.warn(
@@ -398,7 +389,7 @@ solution: /{config.args.default_solution}"""
                     f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
                 )
         else:
-            log(
+            bar.log(
                 f"""No solution specified. Selected {solution_short_path}. Use
 --default_solution {solution.relative_to(problem.path)}
 to use a specific solution."""
@@ -574,7 +565,7 @@ class TestCaseRule(Rule):
 
         if name.endswith(".in"):
             name = name[:-3]
-            parser.bar.error("Test case names should not end with '.in'")
+            bar.error("Test case names should not end with '.in'")
 
         try:
             super().__init__(problem, key, name, raw_yaml, parser, parent)
@@ -628,7 +619,6 @@ class TestCaseRule(Rule):
                 command_string = substitute(
                     command_string,
                     problem.settings.constants,
-                    parser.bar,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                 )
 
@@ -638,7 +628,7 @@ class TestCaseRule(Rule):
                         command_string = command_string.replace("{count}", f"{self.count_value}")
                         self.intended_copy = False
                     else:
-                        parser.bar.warn(
+                        bar.warn(
                             "Found {count} in generator command but no count in yaml. IGNORED."
                         )
                 self.generator = GeneratorInvocation(problem, command_string)
@@ -664,7 +654,7 @@ class TestCaseRule(Rule):
                 assert is_type(copy_entry, str, "copy")
 
                 if Path(copy_entry).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                    parser.bar.warn(f"`copy: {copy_entry}` should not include the extension.")
+                    bar.warn(f"`copy: {copy_entry}` should not include the extension.")
                 self.copy = resolve_path(copy_entry, allow_absolute=False, allow_relative=True)
                 self.copy = problem.path / self.copy.parent / f"{self.copy.name}.in"
                 if self.copy.is_file():
@@ -736,13 +726,13 @@ class TestCaseRule(Rule):
                 for i, entry in enumerate(entries):
                     if not isinstance(entry, str):
                         generator_config.n_test_case_error += 1
-                        match_parser.bar.error(f"match.{ext}[{i}] is not a string.")
+                        bar.error(f"match.{ext}[{i}] is not a string.")
                         continue
                     try:
                         self.patterns[ext].append(re.compile(entry, re.MULTILINE | re.DOTALL))
                     except re.error:
                         generator_config.n_test_case_error += 1
-                        match_parser.bar.error(f"could not parse regex `{entry}`.")
+                        bar.error(f"could not parse regex `{entry}`.")
             match_parser.check_unknown_keys()
 
             # Error for unknown keys.
@@ -765,7 +755,7 @@ class TestCaseRule(Rule):
                 # An error is shown during generate.
         except ParseError as e:
             # For test cases we can handle the parse error locally since this does not influence much else
-            parser.bar.error(e.message)
+            bar.error(e.message)
             self.ok = False
             generator_config.n_test_case_error += 1
 
@@ -806,7 +796,6 @@ class TestCaseRule(Rule):
         self,
         problem: Problem,
         generator_config: "GeneratorConfig",
-        bar: BaseBar,
         dst: Path,
     ) -> None:
         assert self.process
@@ -860,7 +849,6 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: BaseBar,
     ) -> bool:
         assert self.process
 
@@ -870,13 +858,12 @@ class TestCaseRule(Rule):
         if test_case.root == "testing_tool_test":
             return True
 
-        input_validator_hashes = test_case.validator_hashes(InputValidator, bar)
+        input_validator_hashes = test_case.validator_hashes(InputValidator)
         if all(h in meta_yaml.input_validator_hashes for h in input_validator_hashes):
             return True
 
         if not test_case.validate_format(
             validate.Mode.INPUT,
-            bar,
             constraints=None,
             warn_instead_of_error=config.args.no_validators,
         ):
@@ -898,7 +885,6 @@ class TestCaseRule(Rule):
         problem: Problem,
         test_case: TestCase,
         meta_yaml: "TestCaseRule.MetaYaml",
-        bar: BaseBar,
     ) -> bool:
         assert self.process
 
@@ -921,8 +907,8 @@ class TestCaseRule(Rule):
             bar.error("No .out file was generated!")
             return False
 
-        ans_out_validator_hashes = test_case.validator_hashes(AnswerValidator, bar).copy()
-        output_validator_hashes = test_case.validator_hashes(OutputValidator, bar)
+        ans_out_validator_hashes = test_case.validator_hashes(AnswerValidator).copy()
+        output_validator_hashes = test_case.validator_hashes(OutputValidator)
 
         mode = validate.Mode.ANSWER
         if test_case.root == "invalid_answer":
@@ -937,9 +923,7 @@ class TestCaseRule(Rule):
         if all(h in meta_yaml.ans_out_validator_hashes for h in ans_out_validator_hashes):
             return True
 
-        if not test_case.validate_format(
-            mode, bar, warn_instead_of_error=config.args.no_validators
-        ):
+        if not test_case.validate_format(mode, warn_instead_of_error=config.args.no_validators):
             if not config.args.no_validators:
                 bar.verbose("Use generate --no-validators to ignore validation results.")
                 return False
@@ -951,27 +935,27 @@ class TestCaseRule(Rule):
         return True
 
     def generate(
-        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", local_bar: ProgressBar
     ) -> None:
         assert self.process
 
-        bar.start(self.path)
+        local_bar.start(self.path)
         generator_config.failed += 1
 
         if self.copy_of is not None and not self.intended_copy:
-            bar.warn(
+            local_bar.warn(
                 f'Found identical rule at {self.copy_of.path}. Use "count: <int>" if you want identical test cases (do not use {{seed}} or {{count}}).'
             )
 
         # Some early checks.
         if self.copy_of is not None and not self.copy_of.generate_success:
-            bar.done(False, f"See {self.copy_of.path}. SKIPPED.")
+            local_bar.done(False, f"See {self.copy_of.path}. SKIPPED.")
             return
         if not self.ok:
-            bar.done(False, "Rule contained errors. SKIPPED.")
+            local_bar.done(False, "Rule contained bar.errors. SKIPPED.")
             return
         if self.generator and self.generator.program is None:
-            bar.done(False, "Generator didn't build. SKIPPED.")
+            local_bar.done(False, "Generator didn't build. SKIPPED.")
             return
 
         target_dir = problem.path / "data" / self.path.parent
@@ -986,16 +970,16 @@ class TestCaseRule(Rule):
 
         def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
             assert self.generator is not None
-            result = self.generator.run(bar, tmp, tmp_infile.stem, self.seed, self.config.retries)
+            result = self.generator.run(tmp, tmp_infile.stem, self.seed, self.config.retries)
             if not result.status:
                 return
 
             # Now check that the source and target are equal.
             if infile.read_bytes() == tmp_infile.read_bytes():
                 if config.args.check_deterministic:
-                    bar.part_done(True, "Generator is deterministic.")
+                    local_bar.part_done(True, "Generator is deterministic.")
             else:
-                bar.part_done(
+                local_bar.part_done(
                     False,
                     f"Generator `{self.generator.command_string}` is not deterministic.",
                 )
@@ -1006,9 +990,7 @@ class TestCaseRule(Rule):
                 assert config.SEED_DEPENDENCY_RETRIES > 0
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
                     new_seed = (self.seed + 1 + run) % (2**31)
-                    result = self.generator.run(
-                        bar, tmp, tmp_infile.stem, new_seed, self.config.retries
-                    )
+                    result = self.generator.run(tmp, tmp_infile.stem, new_seed, self.config.retries)
                     if not result.status:
                         return
 
@@ -1019,9 +1001,9 @@ class TestCaseRule(Rule):
 
                 if depends_on_seed:
                     if config.args.check_deterministic:
-                        bar.verbose("Generator depends on seed.")
+                        local_bar.verbose("Generator depends on seed.")
                 else:
-                    bar.log(
+                    local_bar.log(
                         f"Generator `{self.generator.command_string}` likely does not depend on seed:",
                         f"All values in [{self.seed}, {new_seed}] give the same result.",
                     )
@@ -1057,7 +1039,7 @@ class TestCaseRule(Rule):
                 source = infile.with_suffix(source_ext)
                 target = infile.with_suffix(target_ext)
                 if not target.is_file():
-                    bar.error(
+                    local_bar.error(
                         f"link {source_ext[1:]}->{target_ext[1:]} is invalid since {target_ext[1:]} was not generated"
                     )
                 ensure_symlink(source, target, relative=True)
@@ -1086,11 +1068,9 @@ class TestCaseRule(Rule):
 
                 # Step 1: run `generate:` if present.
                 if self.generator:
-                    result = self.generator.run(
-                        bar, cwd, infile.stem, self.seed, self.config.retries
-                    )
+                    result = self.generator.run(cwd, infile.stem, self.seed, self.config.retries)
                     if result.err is not None:
-                        bar.verbose("generator:", result.err)
+                        local_bar.verbose("generator:", result.err)
                     if not result.status:
                         return False
 
@@ -1108,7 +1088,7 @@ class TestCaseRule(Rule):
                             shutil.copy(ext_file, file, follow_symlinks=True)
                             copied = True
                     if not copied:
-                        bar.warn(f"No files copied from {self.copy}.")
+                        local_bar.warn(f"No files copied from {self.copy}.")
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in self.hardcoded.items():
@@ -1126,7 +1106,7 @@ class TestCaseRule(Rule):
                 # Step 5: Error if infile was not generated.
                 if not self._has_required_in(infile):
                     msg = ", ".join(" and ".join(required) for required in self.required_in)
-                    bar.error(f"No {msg} file was generated!")
+                    local_bar.error(f"No {msg} file was generated!")
                     return False
 
                 # Step 6: save which files where generated
@@ -1164,7 +1144,7 @@ class TestCaseRule(Rule):
                     if text is None:
                         file = test_case.with_suffix(f".{ext}")
                         if not file.is_file():
-                            bar.error(f"Invalid match entry, {ext} was not generated")
+                            local_bar.error(f"Invalid match entry, {ext} was not generated")
                             return False
                         text = file.read_text()
                     match = pattern.search(text)
@@ -1172,9 +1152,9 @@ class TestCaseRule(Rule):
                     updated = True
 
                 if cache[name]:
-                    bar.verbose(f"Found match for '{name}'': {cache[name]}")
+                    local_bar.verbose(f"Found match for '{name}'': {cache[name]}")
                 else:
-                    bar.warn(f"Found no match for '{name}'")
+                    local_bar.warn(f"Found no match for '{name}'")
 
             if updated:
                 meta_yaml.write()
@@ -1224,7 +1204,7 @@ class TestCaseRule(Rule):
                         changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
                 if problem.interactive or problem.multi_pass:
-                    interactor_hash = test_case.validator_hashes(OutputValidator, bar)
+                    interactor_hash = test_case.validator_hashes(OutputValidator)
                     if (
                         self.config.solution
                         and (test_case.root == "sample" or config.args.interaction)
@@ -1234,7 +1214,7 @@ class TestCaseRule(Rule):
                             for ext in [".out", ".in.statement", ".ans.statement"]
                         )
                     ):
-                        if not self.config.solution.generate_interaction(bar, cwd, self):
+                        if not self.config.solution.generate_interaction(cwd, self):
                             return False
                         used_solution = True
                         # We need the cast, because key/value types in dicts are invariant,
@@ -1242,22 +1222,22 @@ class TestCaseRule(Rule):
                         meta_yaml.interactor_hash = cast("dict[object, object]", interactor_hash)
                     interaction = infile.with_suffix(".interaction")
                     if interaction.is_file():
-                        if not validate.check_interaction(problem, interaction, bar):
+                        if not validate.check_interaction(problem, interaction):
                             return False
                 elif infile.with_suffix(".interaction").is_file():
-                    bar.warn("Found .interaction for non-interactive/non-multi-pass problem.")
+                    local_bar.warn("Found .interaction for non-interactive/non-multi-pass problem.")
             else:
                 # Generate a .ans if not already generated by earlier steps.
                 if needed(".ans"):
                     # Run the solution if available.
                     if self.config.solution:
-                        if not self.config.solution.run(bar, cwd).status:
+                        if not self.config.solution.run(cwd).status:
                             return False
                         used_solution = True
                         changed_ans = True
                     else:
-                        # Otherwise, it's a hard error.
-                        bar.error(f"{ansfile.name} does not exist and was not generated.")
+                        # Otherwise, it's a hard bar.error.
+                        local_bar.error(f"{ansfile.name} does not exist and was not generated.")
                         return False
 
             if used_solution:
@@ -1298,17 +1278,17 @@ class TestCaseRule(Rule):
                     path = feedbackdir / name
                     if path.exists():
                         ensure_symlink(in_path.with_suffix(path.suffix), path)
-                        bar.log(f"Using {name} from {source} as visualization")
+                        local_bar.log(f"Using {name} from {source} as visualization")
                         return
 
             visualizer: Optional[AnyVisualizer] = problem.visualizer(InputVisualizer)
             output_visualizer = problem.visualizer(OutputVisualizer)
-            visualizer_args = test_case.get_test_case_yaml(bar).input_visualizer_args
+            visualizer_args = test_case.get_test_case_yaml().input_visualizer_args
             if output_visualizer is not None:
                 if out_path.is_file() or problem.settings.ans_is_output:
                     if visualizer is None or out_path.is_file():
                         visualizer = output_visualizer
-                        visualizer_args = test_case.get_test_case_yaml(bar).output_visualizer_args
+                        visualizer_args = test_case.get_test_case_yaml().output_visualizer_args
                     if not out_path.is_file():
                         assert problem.settings.ans_is_output
                         out_path = ans_path
@@ -1352,19 +1332,19 @@ class TestCaseRule(Rule):
                     use_feedback_image(feedbackdir, "output_visualizer")
 
             if result.status == ExecStatus.TIMEOUT:
-                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
-                bar.error(
+                local_bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                local_bar.error(
                     f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration:.1f}s"
                 )
             elif not result.status:
-                bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
-                bar.error(
+                local_bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                local_bar.error(
                     f"{type(visualizer).visualizer_type.capitalize()} Visualizer crashed",
                     result.err,
                 )
 
             if result.status and config.args.error and result.err:
-                bar.log("stderr", result.err)
+                local_bar.log("stderr", result.err)
 
             if result.status:
                 meta_yaml.visualizer_hash = visualizer_hash
@@ -1393,38 +1373,38 @@ class TestCaseRule(Rule):
             ]
             has_sample_only = any(infile.with_suffix(ext).is_file() for ext in sample_only)
             if self.root not in ["sample", "fuzz"] and has_sample_only:
-                bar.warn("overrides should only be used for samples")
+                local_bar.warn("overrides should only be used for samples")
             elif (
                 self.root not in ["sample", "fuzz", "invalid_output", "valid_output"]
                 and infile.with_suffix(".out").is_file()
             ):
-                bar.warn("overrides should only be used for samples")
+                local_bar.warn("overrides should only be used for samples")
 
             def find_override(*exts: str) -> list[str]:
                 found = [ext for ext in exts if infile.with_suffix(ext).is_file()]
                 if len(found) > 1:
-                    bar.warn(f"There should be at most one of {', '.join(found)}")
+                    local_bar.warn(f"There should be at most one of {', '.join(found)}")
                 return found
 
             statement_in = find_override(".in.statement", ".interaction")
             download_in = find_override(".in.download")
             if statement_in and not download_in:
-                bar.warn(f"found {statement_in[0]} but no override for .in.download")
+                local_bar.warn(f"found {statement_in[0]} but no override for .in.download")
             if not statement_in and download_in:
-                bar.warn(f"found {download_in[0]} but no override for .in.statement")
+                local_bar.warn(f"found {download_in[0]} but no override for .in.statement")
 
             statement_ans = find_override(".out", ".ans.statement", ".interaction")
             download_ans = find_override(".out", ".ans.download")
             if statement_ans and not download_ans:
-                bar.warn(f"found {statement_ans[0]} but no override for .ans.download")
+                local_bar.warn(f"found {statement_ans[0]} but no override for .ans.download")
             if not statement_ans and download_ans:
-                bar.warn(f"found {download_ans[0]} but no override for .ans.statement")
+                local_bar.warn(f"found {download_ans[0]} but no override for .ans.statement")
 
             for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
                 file = infile.with_suffix(ext)
                 if not file.is_file():
                     continue
-                validate.sanity_check_override(problem, file, bar)
+                validate.sanity_check_override(problem, file)
 
         def copy_generated() -> None:
             identical_exts = set()
@@ -1438,7 +1418,7 @@ class TestCaseRule(Rule):
                     dest_ext = "".join(source.readlink().suffixes)
                     dest = target_infile.with_suffix(dest_ext)
                     if not source.is_file():
-                        bar.warn(
+                        local_bar.warn(
                             f"{target.name}->{dest.name} is broken since {dest.name} was not generated"
                         )
                     if target.exists() or target.is_symlink():
@@ -1448,11 +1428,11 @@ class TestCaseRule(Rule):
                         else:
                             # different -> overwrite
                             ensure_symlink(target, dest, relative=True)
-                            bar.log(f"CHANGED: {target.name}")
+                            local_bar.log(f"CHANGED: {target.name}")
                     else:
                         # new link -> create it
                         ensure_symlink(target, dest, relative=True)
-                        bar.log(f"NEW: {target.name}")
+                        local_bar.log(f"NEW: {target.name}")
                 elif source.is_file():
                     generator_config.known_files.add(target)
                     if target.exists() or target.is_symlink():
@@ -1463,11 +1443,11 @@ class TestCaseRule(Rule):
                             # different -> overwrite
                             generator_config.remove(target)
                             shutil.copy(source, target, follow_symlinks=True)
-                            bar.log(f"CHANGED: {target.name}")
+                            local_bar.log(f"CHANGED: {target.name}")
                     else:
                         # new file -> copy it
                         shutil.copy(source, target, follow_symlinks=True)
-                        bar.log(f"NEW: {target.name}")
+                        local_bar.log(f"NEW: {target.name}")
                 elif target.is_file() or target.is_symlink():
                     if (
                         config.args.no_visualizer
@@ -1483,7 +1463,7 @@ class TestCaseRule(Rule):
                         continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
-                    bar.log(f"REMOVED: {target.name}")
+                    local_bar.log(f"REMOVED: {target.name}")
                 else:
                     # both source and target do not exist
                     pass
@@ -1493,11 +1473,11 @@ class TestCaseRule(Rule):
             generator_config.hashed_in.add(hash_file_content(infile))
 
             # check for duplicates
-            test_hash = test_case.core_hash(bar)
+            test_hash = test_case.core_hash()
             if test_hash not in generator_config.generated_test_cases:
                 generator_config.generated_test_cases[test_hash] = self
             else:
-                bar.warn(
+                local_bar.warn(
                     f"Test case {self.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
                 )
 
@@ -1505,65 +1485,65 @@ class TestCaseRule(Rule):
         if self.copy_of is not None:
             if self.intended_copy:
                 # This was generated by count: so we can simply link
-                self.copy_of.link(problem, generator_config, bar, target_infile)
+                self.copy_of.link(problem, generator_config, target_infile)
             else:
                 # This is a duplicated rule, we copy to show this
                 copy_generated()
             self.generate_success = True
             generator_config.failed -= 1
             generator_config.copied += 1
-            bar.done(message="SKIPPED: up to date")
+            local_bar.done(message="SKIPPED: up to date")
             return
 
         # Step 2: generate .in if needed (and possible other files)
         if not generate_from_rule():
-            bar.done()
+            local_bar.done()
             return
 
         test_case: Optional[TestCase] = None
         if infile.is_file():
             # Step 3: check .in if needed
             test_case = TestCase(problem, infile, short_path=self.path / self.name)
-            if not self.validate_in(problem, test_case, meta_yaml, bar):
-                bar.done()
+            if not self.validate_in(problem, test_case, meta_yaml):
+                local_bar.done()
                 return
 
             # Step 3.1: check patterns
             if not check_match(test_case, "in"):
-                bar.done()
+                local_bar.done()
                 return
 
             # Step 4: generate .ans and .interaction if needed
             if not generate_from_solution(test_case):
-                bar.done()
+                local_bar.done()
                 return
             # Step 4.1: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
             if not generate_empty_interactive_sample_ans():
-                bar.done()
+                local_bar.done()
                 return
             # Step 4.2: link ans files
             if not generate_linked("ans"):
-                bar.done()
+                local_bar.done()
                 return
 
             # Step 5: validate .ans (and .out if it exists)
-            if not self.validate_ans_and_out(problem, test_case, meta_yaml, bar):
-                bar.done()
+            if not self.validate_ans_and_out(problem, test_case, meta_yaml):
+                local_bar.done()
                 return
 
             # Step 5.1: check patterns
             if not check_match(test_case, "ans"):
-                bar.done()
+                local_bar.done()
                 return
 
             # Step 6: generate visualization if needed
             if not generate_visualization(test_case):
-                bar.done()
+                local_bar.done()
                 return
         else:
             # Step 4.2: link ans files (This is independent of the infile)
             if not generate_linked("ans"):
-                bar.done()
+                local_bar.done()
                 return
 
         # Step 7: warn if statement/download files are inconsistent
@@ -1580,8 +1560,8 @@ class TestCaseRule(Rule):
             assert test_case is not None
             add_test_case_to_cache(test_case)
         if config.args.action != "generate":
-            bar.logged = True  # Disable redundant 'up to date' message in run mode.
-        bar.done(message="SKIPPED: up to date")
+            local_bar.logged = True  # Disable redundant 'up to date' message in run mode.
+        local_bar.done(message="SKIPPED: up to date")
 
 
 # Helper that has the required keys needed from a parent directory.
@@ -1684,7 +1664,7 @@ class DirectoryRule(Rule):
                 assert False
 
     def generate(
-        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", local_bar: ProgressBar
     ) -> None:
         # Generate the current directory:
         # - Create the directory.
@@ -1692,7 +1672,7 @@ class DirectoryRule(Rule):
         # - Link included test cases.
         #   - Input of included test cases are re-validated with the
         #     directory-specific input validator flags.
-        bar.start(self.path)
+        local_bar.start(self.path)
 
         # Create the directory.
         dir_path = problem.path / "data" / self.path
@@ -1716,15 +1696,15 @@ class DirectoryRule(Rule):
             else:
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
-                bar.log("NEW: test_group.yaml")
+                local_bar.log("NEW: test_group.yaml")
         elif self.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
-            bar.log("REMOVED: test_group.yaml")
-        bar.done()
+            local_bar.log("REMOVED: test_group.yaml")
+        local_bar.done()
 
     def generate_includes(
-        self, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+        self, problem: Problem, generator_config: "GeneratorConfig", local_bar: ProgressBar
     ) -> None:
         for key in self.includes:
             t = self.includes[key]
@@ -1734,30 +1714,30 @@ class DirectoryRule(Rule):
             if not generator_config.process_test_case(new_case):
                 continue
 
-            bar.start(new_case)
+            local_bar.start(new_case)
             generator_config.failed += 1
             infile = problem.path / "data" / target.parent / f"{target.name}.in"
             ansfile = problem.path / "data" / target.parent / f"{target.name}.ans"
             new_infile = problem.path / "data" / self.path / f"{target.name}.in"
 
             if not t.process:
-                bar.warn(f"Included case {target} was not processed.")
-                bar.done()
+                local_bar.warn(f"Included case {target} was not processed.")
+                local_bar.done()
                 continue
 
             if not t.generate_success:
-                bar.error(f"Included case {target} has errors.")
-                bar.done()
+                local_bar.error(f"Included case {target} has bar.errors.")
+                local_bar.done()
                 continue
 
             if not infile.is_file():
-                bar.warn(f"{target}.in does not exist.")
-                bar.done()
+                local_bar.warn(f"{target}.in does not exist.")
+                local_bar.done()
                 continue
 
             if not ansfile.is_file():
-                bar.warn(f"{target}.ans does not exist.")
-                bar.done()
+                local_bar.warn(f"{target}.ans does not exist.")
+                local_bar.done()
                 continue
 
             # Check if the test case was already validated.
@@ -1765,17 +1745,17 @@ class DirectoryRule(Rule):
             test_case = TestCase(problem, infile, short_path=new_case)
 
             # Step 1: validate .in
-            if not t.validate_in(problem, test_case, meta_yaml, bar):
+            if not t.validate_in(problem, test_case, meta_yaml):
                 continue
 
             # Step 2: validate .ans (and .out if it exists)
-            if not t.validate_ans_and_out(problem, test_case, meta_yaml, bar):
+            if not t.validate_ans_and_out(problem, test_case, meta_yaml):
                 continue
 
-            t.link(problem, generator_config, bar, new_infile)
+            t.link(problem, generator_config, new_infile)
             generator_config.failed -= 1
             generator_config.included += 1
-            bar.done()
+            local_bar.done()
 
 
 # Returns the numbered name
@@ -1791,12 +1771,13 @@ AnyDirectoryRule = RootDirectoryRule | DirectoryRule
 
 class GeneratorConfig:
     # Parse generators.yaml.
+    @bar.restore
     def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         # we differentiate between two types or errors:
         # 1. n_test_case_error: parse errors that only influence one test case
-        # 2. n_parse_error all: other parse errors
+        # 2. n_parse_error all: other parse bar.errors
         # only type 2 is considered critical
         self.n_test_case_error = 0
         self.n_parse_error = 0
@@ -1840,24 +1821,25 @@ class GeneratorConfig:
             self.yaml = None
             self.has_yaml = False
 
-        bar = PrintBar("generators.yaml")
+        local_bar = PrintBar("generators.yaml")
+        bar.make_global(local_bar)
         try:
-            self.root_dir = self._parse_root(self.yaml, bar)
+            self.root_dir = self._parse_root(self.yaml, local_bar)
         except ParseError as e:
             self.n_parse_error += 1
             if e.path:
-                bar.with_item(e.path).error(e.message)
+                local_bar.with_item(e.path).error(e.message)
             else:
-                bar.error(e.message)
+                local_bar.error(e.message)
 
         if self.n_parse_error:
-            bar.error("could not be parsed")
+            local_bar.error("could not be parsed")
         elif self.n_test_case_error:
-            bar.warn("contains errors")
-        if bar.logged:
-            eprint()
+            local_bar.warn("contains bar.errors")
+        if local_bar.logged:
+            bar.eprint()
 
-    def _parse_root(self, raw_yaml: object, bar: PrintBar) -> DirectoryRule:
+    def _parse_root(self, raw_yaml: object, local_bar: PrintBar) -> DirectoryRule:
         if raw_yaml is None:
             raw_yaml = {}
 
@@ -1866,7 +1848,7 @@ class GeneratorConfig:
         if not is_directory(raw_yaml):
             raise ParseError("could not parse generators.yaml, root must represent a directory.")
 
-        parser = YamlParser("generators.yaml", raw_yaml, bar=bar)
+        parser = YamlParser("generators.yaml", raw_yaml, bar=local_bar)
 
         # we don't really care about the version
         parser.pop("version")
@@ -1883,13 +1865,13 @@ class GeneratorConfig:
                     or Path(gen).is_absolute()
                     or not config.FILE_NAME_REGEX.fullmatch(gen)
                 ):
-                    parser.bar.warn(f"key `{gen}` is invalid. SKIPPED.")
+                    local_bar.warn(f"key `{gen}` is invalid. SKIPPED.")
                     continue
 
                 path = Path("generators") / gen
                 deps = parser.extract_optional_list(gen, str, allow_value=False, allow_empty=True)
                 if not deps:
-                    parser.bar.warn(f"Generator `{gen}` is missing dependencies. SKIPPED")
+                    local_bar.warn(f"Generator `{gen}` is missing dependencies. SKIPPED")
                     continue
 
                 generators[path] = [Path("generators") / d for d in deps]
@@ -1936,14 +1918,13 @@ class GeneratorConfig:
             is_included, cases_list = self.known_keys[rule.key]
             cases_list.append(rule)
             if is_included and len(cases_list) == 2:
-                parser.bar.warn(f"Already included key {name} is reused: {rule.path}.")
+                local_bar.warn(f"Already included key {name} is reused: {rule.path}.")
 
         # might return multiple rules because of count
         def parse_test_case(
             key: str,
             name_gen: Iterator[str],
             raw_yaml: object,
-            bar: BaseBar,
             parent: DirectoryRule,
         ) -> list[TestCaseRule]:
             assert is_test_case(raw_yaml)
@@ -1952,7 +1933,7 @@ class GeneratorConfig:
                 parser_yaml = raw_yaml
             elif isinstance(raw_yaml, str):
                 if raw_yaml.endswith(".in"):
-                    bar.warn(f"Use the new `copy: path/to/case` key instead of {raw_yaml}.")
+                    local_bar.warn(f"Use the new `copy: path/to/case` key instead of {raw_yaml}.")
                     parser_yaml = {"copy": raw_yaml[:-3]}
                 else:
                     parser_yaml = {"generate": raw_yaml}
@@ -1966,7 +1947,7 @@ class GeneratorConfig:
 
             ts: list[TestCaseRule] = []
             for count_value in count_list:
-                parser = YamlParser("generators.yaml", parser_yaml, bar=bar)
+                parser = YamlParser("generators.yaml", parser_yaml, bar=local_bar)
                 name = next(name_gen)
                 if has_count(parser.remaining):
                     name += f"-{count_value:0{padding}}"
@@ -1980,7 +1961,7 @@ class GeneratorConfig:
 
                 if t.path in self.known_cases:
                     # TODO: how can this happen?
-                    bar.error("was already parsed. SKIPPED.")
+                    local_bar.error("was already parsed. SKIPPED.")
                 else:
                     add_known(parser, t)
                     ts.append(t)
@@ -1993,7 +1974,7 @@ class GeneratorConfig:
             raw_yaml: object,
             parser: YamlParser,
             parent: AnyDirectoryRule,
-            parent_bar: PrintBar,
+            local_bar: PrintBar,
         ) -> DirectoryRule:
             assert is_directory(raw_yaml)
 
@@ -2016,19 +1997,19 @@ class GeneratorConfig:
             for i, include in enumerate(includes):
                 if not isinstance(include, str):
                     self.n_parse_error += 1
-                    parser.bar.error(f"Include {i} should be a test case/group key. SKIPPED.")
+                    local_bar.error(f"Include {i} should be a test case/group key. SKIPPED.")
                     continue
 
                 if "/" in include:
                     self.n_parse_error += 1
-                    parser.bar.error(
+                    local_bar.error(
                         f"Include {i}:{include} should be a test case/group key, not a path. SKIPPED."
                     )
                     continue
 
                 if include not in self.known_keys:
                     self.n_parse_error += 1
-                    parser.bar.error(
+                    local_bar.error(
                         f"Unknown include key {i}:{include} does not refer to a previous test case. SKIPPED."
                     )
                     continue
@@ -2036,7 +2017,7 @@ class GeneratorConfig:
                 is_included, cases_list = self.known_keys[include]
                 if len(cases_list) != 1:
                     self.n_parse_error += 1
-                    parser.bar.error(f"Included key {i}:{include} is ambiguous. SKIPPED.")
+                    local_bar.error(f"Included key {i}:{include} is ambiguous. SKIPPED.")
                     continue
 
                 self.known_keys[include] = (True, cases_list)
@@ -2062,17 +2043,17 @@ class GeneratorConfig:
                 if d.numbered and len(entry) != 1:
                     found_keys = [k for k in UNIQUE_TESTCASE_KEYS if k in entry]
                     if found_keys:
-                        parser.bar.error(
+                        local_bar.error(
                             f"Numbered test case {d.path}[{i}] must have exactly one entry. SKIPPED.\nTo specify {'/'.join(found_keys)}, indent one more level."
                         )
                     else:
-                        parser.bar.error(
+                        local_bar.error(
                             f"Numbered test case/group {d.path}[{i}] must have exactly one entry. SKIPPED."
                         )
                     self.n_parse_error += 1
                     continue
 
-                sub_parser = YamlParser(parser.source, entry, bar=parser.bar)
+                sub_parser = YamlParser(parser.source, entry, bar=local_bar)
 
                 # Process named children alphabetically, but not in the root directory.
                 # There, process in the 'natural order'.
@@ -2106,30 +2087,34 @@ class GeneratorConfig:
                     else:
                         if not child_key:
                             self.n_parse_error += 1
-                            sub_parser.bar.error(
+                            local_bar.error(
                                 "Unnumbered test case/group must not have an empty key. SKIPPING."
                             )
                             continue
                         child_name = itertools.repeat(child_key)
 
-                    child_path = ".".join(d.path.parts + (child_key or '""',))
-                    child_bar = parent_bar.with_item(child_path)
-                    if is_directory(child_yaml):
-                        child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
-                        cd = parse_directory(
-                            child_key, child_name, child_yaml, child_parser, d, child_bar
-                        )
-                        d.data.append(cd)
-                        child_parser.check_unknown_keys()
-                    elif is_test_case(child_yaml):
-                        ts = parse_test_case(child_key, child_name, child_yaml, child_bar, d)
-                        d.data.extend(ts)
-                    else:
-                        self.n_parse_error += 1
-                        sub_parser.bar.error(
-                            f"{valid_key} is neither a test case nor a directory. SKIPPING."
-                        )
-                        continue
+                    @bar.restore
+                    def parse_child() -> None:
+                        child_path = ".".join(d.path.parts + (child_key or '""',))
+                        child_bar = local_bar.with_item(child_path)
+                        bar.make_global(child_bar)
+                        if is_directory(child_yaml):
+                            child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
+                            cd = parse_directory(
+                                child_key, child_name, child_yaml, child_parser, d, child_bar
+                            )
+                            d.data.append(cd)
+                            child_parser.check_unknown_keys()
+                        elif is_test_case(child_yaml):
+                            ts = parse_test_case(child_key, child_name, child_yaml, d)
+                            d.data.extend(ts)
+                        else:
+                            self.n_parse_error += 1
+                            local_bar.error(
+                                f"{valid_key} is neither a test case nor a directory. SKIPPING."
+                            )
+
+                    parse_child()
 
                 sub_parser.check_unknown_keys()
 
@@ -2141,9 +2126,9 @@ class GeneratorConfig:
                 if p in self.known_cases:
                     if target != self.known_cases[p].path:
                         if self.known_cases[p].path == p:
-                            parser.bar.error(f"conflict with included case {target}.")
+                            local_bar.error(f"conflict with included case {target}.")
                         else:
-                            parser.bar.error(
+                            local_bar.error(
                                 f"included with multiple targets {target} and {self.known_cases[p].path}."
                             )
                         self.n_parse_error += 1
@@ -2152,7 +2137,9 @@ class GeneratorConfig:
                     d.includes[name] = t
             return d
 
-        root = parse_directory("", itertools.repeat(""), raw_yaml, parser, RootDirectoryRule(), bar)
+        root = parse_directory(
+            "", itertools.repeat(""), raw_yaml, parser, RootDirectoryRule(), local_bar
+        )
         if config.args.action in [
             "generate",
             "all",
@@ -2206,6 +2193,7 @@ class GeneratorConfig:
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
+        @bar.restore
         def build_programs(
             program_type: type[Generator | Submission],
             program_paths: Iterable[Path],
@@ -2227,16 +2215,17 @@ class GeneratorConfig:
                         )
                     )
 
-            bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
+            local_bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
+            bar.make_global(local_bar)
 
             def build_program(p: Generator | Submission) -> None:
-                bar.start(p)
-                p.build(bar)
-                bar.done()
+                local_bar.start(p)
+                p.build()
+                local_bar.done()
 
             parallel.run_tasks(build_program, programs)
 
-            bar.finalize(print_done=False)
+            local_bar.finalize(print_done=False)
 
         # TODO: Consider building all types of programs in parallel as well.
         build_programs(Generator, generators_used)
@@ -2255,6 +2244,7 @@ class GeneratorConfig:
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
+    @bar.restore
     def run(self) -> None:
         self.update_gitignore_file()
         self.problem.reset_test_case_hashes()
@@ -2266,7 +2256,8 @@ class GeneratorConfig:
             item_names.extend(d.path / name for name in d.includes)
 
         self.root_dir.walk(None, count_dir)
-        bar = ProgressBar("Generate", items=item_names)
+        local_bar = ProgressBar("Generate", items=item_names)
+        bar.make_global(local_bar)
 
         # Test cases are generated in two steps:
         # 1. Generate directories and unique test cases listed in generators.yaml.
@@ -2278,13 +2269,13 @@ class GeneratorConfig:
         # 1
         def runner(t: TestCaseRule) -> None:
             if t.copy_of is None:
-                t.generate(self.problem, self, bar)
+                t.generate(self.problem, self, local_bar)
 
         p = parallel.new_queue(runner)
 
         def generate_dir(d: DirectoryRule) -> None:
             p.join()
-            d.generate(self.problem, self, bar)
+            d.generate(self.problem, self, local_bar)
 
         self.root_dir.walk(p.put, generate_dir)
         p.done()
@@ -2292,13 +2283,13 @@ class GeneratorConfig:
         # 2
         def runner_copies(t: TestCaseRule) -> None:
             if t.copy_of is not None:
-                t.generate(self.problem, self, bar)
+                t.generate(self.problem, self, local_bar)
 
         p = parallel.new_queue(runner_copies)
 
         def generate_includes(d: DirectoryRule) -> None:
             p.join()
-            d.generate_includes(self.problem, self, bar)
+            d.generate_includes(self.problem, self, local_bar)
 
         self.root_dir.walk(p.put, generate_includes)
         p.done()
@@ -2313,8 +2304,8 @@ class GeneratorConfig:
             stats.append(
                 f" {Fore.YELLOW}(unique: {len(self.generated_test_cases)}){Style.RESET_ALL}"
             )
-        bar.item_width = 0
-        bar.finalize(message="".join(stats))
+        local_bar.item_width = 0
+        local_bar.finalize(message="".join(stats))
 
     # move a file or directory into the trash directory
     def remove(self, src: Path) -> None:
@@ -2325,7 +2316,7 @@ class GeneratorConfig:
 
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path: Path, bar: BaseBar, *, silent: bool = False) -> None:
+    def _remove_unknown(self, path: Path, *, silent: bool = False) -> None:
         local = path.relative_to(self.problem.path / "data")
         keep = any(
             (
@@ -2342,9 +2333,9 @@ class GeneratorConfig:
                         for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                             tmp = f.with_suffix(ext)
                             if tmp.is_file():
-                                self._remove_unknown(f.with_suffix(ext), bar, silent=True)
+                                self._remove_unknown(f.with_suffix(ext), silent=True)
                 for f in sorted(path.glob("*")):
-                    self._remove_unknown(f, bar)
+                    self._remove_unknown(f)
         else:
             self.remove(path)
             if silent:
@@ -2356,7 +2347,7 @@ class GeneratorConfig:
     def clean_up(self) -> None:
         bar = ProgressBar("Clean Up", max_len=-1)
 
-        self._remove_unknown(self.problem.path / "data", bar)
+        self._remove_unknown(self.problem.path / "data")
         if self.trash_dir is not None:
             bar.warn("Some files were changed/removed.", f"-> {self.trash_dir}")
         bar.finalize()
@@ -2377,14 +2368,15 @@ data/*
                 with gitignorefile.open("a") as f:
                     f.write("\n")
                     f.write(content)
-                log("Updated .gitignore.")
+                bar.log("Updated .gitignore.")
         else:
             assert not gitignorefile.exists()
             gitignorefile.write_text(content)
-            log("Created .gitignore.")
+            bar.log("Created .gitignore.")
 
     # add all test cases specified as copy keys in the generators.yaml
     # can handle files and complete directories
+    @bar.restore
     def add(self, to_add: Sequence[Path]) -> bool:
         if self.n_parse_error > 0:
             return False
@@ -2412,13 +2404,14 @@ data/*
         parent = ryaml_get_or_add(parent, "secret")
         entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
-        bar = ProgressBar("Adding", items=in_files)
+        local_bar = ProgressBar("Adding", items=in_files)
+        bar.make_global(local_bar)
         for in_file in sorted(in_files, key=lambda x: x.name):
-            bar.start(in_file)
+            local_bar.start(in_file)
             if not (self.problem.path / in_file).exists():
-                bar.warn("file not found. SKIPPED.")
+                local_bar.warn("file not found. SKIPPED.")
             elif in_file in known:
-                bar.log("already found in generators.yaml. SKIPPED.")
+                local_bar.log("already found in generators.yaml. SKIPPED.")
             else:
                 entry.append(CommentedMap())
                 path_in_gen = in_file.relative_to("generators")
@@ -2426,18 +2419,19 @@ data/*
                 new = CommentedMap({"copy": path_in_gen.with_suffix("").as_posix()})
                 new.fa.set_flow_style()
                 entry[-1][name] = new
-                bar.log("added to generators.yaml.")
-            bar.done()
+                local_bar.log("added to generators.yaml.")
+            local_bar.done()
 
         if len(parent["data"]) == 0:
             parent["data"] = None
 
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         write_yaml(data, yaml_path)
-        bar.finalize()
+        local_bar.finalize()
         return True
 
     # reorder all test cases in the given directories
+    @bar.restore
     def reorder(self) -> bool:
         if self.n_parse_error + self.n_test_case_error > 0:
             return False
@@ -2448,19 +2442,19 @@ data/*
             path = t.relative_to("data")
             parts = path.parts
             if not parts:
-                warn("Cannot reorder Root directory. SKIPPED.")
+                bar.warn("Cannot reorder Root directory. SKIPPED.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
-                warn(f"{t} is used for invalid test data. SKIPPED.")
+                bar.warn(f"{t} is used for invalid test data. SKIPPED.")
             elif parts[0] == "valid_output":
-                warn(f"{t} is used for valid test data. SKIPPED.")
+                bar.warn(f"{t} is used for valid test data. SKIPPED.")
             elif parts[0] == "testing_tool_test":
-                warn(f"{t} is used to test the testing tool. SKIPPED.")
+                bar.warn(f"{t} is used to test the testing tool. SKIPPED.")
             elif path not in self.known_directories:
-                warn(f"{t} is not a generated directory. SKIPPED.")
+                bar.warn(f"{t} is not a generated directory. SKIPPED.")
             elif not self.known_directories[path].numbered:
-                warn(f"{t} is not numbered. SKIPPED.")
+                bar.warn(f"{t} is not numbered. SKIPPED.")
             elif not self.known_directories[path].data:
-                warn(f"{t} is empty. SKIPPED.")
+                bar.warn(f"{t} is empty. SKIPPED.")
             else:
                 directory_rules.add(self.known_directories[path])
 
@@ -2486,10 +2480,10 @@ data/*
         submissions = [s for s in ts_pair[1] if not_accepted(s)]
 
         if not test_cases:
-            error("No test cases found.")
+            bar.error("No test cases found.")
             return False
         if not submissions:
-            error("No rejected submissions found.")
+            bar.error("No rejected submissions found.")
             return False
 
         ok, verdict_table = Problem.run_some(test_cases, submissions)
@@ -2498,7 +2492,7 @@ data/*
         test_case_paths = {t.in_path.relative_to(data).with_suffix("") for t in test_cases}
         max_test_case_len = max([len(t.as_posix()) for t in test_case_paths])
         for d in directory_rules:
-            eprint(f"\n{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
+            bar.eprint(f"\n{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
 
             # directory must be numbered
             assert isinstance(d.yaml, dict)
@@ -2564,7 +2558,8 @@ data/*
             # test case that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
             # see class TestCaseResult.
             # Worstcase runtime test cases^2 * submissions
-            bar = ProgressBar("Reorder", items=todo)
+            local_bar = ProgressBar("Reorder", items=todo)
+            bar.make_global(local_bar)
             done = []
             weights = [1] * len(submissions)
             while todo:
@@ -2574,18 +2569,18 @@ data/*
                     break
                 index = scores.index(score)
                 result = todo.pop(index)
-                bar.start(result)
+                local_bar.start(result)
                 if result.yaml in done:
                     # skip if another rule for the same count was already added
                     continue
                 done.append(result.yaml)
                 weights = result.update(weights)
-                bar.log("moved to front")
-                bar.done()
+                local_bar.log("moved to front")
+                local_bar.done()
 
             for _ in todo:
-                bar.skip()
-            bar.finalize()
+                local_bar.skip()
+            local_bar.finalize()
 
             # move all unknown subgroups/test cases to the end (keeping their relative order)
             d.yaml["data"].clear()
@@ -2595,7 +2590,7 @@ data/*
         write_yaml(self.yaml, generators_yaml)
 
         # regenerate cases
-        eprint()
+        bar.eprint()
         new_config = GeneratorConfig(self.problem, config.args.test_cases)
         new_config.build(skip_double_build_warning=True)
         new_config.run()
@@ -2645,7 +2640,7 @@ def generate(problem: Problem) -> bool:
 
     if config.args.action == "generate":
         if not gen_config.has_yaml:
-            error("Did not find generators/generators.yaml")
+            bar.error("Did not find generators/generators.yaml")
             return False
 
     if gen_config.has_yaml:

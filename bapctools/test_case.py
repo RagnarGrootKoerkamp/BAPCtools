@@ -8,12 +8,10 @@ from typing import Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
-from bapctools import config, validate
+from bapctools import bar, config, validate
 from bapctools.util import (
-    BaseBar,
     combine_hashes_dict,
     ExecStatus,
-    fatal,
     hash_file_content,
     parse_yaml,
     print_name,
@@ -41,7 +39,6 @@ class TestGroup:
         file: Optional[Path],
         yaml_data: object,
         parent: Optional["TestGroup"],
-        bar: BaseBar,
     ) -> None:
         if parent is None:
             self.args: Sequence[str] = []
@@ -69,7 +66,9 @@ class TestGroup:
             bar.error(f"could not parse {file}. SKIPPED.")
             return
 
-        parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data, bar=bar)
+        parser = YamlParser(
+            str(file) if file else "default test_group.yaml", yaml_data, bar=bar.global_bar
+        )
 
         # parse deprecated keys
         parser.extract_deprecated("output_validator_flags", OutputValidator.args_key)
@@ -153,7 +152,6 @@ class TestGroup:
         problem: "Problem",
         file: Path,
         parent: "TestGroup",
-        bar: BaseBar,
         *,
         filename: Optional[Path] = None,
     ) -> "TestGroup":
@@ -163,11 +161,10 @@ class TestGroup:
         raw = substitute(
             file.read_text(),
             problem.settings.constants,
-            bar,
             pattern=config.CONSTANT_SUBSTITUTE_REGEX,
         )
         yaml_data = parse_yaml(raw, path=filename or file)
-        return TestGroup(problem, filename or file, yaml_data, parent, bar)
+        return TestGroup(problem, filename or file, yaml_data, parent)
 
 
 @dataclass(frozen=True)
@@ -246,7 +243,7 @@ class TestCase:
             try:
                 self.short_path: Path = path.relative_to(self.problem.path / "data")
             except ValueError:
-                fatal(f"Test case {path} is not inside {self.problem.path / 'data'}.")
+                bar.fatal(f"Test case {path} is not inside {self.problem.path / 'data'}.")
         else:
             self.short_path = short_path
 
@@ -272,26 +269,26 @@ class TestCase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def get_test_case_yaml(self, bar: BaseBar) -> TestGroup:
+    def get_test_case_yaml(self) -> TestGroup:
         assert self.in_path.is_file()
 
         if self._test_case_yaml is not None:
             return self._test_case_yaml
 
         yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
-        test_group_yaml = self.problem.get_test_group_yaml(yaml_path.parent, bar)
+        test_group_yaml = self.problem.get_test_group_yaml(yaml_path.parent)
 
         yaml_file = self.with_suffix(".yaml")
         if yaml_file.is_file():
             self._test_case_yaml = TestGroup.parse_yaml(
-                self.problem, yaml_file, test_group_yaml, bar, filename=yaml_path
+                self.problem, yaml_file, test_group_yaml, filename=yaml_path
             )
         else:
             self._test_case_yaml = test_group_yaml
         return self._test_case_yaml
 
     # Returns a hash of the core part of the test case (the part that is usually supposed to be unique)
-    def core_hash(self, bar: BaseBar) -> str:
+    def core_hash(self) -> str:
         # Store the hashes of the generated files for this test case
         hashes = {}
 
@@ -311,13 +308,13 @@ class TestCase:
                 hashes[ext] = hash_file_content(file)
 
         # always consider args and output_validator_args
-        test_case_yaml = self.get_test_case_yaml(bar)
+        test_case_yaml = self.get_test_case_yaml()
         hashes["sumission_args"] = shlex.join(test_case_yaml.args)
         hashes["output_validator_args"] = shlex.join(test_case_yaml.output_validator_args)
 
         return combine_hashes_dict(hashes)
 
-    def validator_hashes(self, cls: type[AnyValidator], bar: BaseBar) -> dict[str, dict[str, str]]:
+    def validator_hashes(self, cls: type[AnyValidator]) -> dict[str, dict[str, str]]:
         """
         Returns
         -------
@@ -333,7 +330,7 @@ class TestCase:
         d = {}
 
         for validator in validators:
-            flags = self.get_test_case_yaml(bar).get_args(validator)
+            flags = self.get_test_case_yaml().get_args(validator)
             flags_string = " ".join(flags)
             h = combine_hashes_dict(
                 {
@@ -352,7 +349,6 @@ class TestCase:
     def validate_format(
         self,
         mode: validate.Mode,
-        bar: BaseBar,
         *,
         constraints: Optional[ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
@@ -364,7 +360,6 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.INPUT,
                     self.problem.validators(InputValidator, check_constraints=check_constraints),
-                    bar,
                     expect_rejection=self.root == "invalid_input",
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -373,7 +368,6 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.ANSWER,
                     self.problem.validators(AnswerValidator, check_constraints=check_constraints),
-                    bar,
                     expect_rejection=self.root == "invalid_answer",
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -383,7 +377,6 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.INPUT,
-                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -394,7 +387,6 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,
-                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -406,7 +398,6 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.INVALID,
                     self.problem.validators(OutputValidator),
-                    bar,
                     expect_rejection=True,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -417,7 +408,6 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.INPUT,
-                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -426,7 +416,6 @@ class TestCase:
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,
-                    bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                 )
@@ -436,7 +425,6 @@ class TestCase:
                 return self._run_validators(
                     validate.Mode.VALID_OUTPUT,
                     self.problem.validators(OutputValidator),
-                    bar,
                     expect_rejection=False,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -448,7 +436,6 @@ class TestCase:
         self,
         mode: validate.Mode,
         validators: Sequence[AnyValidator],
-        bar: BaseBar,
         *,
         expect_rejection: bool,
         constraints: Optional[ConstraintsDict] = None,
@@ -462,7 +449,7 @@ class TestCase:
             if isinstance(validator, OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            args = [*args, *self.get_test_case_yaml(bar).get_args(validator)]
+            args = [*args, *self.get_test_case_yaml().get_args(validator)]
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=args)
             results.append(ret.status)
@@ -616,6 +603,6 @@ class TestCase:
                     main_path = self.out_path
 
                 if main_path is not None:
-                    validate.sanity_check(self.problem, main_path, bar)
+                    validate.sanity_check(self.problem, main_path)
 
         return success

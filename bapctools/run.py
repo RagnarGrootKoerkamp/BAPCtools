@@ -13,6 +13,7 @@ from colorama import Fore, Style
 from typing_extensions import override
 
 from bapctools import (
+    bar,
     config,
     expectations,
     interactive,
@@ -20,23 +21,17 @@ from bapctools import (
     parallel,
     validate,
 )
+from bapctools.bar import PrintBar, ProgressBar
 from bapctools.languages import Language
 from bapctools.program import Program
 from bapctools.test_case import TestCase
 from bapctools.util import (
-    BaseBar,
     crop_line,
-    crop_output,
     ensure_symlink,
-    eprint,
-    error,
     ExecResult,
     ExecStatus,
-    PrintBar,
-    ProgressBar,
     remove_path,
     shorten_path,
-    warn,
 )
 from bapctools.verdicts import (
     from_string_domjudge,
@@ -84,11 +79,11 @@ class Run:
         ensure_symlink(self.in_path, self.test_case.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, bar: BaseBar, *, interaction: bool | Path = False) -> ExecResult:
-        submission_args = self.test_case.get_test_case_yaml(bar).args or []
+    def run(self, *, interaction: bool | Path = False) -> ExecResult:
+        submission_args = self.test_case.get_test_case_yaml().args or []
         if self.problem.interactive:
             result = interactive.run_interactive_test_case(
-                self, bar, interaction=interaction, submission_args=submission_args
+                self, interaction=interaction, submission_args=submission_args
             )
             if result is None:
                 bar.error(f"No output validator found for test case {self.test_case.name}")
@@ -141,8 +136,8 @@ class Run:
                             result.err = msg
                         break
 
-                    result = self._validate_output(bar)
-                    has_nextpass = self._check_nextpass(bar)
+                    result = self._validate_output()
+                    has_nextpass = self._check_nextpass()
                     if result is None:
                         bar.error(f"No output validator found for test case {self.test_case.name}")
                         result = ExecResult(
@@ -156,9 +151,7 @@ class Run:
                         )
                     elif result.status:
                         result.verdict = Verdict.ACCEPTED
-                        validate.sanity_check(
-                            self.problem, self.out_path, bar, strict_whitespace=False
-                        )
+                        validate.sanity_check(self.problem, self.out_path, strict_whitespace=False)
                     elif result.status == ExecStatus.REJECTED:
                         result.verdict = Verdict.WRONG_ANSWER
                         if has_nextpass:
@@ -194,7 +187,7 @@ class Run:
 
             result.duration = max_duration
 
-            self._visualize_output(bar)
+            self._visualize_output()
 
             # Delete .out files larger than 1GB.
             if (
@@ -221,7 +214,7 @@ class Run:
             or config.args.action in ["all", "time_limit"]
         )
 
-    def _check_nextpass(self, bar: BaseBar) -> bool:
+    def _check_nextpass(self) -> bool:
         has_nextpass = (self.feedbackdir / "nextpass.in").is_file()
         if not self.problem.multi_pass:
             if has_nextpass:
@@ -239,17 +232,17 @@ class Run:
         # use nextpass.in as next input
         shutil.move(self.feedbackdir / "nextpass.in", self.in_path)
 
-    def _validate_output(self, bar: BaseBar) -> Optional[ExecResult]:
+    def _validate_output(self) -> Optional[ExecResult]:
         output_validator = self.problem.output_validator()
         if not output_validator:
             return None
         return output_validator.run(
             self.test_case,
             self,
-            args=self.test_case.get_test_case_yaml(bar).output_validator_args,
+            args=self.test_case.get_test_case_yaml().output_validator_args,
         )
 
-    def _visualize_output(self, bar: BaseBar) -> Optional[ExecResult]:
+    def _visualize_output(self) -> Optional[ExecResult]:
         if config.args.no_visualizer:
             return None
         output_visualizer = self.problem.visualizer(OutputVisualizer)
@@ -260,7 +253,7 @@ class Run:
             self.test_case.ans_path.absolute(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
-            args=self.test_case.get_test_case_yaml(bar).output_visualizer_args,
+            args=self.test_case.get_test_case_yaml().output_visualizer_args,
         )
 
 
@@ -327,7 +320,7 @@ class Submission(Program):
                     try:
                         permitted.append(from_string_domjudge(arg))
                     except ValueError:
-                        error(
+                        bar.error(
                             f"@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid"
                         )
                         continue
@@ -344,15 +337,15 @@ class Submission(Program):
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0]
             if subdir in ["accepted", "wrong_answer", "time_limit_exceeded", "run_time_error"]:
-                warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
+                bar.warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
                 return None
 
         return set(permitted)
 
     @override
-    def _get_language_candidates(self, bar: BaseBar) -> list[tuple[Language, list[Path]]]:
+    def _get_language_candidates(self) -> list[tuple[Language, list[Path]]]:
         if self.expectations.language is None:
-            return super()._get_language_candidates(bar)
+            return super()._get_language_candidates()
         candidates = []
         for lang in languages.languages():
             if lang.code == self.expectations.language:
@@ -372,18 +365,18 @@ class Submission(Program):
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
     @override
-    def _set_language(self, language: Language, bar: BaseBar) -> None:
+    def _set_language(self, language: Language) -> None:
         restriction = self.problem.settings.languages
         if restriction and language.code not in restriction:
             bar.warn(f"selected language {language.code} is not permitted by the problem.yaml")
         elif language.internal:
             bar.warn(f"selected language {language.code} is not permitted")
-        super()._set_language(language, bar)
+        super()._set_language(language)
 
     @override
-    def _get_entry_point(self, files: list[Path], bar: BaseBar) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path]) -> tuple[Path, Path, str]:
         if self.expectations.entrypoint is None:
-            return super()._get_entry_point(files, bar)
+            return super()._get_entry_point(files)
         entrypoint = self.expectations.entrypoint
         file = self.tmpdir / entrypoint
         return (file, file, entrypoint)
@@ -435,6 +428,7 @@ class Submission(Program):
 
     # Run this submission on all test_cases that are given.
     # Returns True if verdict is ok
+    @bar.restore
     def run_test_cases(
         self,
         max_submission_name_len: int,
@@ -458,13 +452,14 @@ class Submission(Program):
         verdicts = Verdicts(runs, run_until)
 
         verdict_table.next_submission(verdicts)
-        bar = TableProgressBar(
+        local_bar = TableProgressBar(
             verdict_table,
             self.name,
             count=len(runs),
             max_len=max_item_len,
             needs_leading_newline=False if config.args.verbose else True,
         )
+        bar.make_global(local_bar)
 
         time_sensitive_lower = self.problem.limits.time_limit / self.problem.limits.ac_to_time_limit
         time_sensitive_upper = (
@@ -473,11 +468,11 @@ class Submission(Program):
 
         def process_run(run: Run) -> None:
             if not verdicts.run_is_needed(run):
-                bar.skip()
+                local_bar.skip()
                 return
 
-            bar.start(run)
-            result = run.run(bar)
+            local_bar.start(run)
+            result = run.run()
             assert result.verdict is not None
 
             # Print stderr whenever something is printed
@@ -485,17 +480,17 @@ class Submission(Program):
                 output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
                     "STDERR:"
-                    + BaseBar._format_data(result.err)
+                    + bar.format_data(result.err)
                     + f"\n{output_type}:"
-                    + BaseBar._format_data(result.out)
+                    + bar.format_data(result.out)
                     + "\n"
                 )
             else:
                 data = ""
                 if result.err:
-                    data = crop_output(result.err)
+                    data = bar.crop_output(result.err)
                 if result.out:
-                    data = crop_output(result.out)
+                    data = bar.crop_output(result.out)
 
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
@@ -519,7 +514,7 @@ class Submission(Program):
                     continue
                 if data and not data.endswith("\n"):
                     data += "\n"
-                data += f"{f.name}:{BaseBar._format_data(t)}\n"
+                data += f"{f.name}:{bar.format_data(t)}\n"
 
             permitted = self.expectations.all_permitted(run.test_case)
             got_permitted = result.verdict in permitted
@@ -552,15 +547,15 @@ class Submission(Program):
             style_len = len(f"{Style.RESET_ALL}")
             message = f"{color}{result.verdict.short:>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {test_case:{max_test_case_len + style_len}}"
 
-            with bar:
+            with local_bar:
                 # Update padding since we already print the test case name after the verdict.
-                bar.item_width = padding_len
-                bar.done(got_permitted, message, data, print_item=False)
-                bar.item_width = max_item_len + 1
-                bar._resume()
+                local_bar.item_width = padding_len
+                local_bar.done(got_permitted, message, data, print_item=False)
+                local_bar.item_width = max_item_len + 1
+                local_bar._resume()
 
         parallel.run_tasks(process_run, runs, pin=True)
-        bar.item_width = padding_len
+        local_bar.item_width = padding_len
 
         # We already printed a message if permitted is not satisfied
         passed_permitted = True
@@ -625,7 +620,7 @@ class Submission(Program):
             salient_duration_style = f"{Style.BRIGHT}{salient_duration_style}"
 
         # Use a bold summary line if things were printed before
-        if bar.logged:
+        if local_bar.logged:
             color = f"{Style.BRIGHT}{color}"
         # Summary line is the only thing shown.
         message = f"{color}{salient_print_verdict.short:>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_print_name:{max_test_case_len}}{Style.RESET_ALL}"
@@ -652,16 +647,17 @@ class Submission(Program):
 
             message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short:>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
-        bar.finalize(message=message, suppress_newline=True)
+        local_bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
             verdict_table.print(new_lines=0)
             verdict_table.last_printed = []
-            eprint()
-        elif bar.logged:
-            eprint()
+            bar.eprint()
+        elif local_bar.logged:
+            bar.eprint()
 
         return passed_permitted and passed_required
 
+    @bar.restore
     def test(self) -> None:
         if not self.problem.output_validator():
             return
@@ -669,13 +665,14 @@ class Submission(Program):
         if not test_cases:
             return
 
-        bar = ProgressBar(self.name, items=test_cases)
+        local_bar = ProgressBar(self.name, items=test_cases)
+        bar.make_global(local_bar)
         for test_case in test_cases:
             run = Run(self.problem, self, test_case)
-            bar.start(test_case)
+            local_bar.start(test_case)
             if not self.problem.interactive:
                 passmsg = "(pass 1)" if self.problem.multi_pass else ""
-                bar.log(passmsg, color="")
+                local_bar.log(passmsg, color="")
 
                 # we want to directly see the output of the submission
                 # => we cannot reuse the interaciton file
@@ -688,12 +685,12 @@ while True:
     sys.stdout.buffer.flush()
     sys.stderr.buffer.write(l)
 """
-                submission_args = test_case.get_test_case_yaml(bar).args or []
+                submission_args = test_case.get_test_case_yaml().args or []
 
                 def run_submission() -> ExecResult:
                     if config.args.verbose:
                         data = run.in_path.read_text().removesuffix("\n")
-                        eprint(Fore.YELLOW, data, Style.RESET_ALL, sep="")
+                        bar.eprint(Fore.YELLOW, data, Style.RESET_ALL, sep="")
                     with ExitStack() as cleanup:
                         out_file = run.out_path.open("wb")
                         cleanup.enter_context(out_file)
@@ -727,8 +724,8 @@ while True:
                 for pass_id in itertools.count(1):
                     result = run_submission()
                     if result.verdict is None:
-                        val_result = run._validate_output(bar)
-                        has_nextpass = run._check_nextpass(bar)
+                        val_result = run._validate_output()
+                        has_nextpass = run._check_nextpass()
                         if val_result is not None and config.args.error:
                             result.err = val_result.err
                         if val_result is None:
@@ -750,14 +747,16 @@ while True:
                             result.err = val_result.err
 
                     if result.err:
-                        eprint(Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep="")
+                        bar.eprint(
+                            Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep=""
+                        )
 
                     if result.verdict != Verdict.ACCEPTED:
                         config.n_error += 1
                         msg = f"{Fore.RED}{result.verdict}{Style.RESET_ALL}"
                     else:
                         msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
-                    eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}\n")
+                    bar.eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}\n")
 
                     if result.verdict != Verdict.ACCEPTED or not has_nextpass:
                         break
@@ -770,42 +769,43 @@ while True:
 
                     run._prepare_nextpass()
                     passmsg = f" (pass {pass_id + 1})" if self.problem.multi_pass else ""
-                    eprint(ProgressBar.action(f"Running {self.name}", test_case.name + passmsg))
+                    bar.eprint(bar.action(f"Running {self.name}", test_case.name + passmsg))
             else:
                 # Interactive problem.
-                bar.log("(logging interaction)", color="")
+                local_bar.log("(logging interaction)", color="")
                 optional_result = interactive.run_interactive_test_case(
-                    run, bar, interaction=True, validator_error=True, team_error=True
+                    run, interaction=True, validator_error=True, team_error=True
                 )
                 if optional_result is None:
                     config.n_error += 1
-                    eprint(
+                    bar.eprint(
                         f"{Fore.RED}No output validator found for test case {test_case.name}{Style.RESET_ALL}"
                     )
                     continue
                 result = optional_result
                 if config.args.error and result.err:
-                    eprint(Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep="")
+                    bar.eprint(Fore.YELLOW, result.err.removesuffix("\n"), Style.RESET_ALL, sep="")
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     msg = f"{Fore.RED}{result.verdict}{Style.RESET_ALL}"
                 else:
                     msg = f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL}"
-                eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}")
-            bar.done()
-        bar.finalize(suppress_newline=True)
+                bar.eprint(f"{msg} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}")
+            local_bar.done()
+        local_bar.finalize(suppress_newline=True)
 
     # Run the submission using stdin as input.
+    @bar.restore
     def test_interactive(self) -> None:
         if not self.problem.output_validator():
             return
 
-        bar = PrintBar(f"Running {self.name}")
+        local_bar = PrintBar(f"Running {self.name}")
 
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            localbar = bar.with_item(f"Run {tc}")
+            bar.make_global(local_bar.with_item(f"Run {tc}"))
             # Reinitialize the underlying program, so that changes to the source
             # code can be picked up in build.
             super().__init__(
@@ -815,7 +815,7 @@ while True:
                 limits=self.limits,
                 skip_double_build_warning=True,
             )
-            localbar.log("from stdin" if is_tty else "from file")
+            local_bar.log("from stdin" if is_tty else "from file")
 
             tee_code = R"""
 import sys
@@ -842,7 +842,7 @@ while True:
                 read = os.read(sys.stdin.fileno(), 1)
                 if not read:
                     return
-                if not self.build(localbar):
+                if not self.build():
                     return
                 os.write(w, read)
 
@@ -866,17 +866,17 @@ while True:
             if not result.status:
                 config.n_error += 1
                 status = None
-                eprint(
+                bar.eprint(
                     f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                 )
             else:
                 status = f"{Fore.GREEN}Done:"
 
             if status:
-                eprint(
+                bar.eprint(
                     f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                 )
-            eprint()
+            bar.eprint()
 
             if not is_tty:
                 break

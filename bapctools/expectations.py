@@ -2,9 +2,10 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Final, Optional, TYPE_CHECKING
 
-from bapctools import config
+from bapctools import bar, config
+from bapctools.bar import BaseBar
 from bapctools.test_case import TestCase
-from bapctools.util import BaseBar, error, fatal, once_per_instance, read_yaml, warn, YamlParser
+from bapctools.util import once_per_instance, read_yaml, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ class Person:
             self.kattis = self.orcid = None
         for token in [",", " and ", "&"]:
             if token in self.name:
-                bar.warn(
+                parser.bar.warn(
                     f"found suspicious token '{token.strip()}' in `{parent_path}.name`: {self.name}"
                 )
 
@@ -106,7 +107,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
     # match from start and only match complete directories
     glob = f"^{glob}(/|$)"
     if suspicious is not None:
-        warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
+        bar.warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
     return re.compile(glob)
 
 
@@ -245,13 +246,13 @@ class Expectations:
                 continue
             yaml_data = read_yaml(file, empty={})
             if not isinstance(yaml_data, dict):
-                fatal("could not parse submissions.yaml.")
+                bar.fatal("could not parse submissions.yaml.")
             for submission_glob, expectation in yaml_data.items():
                 if not isinstance(submission_glob, str):
-                    error("keys in submissions.yaml must be strings. SKIPPED.")
+                    bar.error("keys in submissions.yaml must be strings. SKIPPED.")
                     continue
                 if not isinstance(expectation, dict):
-                    error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
+                    bar.error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
                     continue
                 self.expectations[submission_glob] = SubmissionExpectation(
                     submission_glob, expectation
@@ -285,14 +286,16 @@ class Expectations:
         combined.authors = list(min(authors, default=combined.authors))
 
         if len(languages) > 1:
-            warn(f"found multiple languages for {submission.name}, using {combined.language}")
+            bar.warn(f"found multiple languages for {submission.name}, using {combined.language}")
         if len(entrypoints) > 1:
-            warn(f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}")
+            bar.warn(
+                f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}"
+            )
         if len(authors) > 1:
             names = ", ".join([a.name for a in combined.authors])
-            warn(f"found multiple authors for {submission.name}, using {names}")
+            bar.warn(f"found multiple authors for {submission.name}, using {names}")
 
         if not found_match:
-            warn(f"{submission.name} not covered by submissions.yaml")
+            bar.warn(f"{submission.name} not covered by submissions.yaml")
 
         return combined

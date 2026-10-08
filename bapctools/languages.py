@@ -9,17 +9,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final, Optional
 
-from bapctools import config
-from bapctools.util import (
-    BaseBar,
-    error,
-    fatal,
-    home_config_dir,
-    once,
-    read_yaml,
-    warn,
-    YamlParser,
-)
+from bapctools import bar, config
+from bapctools.util import home_config_dir, once, read_yaml, YamlParser
 
 
 class Language:
@@ -47,7 +38,7 @@ class Language:
                 found, missing = "shebang_files", "shebang"
             parser.pop(found)
             parser.pop(missing)
-            warn(
+            parser.bar.warn(
                 f"invalid entries in languages.yaml for '{code}', {found} must be accompanied by {missing}. SKIPPED."
             )
         self.shebang = None
@@ -58,7 +49,7 @@ class Language:
                 self.shebang = re.compile(shebang)
                 self.shebang_files = parser.extract_and_error("shebang_files", str).split()
             except re.error:
-                warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
+                parser.bar.warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
 
         self.compile = parser.extract_optional("compile", str)
         self.run = parser.extract_and_error("run", str)
@@ -70,7 +61,7 @@ class Language:
                     continue
                 # cannot distinguish "{path}" from "{path:}" but better than nothing...
                 if format_spec:
-                    warn(
+                    parser.bar.warn(
                         f"found meta variable {{{field}:{format_spec}}} in languages.yaml for '{code}', did you mean {{{field}}}?"
                     )
                 fields.append(field)
@@ -81,11 +72,11 @@ class Language:
         if self.compile is not None:
             variables |= get_variables(self.compile)
         for unknown in variables - set(Language.VARIABLES):
-            error(f"Unknown meta variable {unknown} in languages.yaml for '{code}'.")
+            parser.bar.error(f"Unknown meta variable {unknown} in languages.yaml for '{code}'.")
             self.ok = False
         entry_points = variables & set(Language.ENTRY_POINTS)
         if len(entry_points) != 1:
-            error(f"Expected exactly one entry point in languages.yaml for '{code}'.")
+            parser.bar.error(f"Expected exactly one entry point in languages.yaml for '{code}'.")
             self.ok = False
 
         def get_exe(key: str, command: str) -> Optional[str]:
@@ -94,7 +85,7 @@ class Language:
                 if exe and exe[0] != "{":
                     return exe
             except (IndexError, ValueError):
-                error(f"invalid value for key '{key}' in languages.yaml for '{code}'")
+                bar.error(f"invalid value for key '{key}' in languages.yaml for '{code}'")
                 self.ok = False
             return None
 
@@ -130,7 +121,7 @@ class Language:
         score = (len(matches), self.priority)
         return (score, source_files)
 
-    def is_installed(self, bar: BaseBar) -> bool:
+    def is_installed(self) -> bool:
         # Make sure we can compile programs for this language.
         if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
             if self.compile_exe not in Language.warn_cache and config.args.verbose:
@@ -149,7 +140,7 @@ class Language:
             return False
         return True
 
-    def warn_fallback(self, bar: BaseBar) -> None:
+    def warn_fallback(self) -> None:
         if self.warned_fallback:
             return
         self.warned_fallback = True
@@ -277,27 +268,27 @@ def languages() -> Sequence[Language]:
             continue
         tmp_languages = read_yaml(file, empty={})
         if not isinstance(tmp_languages, dict):
-            fatal(f"could not parse {file}.")
+            bar.fatal(f"could not parse {file}.")
         deepmerge(raw_languages, tmp_languages)
 
     raw_merged = copy.deepcopy(raw_languages)
     if languages_path.is_file():
         tmp_languages = read_yaml(languages_path, empty={})
         if not isinstance(tmp_languages, dict):
-            fatal(f"could not parse {languages_path}.")
+            bar.fatal(f"could not parse {languages_path}.")
         deepmerge(raw_merged, tmp_languages)
 
     languages = []
     priorities: dict[int, str] = {}
     for code, merged in raw_merged.items():
         if not isinstance(code, str):
-            error("keys in languages.yaml must be strings. SKIPPED.")
+            bar.error("keys in languages.yaml must be strings. SKIPPED.")
             continue
         if not Language.CODE_REGEX.match(code):
-            error(f"key {code} in languages.yaml is invalid. SKIPPED.")
+            bar.error(f"key {code} in languages.yaml is invalid. SKIPPED.")
             continue
         if not isinstance(merged, dict):
-            error(f"invalid entry {code} in languages.yaml. SKIPPED.")
+            bar.error(f"invalid entry {code} in languages.yaml. SKIPPED.")
             continue
 
         fallback = raw_languages.get(code)
@@ -310,7 +301,7 @@ def languages() -> Sequence[Language]:
 
         languages.append(lang)
         if lang.priority in priorities:
-            warn(
+            bar.warn(
                 f"'{lang.code}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
             )
         priorities[lang.priority] = lang.code
