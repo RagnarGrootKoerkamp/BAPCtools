@@ -14,6 +14,7 @@ from bapctools.util import (
     command_supports_memory_limit,
     default_exec_code_map,
     ensure_symlink,
+    eprint,
     error,
     ExecResult,
     ExecStatus,
@@ -255,14 +256,12 @@ def run(
     max_submission_len = max([len(x.name) for x in wrapped_submissions])
     max_testinput_len = max(len(x.name) for x in testinputs)
 
-    # When True, the ProgressBar will print a newline before the first error log.
-    needs_leading_newline = False if config.args.verbose else True
     for submission in wrapped_submissions:
         bar = ProgressBar(
             submission.name,
             count=len(testinputs),
             max_len=max_testinput_len + max_submission_len - len(submission.name),
-            needs_leading_newline=needs_leading_newline,
+            needs_leading_newline=False if config.args.verbose else True,
         )
         cur_ok = True
 
@@ -278,6 +277,8 @@ def run(
 
         parallel.run_tasks(run_submission, testinputs, pin=True)
         ok &= cur_ok
-        needs_leading_newline = bar.finalize(suppress_newline=True)
+        bar.finalize(suppress_newline=True)
+        if bar.global_logged:
+            eprint()
 
     return ok

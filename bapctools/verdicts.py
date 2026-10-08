@@ -690,12 +690,11 @@ class TableProgressBar(ProgressBar):
         print_done: bool = True,
         message: Optional[str] = None,
         suppress_newline: bool = False,
-    ) -> bool:
+    ) -> None:
         with self:
-            res = super().finalize(
+            super().finalize(
                 print_done=print_done,
                 message=message,
                 suppress_newline=suppress_newline,
             )
         self.io.finalize()
-        return res

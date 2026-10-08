@@ -1166,18 +1166,13 @@ class Problem:
 
         ok = True
         verdict_table = verdicts.VerdictTable(submissions, test_cases)
-        # When true, the ProgressBar will print a newline before the first error log.
-        needs_leading_newline = False if config.args.verbose else True
         for submission in submissions:
-            submission_ok, printed_newline = submission.run_test_cases(
+            ok &= submission.run_test_cases(
                 max_submission_len,
                 verdict_table,
                 test_cases,
                 skip_run,
-                needs_leading_newline=needs_leading_newline,
             )
-            needs_leading_newline = not printed_newline
-            ok &= submission_ok
         return ok, verdict_table
 
     def run_until(self) -> verdicts.RunUntil:
