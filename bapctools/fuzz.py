@@ -8,21 +8,12 @@ from colorama import Style
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from typing_extensions import override
 
-from bapctools import config, generate, parallel
+from bapctools import bar, config, generate, parallel
+from bapctools.bar import PrintBar, ProgressBar
 from bapctools.problem import Problem
 from bapctools.run import Run, Submission
 from bapctools.test_case import TestCase
-from bapctools.util import (
-    eprint,
-    error,
-    fatal,
-    PrintBar,
-    ProgressBar,
-    read_yaml,
-    remove_path,
-    ryaml_get_or_add,
-    write_yaml,
-)
+from bapctools.util import read_yaml, remove_path, ryaml_get_or_add, write_yaml
 from bapctools.validate import Mode
 from bapctools.verdicts import Verdict
 
@@ -54,13 +45,13 @@ class GeneratorTask:
         self.save_mutex = threading.Lock()
         self.saved = False
 
-    def run(self, bar: ProgressBar) -> None:
-        if self._run(bar):
+    def run(self, local_bar: ProgressBar) -> None:
+        if self._run(local_bar):
             self.fuzz.finish_task(self.tmp_id)
         else:
             self.fuzz.finish_task(self.tmp_id, 1 + len(self.fuzz.submissions))
 
-    def _run(self, bar: ProgressBar) -> bool:
+    def _run(self, local_bar: ProgressBar) -> bool:
         # GENERATE THE TEST DATA
         dir = Path("fuzz") / f"tmp_id_{self.tmp_id}"
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
@@ -70,55 +61,55 @@ class GeneratorTask:
         infile = cwd / f"{name}.in"
         ansfile = cwd / f"{name}.ans"
 
-        bar.start(f"{self.i}: {self.command}")
-        bar.done(force_log=True)
+        local_bar.start(f"{self.i}: {self.command}")
+        local_bar.done(force_log=True)
 
-        bar.start(f"{self.i}: generate")
-        result = self.generator.run(bar, cwd, name, self.seed)
+        local_bar.start(f"{self.i}: generate")
+        result = self.generator.run(cwd, name, self.seed)
         self.fuzz.queue.ensure_alive()
         if not result.status:
-            bar.done()
+            local_bar.done()
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         if ".ans" in self.rule.hardcoded:
             ansfile.write_text(self.rule.hardcoded[".ans"])
-        bar.done()
+        local_bar.done()
 
         test_case = TestCase(self.fuzz.problem, infile, short_path=dir / f"{name}.in")
 
         # Validate the generated .in.
-        bar.start(f"{self.i}: validate input")
-        if not test_case.validate_format(Mode.INPUT, bar, constraints=None):
+        local_bar.start(f"{self.i}: validate input")
+        if not test_case.validate_format(Mode.INPUT, constraints=None):
             self.fuzz.queue.ensure_alive()
-            bar.done()
+            local_bar.done()
             return False
         self.fuzz.queue.ensure_alive()
-        bar.done()
+        local_bar.done()
 
         # Generate .ans.
         if not ansfile.is_file():
             if self.fuzz.problem.settings.ans_is_output:
                 if self.solution:
                     # Run the solution and validate the generated .ans.
-                    bar.start(f"{self.i}: generate ans")
-                    if not self.solution.run(bar, cwd).status:
+                    local_bar.start(f"{self.i}: generate ans")
+                    if not self.solution.run(cwd).status:
                         self.fuzz.queue.ensure_alive()
-                        bar.done()
+                        local_bar.done()
                         return False
                     self.fuzz.queue.ensure_alive()
-                    bar.done()
+                    local_bar.done()
             elif self.fuzz.problem.interactive or self.fuzz.problem.multi_pass:
                 ansfile.write_text("")
 
         if ansfile.is_file():
-            bar.start(f"{self.i}: validate output")
-            if not test_case.validate_format(Mode.ANSWER, bar):
+            local_bar.start(f"{self.i}: validate output")
+            if not test_case.validate_format(Mode.ANSWER):
                 self.fuzz.queue.ensure_alive()
-                bar.done()
+                local_bar.done()
                 return False
             self.fuzz.queue.ensure_alive()
-            bar.done()
+            local_bar.done()
         else:
-            bar.error(f"{self.i}: {ansfile.name} was not generated.")
+            local_bar.error(f"{self.i}: {ansfile.name} was not generated.")
             return False
 
         # Run all submissions against the test case.
@@ -133,7 +124,7 @@ class GeneratorTask:
         else:
             return self.command
 
-    def save_test(self, bar: ProgressBar, submission: Submission, verdict: Verdict) -> None:
+    def save_test(self, local_bar: ProgressBar, submission: Submission, verdict: Verdict) -> None:
         if self.saved:
             return
         save = False
@@ -145,11 +136,11 @@ class GeneratorTask:
         self.fuzz.queue.ensure_alive()
         # only save rule if we set self.saved to True
         if save:
-            bar.start(f"{self.i}: {self.command}")
-            bar.log("Saving test case in generators.yaml.")
+            local_bar.start(f"{self.i}: {self.command}")
+            local_bar.log("Saving test case in generators.yaml.")
             self.fuzz.save_test(self.get_command(), submission, verdict)
             self.fuzz.queue.ensure_alive()
-            bar.done()
+            local_bar.done()
 
 
 class SubmissionTask:
@@ -165,17 +156,17 @@ class SubmissionTask:
         self.test_case = test_case
         self.tmp_id = tmp_id
 
-    def run(self, bar: ProgressBar) -> None:
+    def run(self, local_bar: ProgressBar) -> None:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.test_case)
-        bar.start(f"{self.generator_task.i}: {self.submission.name}")
-        result = r.run(bar)
+        local_bar.start(f"{self.generator_task.i}: {self.submission.name}")
+        result = r.run()
         assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
-            self.generator_task.save_test(bar, self.submission, result.verdict)
-            bar.done(False, f"{result.verdict}!")
+            self.generator_task.save_test(local_bar, self.submission, result.verdict)
+            local_bar.done(False, f"{result.verdict}!")
         else:
-            bar.done()
+            local_bar.done()
 
         self.generator_task.fuzz.finish_task(self.tmp_id)
 
@@ -243,17 +234,22 @@ class Fuzz:
         # SUBMISSIONS
         self.submissions = self.problem.selected_or_accepted_submissions()
 
+    @bar.restore
     def run(self) -> bool:
+        # we reuse a PrintBar after an abort
+        printbar = PrintBar("Fuzz")
+        bar.make_global(printbar)
+
         if len(self.test_case_rules) == 0:
-            error("No invocations depending on {seed} found.")
+            bar.error("No invocations depending on {seed} found.")
             return False
 
         if not self.submissions:
-            error("No submissions found.")
+            bar.error("No submissions found.")
             return False
 
         def runner(task: GeneratorTask | SubmissionTask) -> None:
-            task.run(bar)
+            task.run(progressbar)
 
         self.start_time = time.monotonic()
         self.iteration = 0
@@ -275,10 +271,9 @@ class Fuzz:
             ],
         )
         max_len += len(f"{self.tmp_ids}: ")
-        # we use a PrintBar after an abort
-        printbar = PrintBar("Fuzz")
         printbar.log("Press CTRL+C to stop\n")
-        bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
+        progressbar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
+        bar.make_global(progressbar)
 
         try:
             try:
@@ -291,11 +286,11 @@ class Fuzz:
                 self.queue.done()
             except KeyboardInterrupt:
                 self.queue.abort()
-                with bar:
-                    eprint(bar.carriage_return)
+                with progressbar:
+                    bar.eprint(bar.CARRIAGE_RETURN)
                     printbar.error("Running interrupted (waiting on remaining tasks)\n")
         except KeyboardInterrupt:
-            fatal("Running interrupted", force=True)
+            printbar.fatal("Running interrupted", force=True)
 
         printbar.item_width = max_len + 1
         for submission, verdicts in self.summary.items():
@@ -306,10 +301,9 @@ class Fuzz:
         printbar.log(f"Found {self.added} test cases in total.", color="")
 
         if self.queue.aborted:
-            fatal("Running interrupted")
+            printbar.fatal("Running interrupted")
 
-        bar.done()
-        bar.finalize()
+        progressbar.finalize()
 
         return True
 

@@ -17,14 +17,13 @@ from typing import Final, IO, Literal, Optional, TYPE_CHECKING
 from colorama import Fore, Style
 from typing_extensions import override
 
-from bapctools import config
+from bapctools import bar, config
+from bapctools.bar import PrintBar
 from bapctools.util import (
-    BaseBar,
     ExecResult,
     ExecStatus,
     is_windows,
     limit_setter,
-    PrintBar,
     remove_path,
 )
 from bapctools.verdicts import Verdict
@@ -320,7 +319,6 @@ class ThreadedWait:
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
-    bar: BaseBar,
     *,
     # False: Return as part of ExecResult
     # True: print to stdout
@@ -351,7 +349,7 @@ def run_interactive_test_case(
         run.in_path.absolute(),
         run.test_case.ans_path.absolute(),
         run.feedbackdir.absolute(),
-        *run.test_case.get_test_case_yaml(bar).output_validator_args,
+        *run.test_case.get_test_case_yaml().output_validator_args,
     ]
 
     # Submission command
@@ -572,7 +570,7 @@ def run_interactive_test_case(
             did_timeout = submission_time > time_limit
             aborted = submission_time >= timeout
             max_duration = max(max_duration, submission_time)
-            has_nextpass = run._check_nextpass(bar)
+            has_nextpass = run._check_nextpass()
 
             # If submission timed out: TLE
             # If team exists first with TLE/RTE -> TLE/RTE
@@ -649,7 +647,7 @@ def run_interactive_test_case(
             if interaction_file:
                 print("---", file=interaction_file, flush=True)
 
-    run._visualize_output(bar)
+    run._visualize_output()
 
     if tle_result is None:
         return ExecResult(
@@ -679,6 +677,7 @@ def _feedback(run: "Run", err: bytes) -> str:
 
 
 # run the interactor without submission to see if it prints first
+@bar.restore
 def interactor_prints_unprompted(
     problem: "Problem", test_case: "TestCase", wait: float = 0.1
 ) -> Optional[bool]:
@@ -686,6 +685,8 @@ def interactor_prints_unprompted(
     if not output_validator:
         return None
     assert output_validator.run_command
+
+    bar.make_global(PrintBar("Interaction run"))
 
     validator_dir = output_validator.tmpdir
     feedbackdir = problem.tmpdir / "tool_runs" / "interaction_feedback"
@@ -697,7 +698,7 @@ def interactor_prints_unprompted(
         test_case.in_path.absolute(),
         test_case.ans_path.absolute(),
         feedbackdir.absolute(),
-        *test_case.get_test_case_yaml(PrintBar("Interaction run")).output_validator_args,
+        *test_case.get_test_case_yaml().output_validator_args,
     ]
 
     try:

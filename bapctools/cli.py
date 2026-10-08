@@ -43,6 +43,7 @@ if not os.getenv("GITLAB_CI", False) and not os.getenv("CI", False):
 
 # Local imports
 from bapctools import (
+    bar,
     cli_parser,  # include this early for autocomplete
     config,
     constraints,
@@ -64,20 +65,13 @@ from bapctools.problem import Problem
 from bapctools.util import (
     AbortError,
     ask_variable_bool,
-    eprint,
-    error,
-    fatal,
     glob,
     home_config_dir,
     inc_label,
     is_problem_directory,
-    log,
-    ProgressBar,
     read_yaml,
     remove_path,
     resolve_path_argument,
-    verbose,
-    warn,
     write_yaml,
 )
 
@@ -142,7 +136,9 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
             # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
             problems = [Problem(path, tmpdir, label) for path, label in fallback_problems()]
             if len(problems) == 0:
-                fatal("Did not find problem.yaml. Are you running this from a problem directory?")
+                bar.fatal(
+                    "Did not find problem.yaml. Are you running this from a problem directory?"
+                )
 
         if config.args.action == "solutions":
             order = config.args.order or contest_yaml().order
@@ -152,12 +148,12 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 for id, count in counts.items():
                     if id not in labels:
                         append_s = "s" if count != 1 else ""
-                        warn(f"Unknown {id} appears {count} time{append_s} in 'order'")
+                        bar.warn(f"Unknown {id} appears {count} time{append_s} in 'order'")
                     elif count > 1:
-                        warn(f"{id} appears {count} times in 'order'")
+                        bar.warn(f"{id} appears {count} times in 'order'")
                 for problem in problems:
                     if problem.label not in counts:
-                        warn(f"{problem.label} does not appear in 'order'")
+                        bar.warn(f"{problem.label} does not appear in 'order'")
 
                 # Sort by position of id in order
                 def get_pos(id: Optional[str]) -> int:
@@ -213,17 +209,17 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 # Sort the problems
                 problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
-                verbose(f"order: {', '.join(p.label or p.name for p in problems)}")
+                bar.verbose(f"order: {', '.join(p.label or p.name for p in problems)}")
 
                 if ask_variable_bool("Update order in contest.yaml"):
                     contest_yaml_path = Path("contest.yaml")
                     data = read_yaml(contest_yaml_path, empty={})
                     if not isinstance(data, dict):
-                        error("could not parse contest.yaml.")
+                        bar.error("could not parse contest.yaml.")
                     else:
                         data["order"] = "".join(p.label or p.name for p in problems)
                         write_yaml(data, contest_yaml_path)
-                        log("Updated order")
+                        bar.log("Updated order")
 
     # Filter problems by submissions/test cases, if given.
     if config.level == "problemset" and (config.args.submissions or config.args.test_cases):
@@ -252,7 +248,7 @@ def check_uuid(problems: list[Problem]) -> None:
     uuids: dict[str, Problem] = {}
     for p in problems:
         if p.settings.uuid in uuids:
-            warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
+            bar.warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
         else:
             uuids[p.settings.uuid] = p
 
@@ -267,7 +263,7 @@ def check_uuid(problems: list[Problem]) -> None:
             if cache_value == this_value:
                 continue
             if Path(cache_value).is_file():
-                warn(f"{p.name} has the same uuid as {Path(cache_value).parent}")
+                bar.warn(f"{p.name} has the same uuid as {Path(cache_value).parent}")
                 continue
         cache_entry.write_text(this_value)
 
@@ -305,14 +301,14 @@ def check_source(problems: list[Problem]) -> None:
 
     for p in problems:
         if not p.settings.source:
-            warn(f"{p.name} is likely missing source (expected: {source_name})")
+            bar.warn(f"{p.name} is likely missing source (expected: {source_name})")
             continue
         if p.settings.source[0].name != source_name:
-            warn(f"{p.name} might have wrong source (expected: {source_name})")
+            bar.warn(f"{p.name} might have wrong source (expected: {source_name})")
         if not source_url:
             continue
         if p.settings.source[0].url != source_url:
-            warn(f"{p.name} might have wrong source url (expected: {source_url})")
+            bar.warn(f"{p.name} might have wrong source url (expected: {source_url})")
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
@@ -356,7 +352,7 @@ def read_personal_config(problem_dir: Optional[Path]) -> None:
         if not config_data:
             continue
         if not isinstance(config_data, dict):
-            warn(f"invalid data in {config_data}. SKIPPED.")
+            bar.warn(f"invalid data in {config_data}. SKIPPED.")
             continue
 
         config.args.add_if_not_set(config.ARGS(config_file, **config_data))
@@ -414,12 +410,12 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
         if action == "test":
-            fatal("Testing a submission only works for a single problem.")
+            bar.fatal("Testing a submission only works for a single problem.")
         if action == "skel":
-            fatal("Copying skel directories only works for a single problem.")
+            bar.fatal("Copying skel directories only works for a single problem.")
 
     if action != "generate" and config.args.test_cases and config.args.samples:
-        fatal("--samples can not go together with an explicit list of test_cases.")
+        bar.fatal("--samples can not go together with an explicit list of test_cases.")
 
     if config.args.add is not None:
         # default to 'generators/manual'
@@ -430,7 +426,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
         checked_paths = []
         for path in config.args.add:
             if path.parts[0] != "generators":
-                warn(f'Path {path} does not match "generators/*". Skipping.')
+                bar.warn(f'Path {path} does not match "generators/*". Skipping.')
             else:
                 checked_paths.append(path)
         config.args.add = checked_paths
@@ -444,7 +440,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
         checked_paths = []
         for path in config.args.test_cases:
             if path.parts[0] != "data":
-                warn(f'Path {path} does not match "data/*". Skipping.')
+                bar.warn(f'Path {path} does not match "data/*". Skipping.')
             else:
                 checked_paths.append(path)
         config.args.test_cases = checked_paths
@@ -457,10 +453,10 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
             level_tmpdir = tmpdir
 
         if config.args.clean:
-            log(f"Deleting {tmpdir}!")
+            bar.log(f"Deleting {tmpdir}!")
             remove_path(level_tmpdir)
         else:
-            eprint(level_tmpdir)
+            bar.eprint(level_tmpdir)
 
         return
 
@@ -482,7 +478,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
 
     if action == "rename_problem":
         if level == "problemset":
-            fatal("rename_problem only works for a problem")
+            bar.fatal("rename_problem only works for a problem")
         skel.rename_problem(problems[0])
         return
 
@@ -504,7 +500,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
 
     if action == "solve_stats":
         if level == "problem":
-            fatal("solve_stats only works for a contest")
+            bar.fatal("solve_stats only works for a contest")
         with config.temporary_args():
             config.args.jobs = (os.cpu_count() or 1) // 2
             solve_stats.generate_solve_stats(config.args.post_freeze)
@@ -512,7 +508,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
 
     if action == "download_submissions":
         if level == "problem":
-            fatal("download_submissions only works for a contest")
+            bar.fatal("download_submissions only works for a contest")
         download_submissions.download_submissions()
         return
 
@@ -536,7 +532,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
             and not config.args.all
         ):
             continue
-        eprint(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="")
+        bar.eprint(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="")
 
         if action in ["generate"]:
             success &= generate.generate(problem)
@@ -650,14 +646,14 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
                 success &= export.build_problem_zip(problem, output)
 
         if len(problems) > 1:
-            eprint()
+            bar.eprint()
 
     if action in ["export"]:
         languages = export.select_languages(problems)
         export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
-        eprint(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}")
+        bar.eprint(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}")
 
         # build pdf for the entire contest
         if action in ["pdf"]:
@@ -723,7 +719,7 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
                         )
 
                 if not build_problem_slides:
-                    log(f"No problem has {slideglob.name}, skipping problem slides")
+                    bar.log(f"No problem has {slideglob.name}, skipping problem slides")
 
             outfile = f"{contest_name}.zip"
             if config.args.kattis:
@@ -748,16 +744,17 @@ def run_parsed_arguments(args: argparse.Namespace, *, personal_config: bool = Tr
 def main() -> None:
     try:
         if sys.version_info < (3, 10):
-            fatal("BAPCtools requires at least Python 3.10.")
+            bar.fatal("BAPCtools requires at least Python 3.10.")
         run_parsed_arguments(cli_parser.parse_args())
     except (AbortError, KeyboardInterrupt):
-        fatal("Running interrupted")
+        bar.fatal("Running interrupted")
 
 
 if __name__ == "__main__":
     main()
 
 
+@bar.restore
 def test(args: list[str]) -> None:
     config.RUNNING_TEST = True
 
@@ -772,4 +769,4 @@ def test(args: list[str]) -> None:
         run_parsed_arguments(cli_parser.parse_args(args), personal_config=False)
     finally:
         os.chdir(original_directory)
-        ProgressBar.current_bar = None
+        bar.ProgressBar.current_bar = None

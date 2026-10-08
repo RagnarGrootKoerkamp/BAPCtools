@@ -10,10 +10,10 @@ from typing import Any, cast, Literal, Optional
 from colorama import ansi, Fore, Style
 from dateutil import parser
 
-from bapctools import config, generate, languages, latex
+from bapctools import bar, config, generate, languages, latex
 from bapctools.problem import Problem
 from bapctools.run import Submission
-from bapctools.util import drop_suffix, eprint, error, glob, log, ShellCommand
+from bapctools.util import drop_suffix, glob, ShellCommand
 from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
 
 
@@ -239,7 +239,7 @@ def problem_stats(problems: list[Problem]) -> None:
     # print header
     header = [c.format_header() for c in columns]
     header_string = " ".join(header)
-    eprint(Style.BRIGHT + header_string + Style.RESET_ALL)
+    bar.eprint(Style.BRIGHT + header_string + Style.RESET_ALL)
 
     total: list[int | float] = [0] * len(columns)
     # print rows
@@ -248,14 +248,14 @@ def problem_stats(problems: list[Problem]) -> None:
         for i, v in enumerate(values):
             if isinstance(v, (int, float)):
                 total[i] += v
-        eprint(*(c.format(v) for c, v in zip(columns, values)))
+        bar.eprint(*(c.format(v) for c, v in zip(columns, values)))
 
     # print the cumulative count
-    eprint("-" * len(header_string))
+    bar.eprint("-" * len(header_string))
     total_row: list[Optional[int | float | str]] = list(total)
     total_row[0] = "TOTAL"
     total_row[-1] = None
-    eprint(*(c.format(v, plain=True) for c, v in zip(columns, total_row)))
+    bar.eprint(*(c.format(v, plain=True) for c, v in zip(columns, total_row)))
 
 
 def _is_code(language: str, type: Any, text: str) -> bool:
@@ -314,8 +314,8 @@ def loc(file: Path) -> Optional[int]:
 
 def stats_all(problems: list[Problem]) -> None:
     if not Path("submissions").is_dir():
-        eprint()
-        log(
+        bar.eprint()
+        bar.log(
             "No team submissions found, try running 'bt download_submissions' to get stats for team submissions."
         )
 
@@ -336,10 +336,10 @@ def stats_all(problems: list[Problem]) -> None:
         + f" {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}" * len(columns)
     )
 
-    eprint()
+    bar.eprint()
     header = header_string.format("", *columns)
-    eprint(Style.BRIGHT + header + Style.RESET_ALL)
-    eprint("-" * len(header))
+    bar.eprint(Style.BRIGHT + header + Style.RESET_ALL)
+    bar.eprint("-" * len(header))
 
     def format_value(
         value: Optional[str | float | int | timedelta], default_color: str = Fore.WHITE
@@ -417,19 +417,19 @@ def stats_all(problems: list[Problem]) -> None:
 
     # handle jury solutions
     best_jury = get_submissions_row("Jury", team_submissions=False)
-    eprint(format_row(*best_jury))
+    bar.eprint(format_row(*best_jury))
     for display_name, codes in language_columns.items():
         values = get_submissions_row(display_name, codes, team_submissions=False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
                 values[i] = format_value(values[i], Fore.CYAN)
-        eprint(format_row(*values))
+        bar.eprint(format_row(*values))
 
     # handle team submissions
     if Path("submissions").is_dir():
-        eprint("-" * len(header))
+        bar.eprint("-" * len(header))
         best_team = get_submissions_row("Teams", team_submissions=True)
-        eprint(format_row(*best_team))
+        bar.eprint(format_row(*best_team))
         for display_name, codes in language_columns.items():
             values = get_submissions_row(display_name, codes, team_submissions=True)
             for i in range(1, 1 + len(problems)):
@@ -441,25 +441,25 @@ def stats_all(problems: list[Problem]) -> None:
                         leq_jury = True
                 if values[i] == best_team[i] and leq_jury:
                     values[i] = format_value(values[i], Fore.CYAN)
-            eprint(format_row(*values))
+            bar.eprint(format_row(*values))
 
     # git stats
     git = ShellCommand.get("git")
     if git is None:
-        error("git command not found!")
+        bar.error("git command not found!")
         return
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
-        error("not inside git")
+        bar.error("not inside git")
         return
 
     def parse_time(date: str) -> Optional[datetime]:
         return parser.parse(date) if date else None
 
-    eprint("-" * len(header))
+    bar.eprint("-" * len(header))
     cases = [len(test_cases(p)) for p in problems]
     case_stats = get_stats(cases)
-    eprint(format_row("Test cases", *cases, *case_stats))
+    bar.eprint(format_row("Test cases", *cases, *case_stats))
     changed: list[Optional[float | int]] = []
     for p in problems:
         times = [
@@ -476,7 +476,7 @@ def stats_all(problems: list[Problem]) -> None:
     changed += get_stats([c for c in changed if c is not None])
     changed[-4] = None  # sum of last changed is meaningless...
     changed_times = [timedelta(seconds=s) if s is not None else None for s in changed]
-    eprint(format_row("└╴changed", *changed_times))
+    bar.eprint(format_row("└╴changed", *changed_times))
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
@@ -498,19 +498,19 @@ def stats_all(problems: list[Problem]) -> None:
     commits = [count_commits(p) for p in problems]
     commit_stats = get_stats(commits)
     commit_stats[-4] = None  # one commit can change multiple problems so the sum is meaningless...
-    eprint(format_row("Commits", *commits, *commit_stats))
-    eprint()
-    eprint(
+    bar.eprint(format_row("Commits", *commits, *commit_stats))
+    bar.eprint()
+    bar.eprint(
         f"{Fore.CYAN}Total Commits{Style.RESET_ALL}:",
         int(git("rev-list", "--all", "--count")),
     )
-    eprint(
+    bar.eprint(
         f"{Fore.CYAN}Total Authors{Style.RESET_ALL}:",
         git("shortlog", "--group=%ae", "-s").count("\n"),
     )
     duration = datetime.now(timezone.utc) - parser.parse(
         git("log", "--reverse", "--format=%cI").partition("\n")[0]
     )
-    eprint(
+    bar.eprint(
         f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h"
     )

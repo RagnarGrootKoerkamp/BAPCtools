@@ -1,8 +1,7 @@
 from typing import Any, TYPE_CHECKING
 
-from bapctools import config
+from bapctools import bar, config
 from bapctools.problem import Problem
-from bapctools.util import error, fatal, log, verbose
 
 if TYPE_CHECKING:
     import requests
@@ -20,14 +19,14 @@ if TYPE_CHECKING:
 def call_slack_api(path: str, **kwargs: Any) -> "requests.Response":
     import requests  # Slow import, so only import it inside this function.
 
-    verbose(f"Calling slack api {path}")
+    bar.verbose(f"Calling slack api {path}")
     result = requests.post(
         f"https://slack.com/api/{path}",
         {"token": config.args.token, **kwargs},
     )
 
     if not result.json()["ok"] and result.json()["error"] == "ratelimited":
-        fatal("Slack API rate limit exceeded. Try again later.")
+        bar.fatal("Slack API rate limit exceeded. Try again later.")
 
     return result
 
@@ -35,7 +34,7 @@ def call_slack_api(path: str, **kwargs: Any) -> "requests.Response":
 def get_channel_ids() -> dict[str, str]:
     r = call_slack_api("conversations.list").json()
     if not r["ok"]:
-        fatal(r["error"])
+        bar.fatal(r["error"])
 
     channel_ids = {}
     for c in r["channels"]:
@@ -46,13 +45,13 @@ def get_channel_ids() -> dict[str, str]:
 def get_user_id(username: str) -> str:
     r = call_slack_api("users.list").json()
     if not r["ok"]:
-        fatal(r["error"])
+        bar.fatal(r["error"])
     members = r["members"]
     for m in members:
         if m["profile"]["real_name"] == username or m["profile"]["display_name"] == username:
             assert isinstance(m["id"], str)
             return m["id"]
-    fatal(f"User {username} not found")
+    bar.fatal(f"User {username} not found")
 
 
 # Function to create a slack channel for each problem
@@ -64,13 +63,13 @@ def create_slack_channels(problems: list[Problem]) -> None:
 def create_slack_channel(name: str) -> None:
     r = call_slack_api("conversations.create", name=name)
     if not r.ok:
-        error(r.text)
+        bar.error(r.text)
         return
     response = r.json()
     if not response["ok"]:
-        error(response["error"])
+        bar.error(response["error"])
         return
-    log(f"Created channel {name}")
+    bar.log(f"Created channel {name}")
 
 
 def join_slack_channels(problems: list[Problem], username: str) -> None:
@@ -85,10 +84,10 @@ def join_slack_channel(channel_name: str, channel_id: str, username: str, userid
     # The bot account invites the user to the channel.
     r = call_slack_api("conversations.invite", channel=channel_id, users=userid)
     if not r.ok:
-        error(r.text)
+        bar.error(r.text)
         return
     response = r.json()
     if not response["ok"]:
-        error(response["error"])
+        bar.error(response["error"])
         return
-    log(f"Invited {username} to channel {channel_name}")
+    bar.log(f"Invited {username} to channel {channel_name}")

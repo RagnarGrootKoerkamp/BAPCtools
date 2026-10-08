@@ -6,19 +6,16 @@ from typing import Final, Optional, TYPE_CHECKING
 
 import vermin
 
-from bapctools import config, parallel
+from bapctools import bar, config, parallel
+from bapctools.bar import ProgressBar
 from bapctools.program import Program
 from bapctools.run import Submission
 from bapctools.util import (
-    BaseBar,
     command_supports_memory_limit,
     default_exec_code_map,
     ensure_symlink,
-    eprint,
-    error,
     ExecResult,
     ExecStatus,
-    ProgressBar,
     remove_path,
 )
 
@@ -106,7 +103,9 @@ sys.exit(result.returncode)
         wrapper_file.write_text(self._wrapper_script())
         self.run_command = [sys.executable, wrapper_file]
 
-    def run(self, bar: ProgressBar, testing_tool: "TestingTool", testinput: TestInput) -> bool:
+    def run(
+        self, local_bar: ProgressBar, testing_tool: "TestingTool", testinput: TestInput
+    ) -> bool:
         assert self.run_command is not None
         rundir = self.tmpdir / testinput.short_path
         remove_path(rundir)
@@ -116,7 +115,7 @@ sys.exit(result.returncode)
         in_path = rundir / "testcase.in"
         ensure_symlink(in_path, testinput.in_path)
 
-        bar.start(testinput)
+        local_bar.start(testinput)
 
         result = testing_tool.run(in_path, self)
         submission_returncode = None
@@ -146,9 +145,9 @@ sys.exit(result.returncode)
         if result.out and result.err:
             data = (
                 "TESTING TOOL STDERR:"
-                + BaseBar._format_data(result.err)
+                + bar.format_data(result.err)
                 + "\nTESTING TOOL STDOUT:"
-                + BaseBar._format_data(result.out)
+                + bar.format_data(result.out)
                 + "\n"
             )
         elif result.err:
@@ -156,7 +155,7 @@ sys.exit(result.returncode)
         elif result.out:
             data = result.out
 
-        bar.done(ok, ", ".join(message), data)
+        local_bar.done(ok, ", ".join(message), data)
         return ok
 
 
@@ -183,7 +182,7 @@ class TestingTool(Program):
         )
 
     # this only works for single file python 3 files
-    def check_python_version(self, bar: BaseBar) -> None:
+    def check_python_version(self) -> None:
         if "python" not in self.language.name.lower():
             return
         if "3" not in self.language.name.lower():
@@ -221,6 +220,7 @@ class TestingTool(Program):
             bar.log(f"seems compliant with python {version_str}", requirements)
 
 
+@bar.restore
 def run(
     problem: "Problem", testinputs: Sequence[TestInput], submissions: Sequence[Submission]
 ) -> bool:
@@ -231,10 +231,10 @@ def run(
     tool_dir = problem.path / "attachments" / "testing_tool"
     tool_files = list((problem.path / "attachments").glob("testing_tool.*"))
     if (tool_dir.is_dir() and tool_files) or len(tool_files) > 1:
-        error("Multiple testing tools found!")
+        bar.error("Multiple testing tools found!")
         return False
     elif not tool_dir.is_dir() and not tool_files:
-        error("No testing tool found!")
+        bar.error("No testing tool found!")
         return False
 
     if tool_dir.is_dir():
@@ -242,19 +242,20 @@ def run(
     else:
         testing_tool = TestingTool(problem, tool_files[0])
 
-    bar = ProgressBar("Building testing tool", items=[testing_tool])
+    local_bar = ProgressBar("Building testing tool", items=[testing_tool])
+    bar.make_global(local_bar)
 
     def build() -> bool:
-        bar.start(testing_tool)
-        if not testing_tool.build(bar):
-            bar.done()
+        local_bar.start(testing_tool)
+        if not testing_tool.build():
+            local_bar.done()
             return False
-        testing_tool.check_python_version(bar)
-        bar.done()
+        testing_tool.check_python_version()
+        local_bar.done()
         return True
 
     ok = build()
-    bar.finalize(print_done=False)
+    local_bar.finalize(print_done=False)
     if not ok:
         return False
 
@@ -262,28 +263,29 @@ def run(
     max_testinput_len = max(len(x.name) for x in testinputs)
 
     for submission in wrapped_submissions:
-        bar = ProgressBar(
+        local_bar = ProgressBar(
             submission.name,
             count=len(testinputs),
             max_len=max_testinput_len + max_submission_len - len(submission.name),
             needs_leading_newline=False if config.args.verbose else True,
         )
+        bar.make_global(local_bar)
         cur_ok = True
 
         def run_submission(testinput: TestInput) -> None:
             nonlocal cur_ok
             # skip after first error
             if not cur_ok and not config.args.all:
-                bar.skip()
+                local_bar.skip()
                 return
-            if not submission.run(bar, testing_tool, testinput):
+            if not submission.run(local_bar, testing_tool, testinput):
                 # just writing False is thread safe
                 cur_ok = False
 
         parallel.run_tasks(run_submission, testinputs, pin=True)
         ok &= cur_ok
-        bar.finalize(suppress_newline=True)
-        if bar.logged:
-            eprint()
+        local_bar.finalize(suppress_newline=True)
+        if local_bar.logged:
+            bar.eprint()
 
     return ok

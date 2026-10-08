@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 # Local imports
-from bapctools import config, contest, latex
+from bapctools import bar, config, contest, latex
 from bapctools.problem import Problem
 from bapctools.util import (
     ask_variable_bool,
@@ -13,15 +13,11 @@ from bapctools.util import (
     ask_variable_string,
     copy_and_substitute,
     copytree_and_substitute,
-    error,
-    fatal,
     generate_problem_uuid,
     inc_label,
-    log,
     read_yaml,
     ShellCommand,
     substitute,
-    warn,
     write_yaml,
 )
 from bapctools.validate import OutputValidator
@@ -38,9 +34,9 @@ def _alpha_num(string: str) -> str:
 
 def new_contest() -> None:
     if config.args.contest:
-        fatal("--contest does not work for new_contest.")
+        bar.fatal("--contest does not work for new_contest.")
     if config.args.problem:
-        fatal("--problem does not work for new_contest.")
+        bar.fatal("--problem does not work for new_contest.")
 
     # Ask for all required infos.
     title = ask_variable_string("name", config.args.contestname)
@@ -58,7 +54,7 @@ def new_contest() -> None:
     title = title.replace("_", "-")
 
     skeldir = config.RESOURCES_ROOT / "skel" / "contest"
-    log(f"Copying {skeldir} to {dirname}.")
+    bar.log(f"Copying {skeldir} to {dirname}.")
     copytree_and_substitute(
         skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False
     )
@@ -84,7 +80,7 @@ def new_problem() -> None:
     if config.args.contest:
         os.chdir(Path(config.args.contest))
     if config.args.problem:
-        fatal("--problem does not work for new_problem.")
+        bar.fatal("--problem does not work for new_problem.")
 
     statement_languages = config.args.lang if config.args.lang else ["en"]
     main_language = "en" if "en" in statement_languages else statement_languages[0]
@@ -117,7 +113,7 @@ def new_problem() -> None:
     if problem_type == "float":
         problem_type = "pass-fail"
         output_validator_args = f'{OutputValidator.args_key}: [float_tolerance, "1e-6"]'
-        log("Using default float tolerance of 1e-6")
+        bar.log("Using default float tolerance of 1e-6")
     # Since version 2025-09 of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
     if problem_type == "custom":
@@ -166,10 +162,10 @@ def new_problem() -> None:
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
-    log(f"Copying {skeldir} to {target_dir / dirname}.")
+    bar.log(f"Copying {skeldir} to {target_dir / dirname}.")
 
     if config.SPEC_VERSION not in (skeldir / "problem.yaml").read_text():
-        fatal(
+        bar.fatal(
             f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION}`."
         )
 
@@ -224,7 +220,7 @@ def new_problem() -> None:
     for lang in statement_languages:
         statement_path = target_dir / dirname / latex.PdfType.PROBLEM.path(lang)
         if not statement_path.is_file():
-            warn(
+            bar.warn(
                 f"No skeleton for {statement_path.name} found. Create it manually or update skel/problem."
             )
 
@@ -249,7 +245,7 @@ def rename_problem(problem: Problem) -> None:
     problem_yaml = Path(dirname) / "problem.yaml"
     data = read_yaml(problem_yaml, empty={})
     if not isinstance(data, dict):
-        error("could not parse problem.yaml.")
+        bar.error("could not parse problem.yaml.")
         return
     data["name"] = newname
     write_yaml(data, problem_yaml)
@@ -258,7 +254,7 @@ def rename_problem(problem: Problem) -> None:
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml, empty=[])
         if not isinstance(data, list) or not all(isinstance(p, dict) for p in data):
-            error("could not parse problems.yaml. Must be a list of problems.")
+            bar.error("could not parse problems.yaml. Must be a list of problems.")
         else:
             prob = next((p for p in data if p["id"] == problem.name), None)
             if prob is not None:
@@ -278,7 +274,7 @@ def copy_skel_dir(problems: list[Problem]) -> None:
         target = problem.path / d
 
         if d.is_absolute():
-            error(f"{d} is not a relative path.")
+            bar.error(f"{d} is not a relative path.")
             continue
 
         for source in sources:
@@ -291,18 +287,18 @@ def copy_skel_dir(problems: list[Problem]) -> None:
             )
             break
         else:
-            error(f"{sources[-1]} does not exist")
+            bar.error(f"{sources[-1]} does not exist")
 
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     git = ShellCommand.get("git")
     if git is None:
-        error("git command not found!")
+        bar.error("git command not found!")
         return
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
-        error("not inside git")
+        bar.error("not inside git")
         return
 
     git_root_path = Path(git("rev-parse", "--show-toplevel").strip()).absolute()
@@ -346,7 +342,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
         contest_path = Path(contest)
         forgejo = Path("../.forgejo")
     else:
-        fatal(".git and ../.git not found after changing to contest directory.")
+        bar.fatal(".git and ../.git not found after changing to contest directory.")
 
     src_name = "forgejo_actions_latest_bt" if config.args.latest_bt else "forgejo_actions_docker_bt"
     src = config.RESOURCES_ROOT / "skel" / src_name
@@ -384,7 +380,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
 # - flat structure, with all workflows directly in `.github/workflows`.
 def create_github_actions(contest: str, problems: list[Problem]) -> None:
     if config.args.latest_bt:
-        fatal("Caching the latest BAPCtools is not supported for github actions.")
+        bar.fatal("Caching the latest BAPCtools is not supported for github actions.")
 
     if Path(".git").is_dir():
         contest_path = Path()
@@ -395,7 +391,7 @@ def create_github_actions(contest: str, problems: list[Problem]) -> None:
         github = Path("../.github")
         nest = True
     else:
-        fatal(".git and ../.git not found after changing to contest directory.")
+        bar.fatal(".git and ../.git not found after changing to contest directory.")
 
     skel_dir = config.RESOURCES_ROOT / "skel" / "forgejo_actions_docker_bt"
 

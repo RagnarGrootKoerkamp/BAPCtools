@@ -3,9 +3,9 @@ from collections import defaultdict
 
 from colorama import Fore, Style
 
-from bapctools import latex, validate
+from bapctools import bar, latex, validate
 from bapctools.problem import Problem
-from bapctools.util import eprint, error, log, math_eval, warn
+from bapctools.util import math_eval
 from bapctools.validate import ConstraintsDict
 
 """DISCLAIMER:
@@ -23,11 +23,11 @@ def check_validators(
     ans_constraints: ConstraintsDict = {}
     problem.validate_data(validate.Mode.INPUT, constraints=in_constraints)
     if not in_constraints:
-        warn("No constraint validation of input values found in input validators.")
+        bar.warn("No constraint validation of input values found in input validators.")
     problem.validate_data(validate.Mode.ANSWER, constraints=ans_constraints)
     if not problem.settings.ans_is_output and not ans_constraints:
-        log("No constraint validation of answer values found in answer or output validators.")
-    eprint()
+        bar.log("No constraint validation of answer values found in answer or output validators.")
+    bar.eprint()
 
     validator_values: set[int | float] = set()
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
@@ -179,7 +179,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
                 if matches(f"\\begin{{{section}}}"):
                     # io environments should not be nested
                     if end is not None:
-                        error(f'Unexpected "\\begin{{{section}}}" in {statement_file.name}!')
+                        bar.error(f'Unexpected "\\begin{{{section}}}" in {statement_file.name}!')
                         return statement_values, statement_defs
                     pos += 8 + len(section)
                     end = f"\\end{{{section}}}"
@@ -190,7 +190,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
         elif matches("\\section{") or matches("\\section*{"):
             # no section should start inside an io environment
             if end is not None:
-                error(f'Unexpected "\\section" in {statement_file.name}!')
+                bar.error(f'Unexpected "\\section" in {statement_file.name}!')
                 return statement_values, statement_defs
             in_io = False
             for section in sections:
@@ -219,7 +219,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
                 elif matches("\\"):
                     value = parse_command()
                 else:
-                    error(f'Could not parse "{define}{{{name}}}[...]"!')
+                    bar.error(f'Could not parse "{define}{{{name}}}[...]"!')
                     return statement_values, statement_defs
                 for key in commands:
                     value = value.replace(f"\\{key}", commands[key])
@@ -241,7 +241,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
                     pos += 1
     # ensure that environment was closed
     if end is not None:
-        error(f'Missing "{end}" in {statement_file.name}!')
+        bar.error(f'Missing "{end}" in {statement_file.name}!')
     return statement_values, statement_defs
 
 
@@ -261,7 +261,7 @@ def check_constraints(problem: Problem) -> bool:
     name_len = 8
     left_width = 8 + name_len + 2 * value_len
 
-    eprint(
+    bar.eprint(
         "{:^{width}}|{:^40}".format("VALIDATORS", "PROBLEM STATEMENT", width=left_width),
         sep="",
     )
@@ -281,9 +281,9 @@ def check_constraints(problem: Problem) -> bool:
         if val is not None:
             validator_defs.remove(val)
             if isinstance(val, str):
-                eprint("{:^{width}}".format(val, width=left_width), sep="", end="")
+                bar.eprint("{:^{width}}".format(val, width=left_width), sep="", end="")
             else:
-                eprint(
+                bar.eprint(
                     "{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}".format(
                         *val, name_len=name_len, value_len=value_len
                     ),
@@ -291,18 +291,18 @@ def check_constraints(problem: Problem) -> bool:
                     end="",
                 )
         else:
-            eprint("{:^{width}}".format("", width=left_width), sep="", end="")
-        eprint("|", end="")
+            bar.eprint("{:^{width}}".format("", width=left_width), sep="", end="")
+        bar.eprint("|", end="")
         if st is not None:
             languages = ",".join(statement_defs[st])
-            eprint(f"{st:^40} {languages}", sep="", end="")
+            bar.eprint(f"{st:^40} {languages}", sep="", end="")
         else:
-            eprint("{:^40}".format(""), sep="", end="")
-        eprint()
+            bar.eprint("{:^40}".format(""), sep="", end="")
+        bar.eprint()
         if st is not None:
             statement_defs.pop(st)
 
-    eprint()
+    bar.eprint()
 
     warned = False
     for value in validator_values:
@@ -311,17 +311,17 @@ def check_constraints(problem: Problem) -> bool:
         if len(missing) > 0:
             if not warned:
                 warned = True
-                warn("Values in validators but missing in some statement:")
-            eprint(
+                bar.warn("Values in validators but missing in some statement:")
+            bar.eprint(
                 f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in",
                 ",".join(missing),
             )
 
     extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
-        warn("Values in some statement but not in input validators:")
+        bar.warn("Values in some statement but not in input validators:")
         for value in extra_in_statement:
-            eprint(
+            bar.eprint(
                 f"{Fore.YELLOW}{value}{Style.RESET_ALL} in",
                 ",".join(sorted(statement_values[value])),
             )

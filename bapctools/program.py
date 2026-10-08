@@ -11,14 +11,12 @@ from typing import Any, Final, Optional, TYPE_CHECKING
 
 from colorama import Fore
 
-from bapctools import config, languages
+from bapctools import bar, config, languages
 from bapctools.languages import Language
 from bapctools.util import (
-    BaseBar,
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
-    error,
     exec_command,
     ExecResult,
     ExecStatus,
@@ -26,7 +24,6 @@ from bapctools.util import (
     has_substitute,
     hash_file,
     once,
-    PrintBar,
     read_yaml,
     remove_path,
     write_yaml,
@@ -42,7 +39,6 @@ def create_aliases() -> None:
     tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}" / ".aliases").resolve()
 
     langs = languages.languages()
-    bar = PrintBar()
 
     def create_alias(code: str, alias: str, *, use_compile: bool) -> None:
         language = None
@@ -51,7 +47,7 @@ def create_aliases() -> None:
         for lang in langs:
             if lang.code != code:
                 continue
-            if not lang.is_installed(bar):
+            if not lang.is_installed():
                 fallback = True
                 continue
             exe = lang.compile_exe if use_compile else lang.run_exe
@@ -68,7 +64,7 @@ def create_aliases() -> None:
         assert exe is not None
 
         if fallback:
-            language.warn_fallback(bar)
+            language.warn_fallback()
 
         alias_path = tmpdir / alias
         ensure_symlink(alias_path, Path(exe))
@@ -147,7 +143,7 @@ class Program:
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
             if path in problem.programs:
-                error(f"Why would you build {path} twice?")
+                bar.error(f"Why would you build {path} twice?")
                 assert path not in problem.programs
             problem.programs[path] = self
 
@@ -197,7 +193,7 @@ class Program:
         self.language: Language  # Populated in Program.build
 
     # checks all languages and sorts them
-    def _get_language_candidates(self, bar: BaseBar) -> list[tuple[Language, list[Path]]]:
+    def _get_language_candidates(self) -> list[tuple[Language, list[Path]]]:
         candidates = []
         for lang in languages.languages():
             score, matching = lang.evaluate(self.input_files)
@@ -205,13 +201,13 @@ class Program:
                 candidates.append((score, lang, matching))
         return [(lang, files) for _, lang, files in sorted(candidates, reverse=True)]
 
-    def _set_language(self, language: Language, bar: BaseBar) -> None:
+    def _set_language(self, language: Language) -> None:
         restrictions: Final[Sequence[str]] = getattr(self.__class__, "languages", tuple())
         if restrictions and language.code not in restrictions:
             bar.warn(f"selected language {language.code} is not permitted for this program")
         self.language = language
 
-    def _get_entry_point(self, files: list[Path], bar: BaseBar) -> tuple[Path, Path, str]:
+    def _get_entry_point(self, files: list[Path]) -> tuple[Path, Path, str]:
         binary = self.tmpdir / languages.BINARY_NAME
         mainfile = None
         if not self.has_deps:
@@ -228,20 +224,20 @@ class Program:
         return (binary, mainfile, str(mainclass))
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: BaseBar) -> bool:
-        candidates = self._get_language_candidates(bar)
+    def _get_language(self) -> bool:
+        candidates = self._get_language_candidates()
 
         fallback = False
         for lang, files in candidates:
-            if not lang.is_installed(bar):
+            if not lang.is_installed():
                 fallback = True
                 continue
 
             if fallback:
-                lang.warn_fallback(bar)
+                lang.warn_fallback()
 
-            self._set_language(lang, bar)
-            binary, mainfile, mainclass = self._get_entry_point(files, bar)
+            self._set_language(lang)
+            binary, mainfile, mainclass = self._get_entry_point(files)
             self.env = {
                 "path": str(self.tmpdir),
                 # NOTE: This only contains files matching the winning language.
@@ -261,7 +257,7 @@ class Program:
         bar.error(f"No language detected for {self.path}.")
         return False
 
-    def _checks(self, bar: BaseBar) -> None:
+    def _checks(self) -> None:
         for f in self.source_files:
             if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
                 bar.warn(
@@ -323,7 +319,7 @@ class Program:
                             break
 
     # Return True on success.
-    def _compile(self, bar: BaseBar) -> bool:
+    def _compile(self) -> bool:
         # Remove all non-source files.
         for f in self.tmpdir.glob("*"):
             if f not in self.input_files:
@@ -362,7 +358,7 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar: BaseBar) -> bool:
+    def build(self) -> bool:
         assert not self.built
         self.built = True
 
@@ -414,17 +410,16 @@ class Program:
                     f,
                     tmpf,
                     self.problem.settings.constants,
-                    bar,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                 )
             self.input_files.append(tmpf)
             hashes.append(hash_file(tmpf))
         self.hash = combine_hashes(hashes)
 
-        if not self._get_language(bar):
+        if not self._get_language():
             return False
 
-        self._checks(bar)
+        self._checks()
 
         # A file containing the compile command and hash.
         meta_path = self.tmpdir / "meta_.yaml"
@@ -456,7 +451,7 @@ class Program:
                 )
 
         if not up_to_date or config.args.force_build:
-            if not self._compile(bar):
+            if not self._compile():
                 return False
 
         if self.path in self.problem.program_callbacks:
@@ -493,9 +488,7 @@ class Generator(Program):
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
-    def run(
-        self, bar: BaseBar, cwd: Path, name: str, args: Optional[Sequence[str | Path]] = None
-    ) -> ExecResult:
+    def run(self, cwd: Path, name: str, args: Optional[Sequence[str | Path]] = None) -> ExecResult:
         assert self.run_command is not None
         if args is None:
             args = []
