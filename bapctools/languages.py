@@ -300,9 +300,9 @@ def languages() -> Sequence[Language]:
             error(f"invalid entry {code} in languages.yaml. SKIPPED.")
             continue
 
-        fallback = raw_languages[code]
+        fallback = raw_languages.get(code)
         lang = Language(code, merged)
-        if not lang.ok and code in raw_languages and isinstance(fallback, dict):
+        if not lang.ok and isinstance(fallback, dict):
             # TODO: also use fallback if merged lang is not installed?
             lang = Language(code, fallback)
         if not lang.ok:

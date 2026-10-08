@@ -434,16 +434,14 @@ class Submission(Program):
         )
 
     # Run this submission on all test_cases that are given.
-    # Returns (OK verdict, printed newline)
+    # Returns True if verdict is ok
     def run_test_cases(
         self,
         max_submission_name_len: int,
         verdict_table: VerdictTable,
         test_cases: Sequence[TestCase],
         skip_run: Callable[["Submission", TestCase], bool] = lambda s, t: False,
-        *,
-        needs_leading_newline: bool,
-    ) -> tuple[bool, bool]:
+    ) -> bool:
         runs = [
             Run(self.problem, self, test_case, skip=skip_run(self, test_case))
             for test_case in test_cases
@@ -465,7 +463,7 @@ class Submission(Program):
             self.name,
             count=len(runs),
             max_len=max_item_len,
-            needs_leading_newline=needs_leading_newline,
+            needs_leading_newline=False if config.args.verbose else True,
         )
 
         time_sensitive_lower = self.problem.limits.time_limit / self.problem.limits.ac_to_time_limit
@@ -653,14 +651,15 @@ class Submission(Program):
 
             message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short:>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
-        printed_newline = bar.finalize(message=message, suppress_newline=True)
+        bar.finalize(message=message, suppress_newline=True)
         if config.args.tree:
             verdict_table.print(new_lines=0)
             verdict_table.last_printed = []
             eprint()
-            printed_newline = True
+        elif bar.global_logged:
+            eprint()
 
-        return passed_permitted and passed_required, printed_newline
+        return passed_permitted and passed_required
 
     def test(self) -> None:
         if not self.problem.output_validator():

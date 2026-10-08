@@ -505,7 +505,7 @@ class ProgressBar(BaseBar):
         print_done: bool = True,
         message: Optional[str] = None,
         suppress_newline: bool = False,
-    ) -> bool:
+    ) -> None:
         with self:
             self.clearline()
             assert self.parent is None
@@ -534,8 +534,6 @@ class ProgressBar(BaseBar):
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
-
-        return self.global_logged and not suppress_newline
 
 
 # A simple bar that holds a constant prefix and item
