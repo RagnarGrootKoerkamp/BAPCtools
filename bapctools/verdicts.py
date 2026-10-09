@@ -11,9 +11,9 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 from colorama import Fore, Style
 from typing_extensions import override
 
-from bapctools import config
+from bapctools import bar, config
+from bapctools.bar import ItemType, ProgressBar
 from bapctools.test_case import TestCase
-from bapctools.util import eprint, ItemType, ProgressBar
 
 if TYPE_CHECKING:
     from bapctools.run import Run, Submission
@@ -335,7 +335,7 @@ class VerdictTable:
         self,
         submissions: Sequence["Submission"],
         test_cases: Sequence[TestCase],
-        width: int = ProgressBar.columns,
+        width: int = bar.COLUMNS,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,
     ) -> None:
@@ -383,10 +383,10 @@ class VerdictTable:
                 # dont print table if it fills too much of the screen
                 self.print_updates = len(lines) * len(self.submissions) + 5 < height
                 if not self.print_updates:
-                    eprint(
+                    bar.eprint(
                         f"{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}"
                     )
-                    eprint(
+                    bar.eprint(
                         *lines,
                         f"[times {len(self.submissions)}...]",
                         Style.RESET_ALL,
@@ -407,13 +407,13 @@ class VerdictTable:
 
     def _clear(self) -> None:
         if self.last_printed:
-            actual_width = ProgressBar.columns
+            actual_width = bar.COLUMNS
             lines = sum(
                 max(1, (printed + actual_width - 1) // actual_width)
                 for printed in self.last_printed
             )
 
-            eprint("\033[K\033[A" * (lines - 1), end="\r", flush=False)
+            bar.eprint("\033[K\033[A" * (lines - 1), end="\r", flush=False)
             self.last_printed = []
 
     def _get_verdict(self, s: int, test_case: Path, check_sample: bool = True) -> str:
@@ -494,7 +494,7 @@ class VerdictTable:
                     pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
                     printed = pref_len
 
-                    width = -1 if ProgressBar.columns - pref_len < 10 else self.width
+                    width = -1 if bar.COLUMNS - pref_len < 10 else self.width
                     space = ""
 
                     for grouped_value in grouped:
@@ -517,11 +517,9 @@ class VerdictTable:
             self._clear()
 
             if self.checked_height is not True:
-                height = sum(
-                    (w + ProgressBar.columns - 1) // ProgressBar.columns for w in printed_lengths
-                )
+                height = sum((w + bar.COLUMNS - 1) // bar.COLUMNS for w in printed_lengths)
                 if self.checked_height < height + 5:
-                    eprint(
+                    bar.eprint(
                         f"\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n",
                     )
                     self.print_updates = False
@@ -529,7 +527,7 @@ class VerdictTable:
                 if update and not self.print_updates:
                     return
 
-            eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
+            bar.eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
             self.last_printed = printed_lengths
 
     def _print_table(
@@ -575,7 +573,7 @@ class VerdictTable:
                 printed_text.append("\n\033[K")
 
             self._clear()
-            eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
+            bar.eprint(*printed_text, "\033[0J", sep="", end="", flush=not update)
             self.last_printed = printed_lengths
 
 
@@ -597,8 +595,8 @@ class IOThread:
                     for buffered in self.buffer:
                         buffered()
                     self.buffer = []
-                    self.table.print(update=True, printed_lengths=[ProgressBar.columns])
-                    eprint(end="", flush=True)
+                    self.table.print(update=True, printed_lengths=[bar.COLUMNS])
+                    bar.eprint(end="", flush=True)
                     self.has_buffered.clear()
                     if isinstance(sys.stderr, io.TextIOWrapper):
                         sys.stderr.reconfigure(line_buffering=reset_line_buffering)
@@ -616,7 +614,7 @@ class IOThread:
 
     def print(self, *args: Any, **kwargs: Any) -> None:
         assert not self.finalized
-        self.buffer.append(lambda: eprint(*args, **kwargs))
+        self.buffer.append(lambda: bar.eprint(*args, **kwargs))
 
     def finalize(self) -> None:
         self.finalized = True

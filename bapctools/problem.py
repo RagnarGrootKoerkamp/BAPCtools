@@ -16,6 +16,7 @@ from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scanner import ScannerError
 
 from bapctools import (
+    bar,
     check_testing_tool,
     config,
     interactive,
@@ -25,32 +26,24 @@ from bapctools import (
     validator_tests,
     verdicts,
 )
+from bapctools.bar import PrintBar, ProgressBar
 from bapctools.expectations import Expectations, Person
 from bapctools.run import Submission
 from bapctools.test_case import TestCase, TestCaseOverrides, TestGroup
 from bapctools.util import (
-    BaseBar,
     drop_suffix,
-    eprint,
-    error,
     ExecStatus,
-    fatal,
     generate_problem_uuid,
     glob,
     is_uuid,
-    log,
     math_eval,
     once,
     once_per_instance,
-    PrintBar,
-    ProgressBar,
     read_yaml,
     remove_path,
     resolve_path_argument,
     ryaml_get_or_add,
     shorten_path,
-    verbose,
-    warn,
     write_yaml,
     YamlParser,
 )
@@ -75,11 +68,11 @@ class Keywords:
         synonyms_parser = parser.extract_parser("synonyms")
         for key, value in synonyms_parser.remaining.items():
             if not isinstance(key, str):
-                warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
                 continue
             self.keywords.add(key)
             if not isinstance(value, str):
-                warn(f"invalid entry `{value}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{value}` in keywords.yaml. SKIPPED.")
                 continue
             self.keywords.add(value)
             self.synonyms[key] = value
@@ -90,7 +83,7 @@ class Keywords:
             elif isinstance(yaml, dict):
                 for key, value in yaml.items():
                     if not isinstance(key, str):
-                        warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                        bar.warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
                     else:
                         parse(key, parent)
                         parse(value, key)
@@ -101,7 +94,7 @@ class Keywords:
                 if parent is not None:
                     self.keywords.add(yaml)
             else:
-                warn(f"invalid entry `{yaml}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{yaml}` in keywords.yaml. SKIPPED.")
 
         parse(parser.remaining)
 
@@ -111,7 +104,7 @@ class Keywords:
         seen = set[str]()
         while closest in self.synonyms:
             if closest in seen:
-                error(f"could not resolve {closest}. keywords.yaml contains cycle.")
+                bar.error(f"could not resolve {closest}. keywords.yaml contains cycle.")
             seen.add(closest)
             closest = self.synonyms[closest]
         if closest is not None:
@@ -124,7 +117,7 @@ class Keywords:
 def keywords() -> Keywords:
     raw_keywords = read_yaml(config.RESOURCES_ROOT / "config" / "keywords.yaml")
     if not isinstance(raw_keywords, dict):
-        fatal("could not parse keywords.yaml.")
+        bar.fatal("could not parse keywords.yaml.")
     return Keywords(YamlParser("keywords.yaml", raw_keywords))
 
 
@@ -141,9 +134,7 @@ class ProblemCredits:
         if "credits" not in parser.remaining:
             return
         if isinstance(parser.remaining["credits"], str):
-            self.authors = [
-                Person("problem.yaml", parser.extract("credits", ""), "credits", parser.bar)
-            ]
+            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
             return
 
         credits = parser.extract_parser("credits")
@@ -155,7 +146,7 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.remaining.keys()):
             if not isinstance(lang, str):
-                parser.bar.warn(
+                bar.warn(
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
                 )
             else:
@@ -183,7 +174,7 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                parser.bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
+                bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
                 name = ""
             source.check_unknown_keys()
             return ProblemSource(name, url)
@@ -205,11 +196,11 @@ class ProblemSources(list[ProblemSource]):
                 elif isinstance(source, dict):
                     self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
                 else:
-                    parser.bar.warn(
+                    bar.warn(
                         f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED."
                     )
             return
-        parser.bar.warn("problem.yaml key `source` does not have the correct type")
+        bar.warn("problem.yaml key `source` does not have the correct type")
 
 
 class ProblemLimits:
@@ -233,7 +224,7 @@ class ProblemLimits:
         self.raw_time_limit: float = parser.extract("time_limit", self.time_resolution, "> 0")
         time_steps = self.raw_time_limit / self.time_resolution
         if abs(time_steps - round(time_steps)) >= 0.0001:
-            parser.bar.error(
+            bar.error(
                 f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
             )
 
@@ -259,9 +250,7 @@ class ProblemLimits:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
         elif "validation_passes" in parser.remaining:
             parser.pop("validation_passes")
-            parser.bar.warn(
-                "limit: validation_passes is only used for multi-pass problems. SKIPPED."
-            )
+            bar.warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
             self.validation_passes = None
 
         # BAPCtools extensions:
@@ -270,9 +259,9 @@ class ProblemLimits:
 
         # warn for deprecated timelimit files
         if (problem.path / ".timelimit").is_file():
-            parser.bar.warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+            bar.warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
         if (problem.path / "domjudge-problem.ini").is_file():
-            parser.bar.warn(
+            bar.warn(
                 "domjudge-problem.ini is DEPRECATED. Use limits.time_limit if you want to set a timelimit."
             )
 
@@ -304,9 +293,9 @@ class ProblemSettings:
         self.problem_format_version: str = parser.extract("problem_format_version", "legacy-icpc")
 
         if self.problem_format_version.startswith("legacy"):
-            parser.bar.fatal("legacy is no longer supported, try running 'bt upgrade'")
+            bar.fatal("legacy is no longer supported, try running 'bt upgrade'")
         elif self.problem_format_version != config.SPEC_VERSION:
-            parser.bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
+            bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parser.extract_deprecated("validation", "type")
         if "type" not in parser.remaining:
@@ -318,10 +307,10 @@ class ProblemSettings:
             if not mode:
                 mode = {"pass-fail"}
         else:
-            parser.bar.fatal("problem.yaml: `type` must be a string or a sequence")
+            bar.fatal("problem.yaml: `type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
-            parser.bar.fatal(
+            bar.fatal(
                 f"""problem.yaml: unrecognized value{
                     "" if len(unrecognized_type) == 1 else "s"
                 } for `type`: {" ".join(sorted(unrecognized_type))}"""
@@ -338,9 +327,9 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                parser.bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
             elif not isinstance(name, str):
-                parser.bar.warn(
+                bar.warn(
                     f"incompatible value for language `{lang}` for `name` in problem.yaml. SKIPPED."
                 )
             else:
@@ -370,9 +359,9 @@ class ProblemSettings:
         for keyword in self.keywords:
             match = known_keywords.find(keyword)
             if keyword in seen_keywords:
-                parser.bar.warn(f"found duplicate keyword {keyword}.")
+                bar.warn(f"found duplicate keyword {keyword}.")
             elif match:
-                parser.bar.warn(f"found keyword {keyword}. Did you mean {match}?")
+                bar.warn(f"found keyword {keyword}. Did you mean {match}?")
             seen_keywords.add(keyword)
 
         # an empty list means no restrction
@@ -389,33 +378,27 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.CONSTANT_NAME_REGEX.fullmatch(key):
-                parser.bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
                 continue
 
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
             if "value" not in value:
-                parser.bar.warn(
-                    f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED."
-                )
+                bar.warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
                 continue
             for sub, variant in value.items():
                 if sub == "value" and isinstance(variant, (int, float)):
                     variant = str(variant)
 
                 if not isinstance(sub, str) or not config.CONSTANT_NAME_REGEX.fullmatch(sub):
-                    parser.bar.warn(
-                        f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
-                    )
+                    bar.warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 elif isinstance(variant, (int, float)):
-                    parser.bar.warn(
+                    bar.warn(
                         f"invalid type {type(variant).__name__} for `constants.{key}.{sub}` in problem.yaml, use string. SKIPPED."
                     )
                 elif not isinstance(variant, str):
-                    parser.bar.warn(
-                        f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED."
-                    )
+                    bar.warn(f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 else:
                     variants.add(variant)
                     self.constants[f"{key}.{sub}"] = variant
@@ -426,9 +409,8 @@ class ProblemSettings:
             variant_numbers = {}
             for variant in variants:
                 normalized = variant
-                normalized = re.sub(
-                    r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", normalized
-                )  # LaTeX fraction
+                # LaTeX fraction
+                normalized = re.sub(r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", normalized)
                 normalized = normalized.replace("\\cdot{}", "*")  # LaTeX mul
                 normalized = normalized.replace("\\cdot", "*")  # LaTeX mul
                 normalized = normalized.replace("^", "**")  # latex pow
@@ -443,7 +425,7 @@ class ProblemSettings:
             # TODO: consider float values with an eps?
             #      (compare the largest and smallest found float with rel/abs error)
             if len(variant_numbers) > 1:
-                parser.bar.warn(
+                bar.warn(
                     f"found different variants for {key}: {', '.join(variant_numbers.values())}"
                 )
 
@@ -454,27 +436,25 @@ class ProblemSettings:
             "ans_is_output", not self.interactive and not self.multi_pass
         )
         if (self.interactive or self.multi_pass) and self.ans_is_output:
-            parser.bar.warn(
-                f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED."
-            )
+            bar.warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
             self.ans_is_output = False
 
         parser.check_unknown_keys()
 
         # checks
         if not is_uuid(self.uuid):
-            parser.bar.warn(f"invalid uuid: {self.uuid}")
+            bar.warn(f"invalid uuid: {self.uuid}")
         if self.license not in config.KNOWN_LICENSES:
-            parser.bar.warn(f"invalid license: {self.license}")
+            bar.warn(f"invalid license: {self.license}")
             self.license = "unknown"
         if self.license == "public domain":
             if self.rights_owner is not None:
-                parser.bar.warn(
+                bar.warn(
                     f"problem cannot have license 'public domain' and have a rights owner: {self.rights_owner}"
                 )
         elif self.license != "unknown":
             if self.rights_owner is None and not self.credits.authors and not self.source:
-                parser.bar.warn(
+                bar.warn(
                     f"problem with license '{self.license}': needs a rights owner, author, or source."
                 )
 
@@ -493,6 +473,7 @@ class ProblemSettings:
 class Problem:
     SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
 
+    @bar.restore
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
         self.name = path.name
@@ -501,14 +482,14 @@ class Problem:
         self.tmpdir: Path = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
 
-        bar = PrintBar(self.name)
+        bar.make_global(PrintBar(self.name))
         if not self.path.is_dir():
             bar.fatal("problem directory not found")
         if not Problem.SHORTNAME_REGEX.fullmatch(self.name):
             bar.warn(f"name does not match {Problem.SHORTNAME_REGEX.pattern}")
 
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
-        self._read_settings(bar)
+        self._read_settings()
 
         # Some caches.
         self._validators_warn_cache = set[tuple[type[AnyValidator], bool]]()
@@ -523,13 +504,13 @@ class Problem:
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
 
-        self.statement_languages = self._determine_statement_languages(bar)
+        self.statement_languages = self._determine_statement_languages()
 
         for d in ["invalid_inputs", "invalid_answers", "invalid_outputs", "valid_outputs"]:
             if (self.path / "data" / d).is_dir():
-                warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
+                bar.warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self, bar: BaseBar) -> list[str]:
+    def _determine_statement_languages(self) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -576,7 +557,7 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self, bar: BaseBar) -> None:
+    def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
@@ -595,7 +576,7 @@ class Problem:
             yaml_path.write_text(raw)
             bar.log("Added new UUID to problem.yaml")
 
-        parser = YamlParser("problem.yaml", yaml_data, bar=bar)
+        parser = YamlParser("problem.yaml", yaml_data)
         self.settings = ProblemSettings(parser, self)
 
         # Aliasing fields makes life easier for us 😛
@@ -607,7 +588,7 @@ class Problem:
     def register_program_callback(self, path: Path, c: Callable[["Program"], None]) -> None:
         self.program_callbacks[path].append(c)
 
-    def get_test_group_yaml(self, path: Path, bar: BaseBar) -> TestGroup:
+    def get_test_group_yaml(self, path: Path) -> TestGroup:
         """
         Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
@@ -638,7 +619,7 @@ class Problem:
         if self._root_test_group_yaml is None:
             with self._test_group_lock:
                 if self._root_test_group_yaml is None:
-                    self._root_test_group_yaml = TestGroup(self, None, {}, None, bar)
+                    self._root_test_group_yaml = TestGroup(self, None, {}, None)
 
         test_group_yaml = self._root_test_group_yaml
         for f in reversed(paths):
@@ -649,7 +630,7 @@ class Problem:
                 with self._test_group_lock:
                     # handle race conditions
                     if f not in self._test_group_yamls:
-                        parsed = TestGroup.parse_yaml(self, f, test_group_yaml, bar)
+                        parsed = TestGroup.parse_yaml(self, f, test_group_yaml)
                         self._test_group_yamls[f] = parsed
             assert f in self._test_group_yamls
             test_group_yaml = self._test_group_yamls[f]
@@ -659,7 +640,7 @@ class Problem:
     def _warn_once(self, test_name: str, msg: str) -> None:
         # Because Problem.test_cases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
         # this cache makes sure that some warnings (like malformed test case names) only appear once.
-        warn(msg)
+        bar.warn(msg)
 
     def _valid_test_group(self, path: Path) -> bool:
         for group in reversed(path.parents[:-1]):
@@ -766,7 +747,7 @@ class Problem:
                 if t.out_path is None:
                     continue
                 if not t.out_path.is_file():
-                    warn(f"Found input file {f} without a .out file. Skipping.")
+                    bar.warn(f"Found input file {f} without a .out file. Skipping.")
                     continue
             test_cases.append(t)
         test_cases.sort(key=lambda t: t.name)
@@ -781,9 +762,9 @@ class Problem:
             # TODO perhaps move this log to the use site?
             msg = f"Didn't find any test cases{ans}{val} in problem {self.name}. Skipping."
             if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]:
-                log(msg)
+                bar.log(msg)
             else:
-                warn(msg)
+                bar.warn(msg)
 
         return tuple(test_cases)
 
@@ -834,39 +815,41 @@ class Problem:
 
             # overrides are only defined for samples
             if has_override and not file.is_relative_to(self.path / "data" / "sample"):
-                warn(f"Found override for non sample file: {name}")
+                bar.warn(f"Found override for non sample file: {name}")
 
             # check for inconsistencies
             if ".in" in in_found and ".ans" not in ans_found:
-                warn(f"Found {name}.in but no {name}.ans. SKIPPING.")
+                bar.warn(f"Found {name}.in but no {name}.ans. SKIPPING.")
                 continue
 
             # resolve some inconsistencies
             if ".in" not in in_found:
                 if ".ans" in ans_found:
-                    warn(f"Found {name}.ans but no {name}.in. IGNORED.")
+                    bar.warn(f"Found {name}.ans but no {name}.in. IGNORED.")
                     ans_found.remove(".ans")
                 if ".out" in ans_found:
-                    warn(f"Found {name}.out but no {name}.in. IGNORED.")
+                    bar.warn(f"Found {name}.out but no {name}.in. IGNORED.")
                     ans_found.remove(".out")
             if ".ans.statement" in ans_found and ".out" in ans_found:
                 # we prefer .statement files
-                warn(f"Found {name}.out (but also .statement). IGNORED.")
+                bar.warn(f"Found {name}.out (but also .statement). IGNORED.")
                 ans_found.remove(".out")
 
             # .interaction files get highest priority
             if file.with_suffix(".interaction").is_file():
                 if not self.interactive and not self.multi_pass:
-                    warn(
+                    bar.warn(
                         f"Found {name}.interaction for non-interactive/non-multi-pass problem. IGNORED."
                     )
                 else:
                     if ".in.statement" in in_found or ".ans.statement" in ans_found:
-                        warn(
+                        bar.warn(
                             f"Mixed .interaction and .statement file for {name}. (using .interaction)."
                         )
                     if ".out" in ans_found:
-                        warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
+                        bar.warn(
+                            f"Mixed .interaction and .out file for {name}. (using .interaction)."
+                        )
                 statement = (file.with_suffix(".interaction"),)
             else:
                 statement_in = [ext for ext in in_found if not ext.endswith(".download")]
@@ -883,14 +866,16 @@ class Problem:
                 download = (file.with_suffix(download_in[0]), file.with_suffix(download_ans[0]))
 
             if not statement or not download:
-                warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
+                bar.warn(
+                    f"Could not find valid .in/.ans combination for test case {name}. SKIPPED."
+                )
                 continue
 
             if (statement[0].suffix == ".in") != (download[0].suffix == ".in"):
-                warn("You are supposed to override .in for statement and download. SKIPPED.")
+                bar.warn("You are supposed to override .in for statement and download. SKIPPED.")
                 continue
             if (statement[-1].suffix == ".in") != (download[-1].suffix == ".in"):
-                warn("You are supposed to override .ans for statement and download. SKIPPED.")
+                bar.warn("You are supposed to override .ans for statement and download. SKIPPED.")
                 continue
 
             if statement[-1].suffix == ".ans" and statement[-1].stat().st_size > 0:
@@ -903,7 +888,7 @@ class Problem:
             )
 
         if has_raw and not self.settings.ans_is_output and only_samples:
-            warn(
+            bar.warn(
                 "It is advised to override .ans for samples if it does not represent a valid output."
                 "\n\tUse .ans.statement+.ans.download or .out for this."
             )
@@ -936,7 +921,7 @@ class Problem:
 
             def add(s: Path) -> None:
                 if s in paths:
-                    warn(f"Ignoring duplicate submission: {s}")
+                    bar.warn(f"Ignoring duplicate submission: {s}")
                     return
                 paths.append(s)
 
@@ -964,7 +949,7 @@ class Problem:
                 paths.append(s)
 
         if len(paths) == 0:
-            error("No submissions found!")
+            bar.error("No submissions found!")
             return tuple()
 
         def submissions_key(x: Submission) -> tuple[int, str, str]:
@@ -986,19 +971,21 @@ class Problem:
         return tuple(programs)
 
     @once_per_instance
+    @bar.restore
     def submissions(self) -> Sequence[Submission]:
         programs = self.raw_submissions()
 
-        bar = ProgressBar("Build submissions", items=programs)
+        local_bar = ProgressBar("Build submissions", items=programs)
+        bar.make_global(local_bar)
 
         def build_program(p: Submission) -> None:
-            bar.start(p)
-            p.build(bar)
-            bar.done()
+            local_bar.start(p)
+            p.build()
+            local_bar.done()
 
         parallel.run_tasks(build_program, programs)
 
-        bar.finalize(print_done=False)
+        local_bar.finalize(print_done=False)
 
         # Filter out broken submissions.
         return tuple(p for p in programs if p.ok)
@@ -1010,16 +997,18 @@ class Problem:
     @once_per_instance
     def visualizer(self, cls: type[OutputVisualizer]) -> Optional[OutputVisualizer]: ...
     @once_per_instance
+    @bar.restore
     def visualizer(self, cls: type[AnyVisualizer]) -> Optional[AnyVisualizer]:
         path = self.path / cls.source_dir
         if not path.is_dir():
             return None
         visualizer = cls(self, path)
-        bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
-        bar.start(visualizer)
-        visualizer.build(bar)
-        bar.done()
-        bar.finalize(print_done=False)
+        local_bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+        bar.make_global(local_bar)
+        local_bar.start(visualizer)
+        visualizer.build()
+        local_bar.done()
+        local_bar.finalize(print_done=False)
         return visualizer if visualizer.ok else None
 
     def output_validator(self) -> Optional[OutputValidator]:
@@ -1065,17 +1054,17 @@ class Problem:
                 constraints_msg = " for constraints checking" if check_constraints else ""
                 self._validators_warn_cache.add(key)
                 if cls == InputValidator and not validators:
-                    warn(f"No input validators{constraints_msg} found.")
+                    bar.warn(f"No input validators{constraints_msg} found.")
                 # for interactive problems, the .ans file should be empty anyway
                 if cls == AnswerValidator and not self.interactive:
                     if not validators:
-                        warn(f"No answer validators{constraints_msg} found.")
+                        bar.warn(f"No answer validators{constraints_msg} found.")
                     elif not any(isinstance(v, AnswerValidator) for v in validators):
                         message = f"No dedicated answer validators{constraints_msg} found."
                         if self.custom_output:
-                            log(message)
+                            bar.log(message)
                         else:
-                            warn(message)
+                            bar.warn(message)
 
         build_ok = all(v.ok for v in validators)
 
@@ -1083,6 +1072,7 @@ class Problem:
         return validators if build_ok else tuple()
 
     @once_per_instance
+    @bar.restore
     def _validators(
         self, cls: type[AnyValidator], *, check_constraints: bool = False
     ) -> Sequence[AnyValidator]:
@@ -1127,15 +1117,16 @@ class Problem:
             )
             for path in paths
         )
-        bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
+        local_bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
+        bar.make_global(local_bar)
 
         def build_program(p: "Program") -> None:
-            bar.start(p)
-            p.build(bar)
-            bar.done()
+            local_bar.start(p)
+            p.build()
+            local_bar.done()
 
         parallel.run_tasks(build_program, validators)
-        bar.finalize(print_done=False)
+        local_bar.finalize(print_done=False)
         return validators
 
     # get all test cases and submissions and prepare the output validator and visualizer
@@ -1189,6 +1180,7 @@ class Problem:
         return verdicts.RunUntil.FIRST_ERROR
 
     # called by bt run
+    @bar.restore
     def run_submissions(self) -> bool:
         ts_pair = self.prepare_run()
         if not ts_pair:
@@ -1200,7 +1192,7 @@ class Problem:
             if config.args.local_time_multiplier is not None and config.args.time_limit is None
             else ""
         )
-        bar = PrintBar("Run")
+        bar.make_global(PrintBar("Run"))
         bar.log(f"using {msg}timelimit: {self.limits.time_limit:.1f}s\n", color="")
 
         ok, verdict_table = Problem.run_some(test_cases, submissions)
@@ -1211,7 +1203,7 @@ class Problem:
             and not config.args.no_visualizer
             and self.visualizer(OutputVisualizer)
         ):
-            log("use -v with --visualize to see the paths to the generated images")
+            bar.log("use -v with --visualize to see the paths to the generated images")
 
         if config.args.overview and not config.args.tree:
             verdict_table.print(new_lines=1)
@@ -1289,7 +1281,7 @@ class Problem:
                     scores[t.short_path] += 1.0 / failures
         scores_list = sorted(scores.values())
 
-        eprint(
+        bar.eprint(
             "\nVerdict analysis table. Submissions are ordered per column as above. Higher "
             "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed."
         )
@@ -1298,8 +1290,8 @@ class Problem:
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        eprint(f"{fail}: submission fails test case")
-        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes test case\n")
+        bar.eprint(f"{fail}: submission fails test case")
+        bar.eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes test case\n")
 
         name_col_width = min(50, max([len(test_case.name) for test_case in test_cases]))
 
@@ -1312,7 +1304,7 @@ class Problem:
             if len(name) > name_col_width:
                 name = f"...{name[-name_col_width + 3 :]}"
             padding = " " * (name_col_width - len(name))
-            eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
+            bar.eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[case.short_path] >= scores_list[-6]:
@@ -1320,11 +1312,11 @@ class Problem:
             if len(scores_list) > 3 and scores[case.short_path] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(case)
-            eprint(resultant, end="  ")
-            eprint(f"{color}{scores[case.short_path]:0.3f}{Style.RESET_ALL}  ", end="")
+            bar.eprint(resultant, end="  ")
+            bar.eprint(f"{color}{scores[case.short_path]:0.3f}{Style.RESET_ALL}  ", end="")
             if resultant in resultant_id:
-                eprint(f"(Type {resultant_id[resultant]})", end="")
-            eprint()
+                bar.eprint(f"(Type {resultant_id[resultant]})", end="")
+            bar.eprint()
 
     # called by bt check_testing_tool
     def check_testing_tool(self) -> bool:
@@ -1343,7 +1335,7 @@ class Problem:
                     sampleinputs.append(sampleinput)
             testinputs = sampleinputs + testinputs
         if not testinputs:
-            warn(
+            bar.warn(
                 f"Didn't find any test cases to run the testing tool in problem {self.name}. Skipping."
             )
             return False
@@ -1356,13 +1348,14 @@ class Problem:
         self._test_case_hashes: dict[str, TestCase] = {}
 
     # Returns None for new test_cases or the TestCase object it equals.
-    def matches_existing_test_case(self, t: TestCase, bar: BaseBar) -> Optional[TestCase]:
-        h = t.core_hash(bar)
+    def matches_existing_test_case(self, t: TestCase) -> Optional[TestCase]:
+        h = t.core_hash()
         if h in self._test_case_hashes:
             return self._test_case_hashes[h]
         self._test_case_hashes[h] = t
         return None
 
+    @bar.restore
     def check_output_validator(self) -> bool:
         assert config.args.generic is not None
         if "output_validator" not in config.args.generic:
@@ -1407,7 +1400,7 @@ class Problem:
                 shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
 
             if config.args.verbose > 1:
-                verbose(f"Generating {short_path}")
+                bar.verbose(f"Generating {short_path}")
 
             test_case = TestCase(self, full_path, short_path=short_path)
             runs.append(CheckRun(name, test_case, data, allow_ac))
@@ -1415,11 +1408,12 @@ class Problem:
             return True
 
         success = True
-        bar = ProgressBar("Output validator checks", items=runs)
+        local_bar = ProgressBar("Output validator checks", items=runs)
+        bar.make_global(local_bar)
 
         def run(run: CheckRun) -> None:
             nonlocal success
-            bar.start(run)
+            local_bar.start(run)
 
             submission = run.test_case.in_path.with_name("submission.out")
             submission.write_bytes(run.submission_data)
@@ -1454,60 +1448,62 @@ class Problem:
 
                 has_nextpass = nextpass.is_file()
                 if not self.multi_pass and has_nextpass:
-                    bar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
+                    local_bar.warn("Found nextpass.in for non multi-pass problem. IGNORED.")
                     has_nextpass = False
 
                 if ret.status == ExecStatus.REJECTED:
                     if has_nextpass:
                         success = False
-                        bar.error(
+                        local_bar.error(
                             "Output validator gave WRONG_ANSWER but created nextpass.in", data
                         )
-                        bar.done()
+                        local_bar.done()
                         return
                     else:
-                        bar.done(True, "rejected", data)
+                        local_bar.done(True, "rejected", data)
                         return
                 if ret.status == ExecStatus.TIMEOUT:
-                    bar.error("Output validator got TIMEOUT", data)
-                    bar.done()
+                    local_bar.error("Output validator got TIMEOUT", data)
+                    local_bar.done()
                     return
                 if ret.status == ExecStatus.ERROR:
                     if ret.returncode == 0:
                         success = False
-                        bar.error(
+                        local_bar.error(
                             "Output validator exited with exit code 0, did you forget to exit with WA or AC?",
                             data,
                         )
                     else:
                         success = False
-                        bar.error(f"Output validator crashed (exit code: {ret.returncode})", data)
-                    bar.done()
+                        local_bar.error(
+                            f"Output validator crashed (exit code: {ret.returncode})", data
+                        )
+                    local_bar.done()
                     return
                 assert ret.status == ExecStatus.ACCEPTED
                 if not has_nextpass:
                     if run.allow_ac:
-                        bar.done(True, "accepted", data, force_log=True)
+                        local_bar.done(True, "accepted", data, force_log=True)
                     else:
                         success = False
-                        bar.error(
+                        local_bar.error(
                             f"Output validator did not reject submission only printing: {repr(run.submission_data)[2:-1]}",
                             data,
                         )
-                        bar.done()
+                        local_bar.done()
                     return
 
                 assert self.limits.validation_passes is not None
                 if pass_id >= self.limits.validation_passes:
                     success = False
-                    bar.error("Output validator exceeded limit of validation_passes", data)
-                    bar.done()
+                    local_bar.error("Output validator exceeded limit of validation_passes", data)
+                    local_bar.done()
                     return
                 # use nextpass.in as input and check again
                 shutil.move(nextpass, test_case.in_path)
 
         parallel.run_tasks(run, runs, pin=True)
-        bar.finalize(print_done=True)
+        local_bar.finalize(print_done=True)
         return success
 
     def validate_data(
@@ -1537,7 +1533,10 @@ class Problem:
         test_cases = self.test_cases(mode=mode)
         return self._validate_data(mode, constraints, action, test_cases)
 
+    @bar.restore
     def validate_invalid_extra_data(self) -> bool:
+        bar.make_global(PrintBar("Generic Invalidation"))
+
         assert config.args.generic is not None
         base_path = self.tmpdir / "invalid_data"
         # pick at most first 2 samples (assuming they are valid and have .ans)
@@ -1557,7 +1556,6 @@ class Problem:
             ),
         ]
 
-        bar = PrintBar("Generic Invalidation")
         test_cases: list[TestCase] = []
         for i, sample in enumerate(samples):
             used_sample = False
@@ -1618,7 +1616,10 @@ class Problem:
             validate.Mode.INVALID, False, "Generic Invalidation", test_cases, extra=True
         )
 
+    @bar.restore
     def validate_valid_extra_data(self) -> bool:
+        bar.make_global(PrintBar("Generic output validation"))
+
         assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
             return True
@@ -1627,10 +1628,7 @@ class Problem:
         if not self.output_validator():
             return True
 
-        bar = PrintBar("Generic output validation")
-        args = self.get_test_group_yaml(
-            self.path / "data" / "valid_output", bar
-        ).output_validator_args
+        args = self.get_test_group_yaml(self.path / "data" / "valid_output").output_validator_args
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
 
@@ -1682,6 +1680,7 @@ class Problem:
             validate.Mode.VALID_OUTPUT, False, "Generic output validation", test_cases, extra=True
         )
 
+    @bar.restore
     def _validate_data(
         self,
         mode: validate.Mode,
@@ -1728,33 +1727,34 @@ class Problem:
         self.reset_test_case_hashes()
 
         # validate the test cases
-        bar = ProgressBar(action, items=[t.name for t in test_cases])
+        local_bar = ProgressBar(action, items=[t.name for t in test_cases])
+        bar.make_global(local_bar)
 
         def process_test_case(test_case: TestCase) -> None:
             nonlocal success
 
-            bar.start(test_case.name)
+            local_bar.start(test_case.name)
 
             if mode == validate.Mode.INPUT and not test_case.in_path.is_symlink() and not extra:
-                t2 = self.matches_existing_test_case(test_case, bar)
+                t2 = self.matches_existing_test_case(test_case)
                 if t2 is not None:
-                    bar.warn(
+                    local_bar.warn(
                         f"Duplicate test case: identical to {t2.name}. If this is intentional use symlinks/count/includes."
                     )
-                    bar.done()
+                    local_bar.done()
                     return
 
             success &= test_case.validate_format(
-                mode, bar, constraints=constraints_dict, warn_instead_of_error=extra
+                mode, constraints=constraints_dict, warn_instead_of_error=extra
             )
-            bar.done()
+            local_bar.done()
 
         parallel.run_tasks(process_test_case, test_cases)
         if missing:
-            bar.item_width = 0
-            bar.finalize(message=f"{Fore.YELLOW}Done (partially){Style.RESET_ALL}")
+            local_bar.item_width = 0
+            local_bar.finalize(message=f"{Fore.YELLOW}Done (partially){Style.RESET_ALL}")
         else:
-            bar.finalize(print_done=True)
+            local_bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
         if constraints_dict is not None:
@@ -1763,17 +1763,18 @@ class Problem:
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
                     success = False
-                    warn(
+                    local_bar.warn(
                         f"BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}"
                     )
                 if not has_high:
                     success = False
-                    warn(
+                    local_bar.warn(
                         f"BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}"
                     )
 
         return success
 
+    @bar.restore
     def validate_overrides(self) -> bool:
         overrides = self.overrides()
         if not overrides:
@@ -1815,30 +1816,31 @@ class Problem:
 
         prefix = guess_prefix() or b""
         if prefix:
-            verbose(f"guessing that interactions must start with {prefix.decode()}")
+            bar.verbose(f"guessing that interactions must start with {prefix.decode()}")
 
         success = True
         data = self.path / "data"
-        bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
+        local_bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
+        bar.make_global(local_bar)
 
         def process_file(file: Path) -> None:
             nonlocal success
 
             name = file.relative_to(data)
-            bar.start(name)
+            local_bar.start(name)
 
             if file.name.endswith(".interaction"):
-                if not validate.check_interaction(self, file, bar, startswith=prefix):
+                if not validate.check_interaction(self, file, startswith=prefix):
                     success = False
-                    bar.done()
+                    local_bar.done()
                     return
             else:
-                validate.sanity_check_override(self, file, bar)
+                validate.sanity_check_override(self, file)
 
-            bar.done()
+            local_bar.done()
 
         parallel.run_tasks(process_file, files)
-        bar.finalize(print_done=True)
+        local_bar.finalize(print_done=True)
         return True
 
     def determine_time_limit(self) -> bool:
@@ -1887,9 +1889,9 @@ class Problem:
             max,
         )
         if not ok:
-            warn("Got unexpected verdicts")
+            bar.warn("Got unexpected verdicts")
         if submission is None:
-            error("No submissions found to determine time limit")
+            bar.error("No submissions found to determine time limit")
             return False
         assert slowest is not None
         assert duration is not None
@@ -1906,14 +1908,14 @@ class Problem:
         safety_time_limit = self.limits.time_limit * self.limits.time_limit_to_tle
         self.limits.timeout = int(safety_time_limit * self.limits.time_limit_to_tle + 1)
 
-        eprint()
+        bar.eprint()
         PrintBar("slowest").log(f"     {duration:.3f}s @ {slowest} ({submission})", color="")
         PrintBar("time limit").log(
             f"  {self.limits.time_limit:.1f}s >= {duration:.3f}s * {self.limits.ac_to_time_limit}",
             color="",
         )
         if config.args.local_time_multiplier is not None:
-            warn(
+            bar.warn(
                 f"local_time_multiplier = {config.args.local_time_multiplier:.1f} => time_limit should be set as {self.limits.raw_time_limit}s"
             )
         PrintBar("safety limit").log(
@@ -1924,13 +1926,13 @@ class Problem:
             f"     {self.limits.timeout:.1f}s >= {self.limits.time_limit:.1f}s * {self.limits.time_limit_to_tle}²",
             color="",
         )
-        eprint()
+        bar.eprint()
 
         if config.args.write:
             yaml_path = self.path / "problem.yaml"
             problem_yaml = read_yaml(yaml_path, empty=CommentedMap())
             if not isinstance(problem_yaml, CommentedMap):
-                warn("could not parse problem.yaml")
+                bar.warn("could not parse problem.yaml")
             else:
                 limits = ryaml_get_or_add(problem_yaml, "limits")
                 limits["time_limit"] = self.limits.time_limit
@@ -1944,17 +1946,17 @@ class Problem:
         if submission is not None:
             assert fastest is not None
             assert duration is not None
-            eprint()
+            bar.eprint()
             PrintBar("fastest TLE").log(f" {duration:.3f}s @ {fastest} ({submission})", color="")
             if duration <= self.limits.time_limit:
-                error("TLE submission runs within time limit")
+                bar.error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
-                warn("TLE submission runs within safety margin")
+                bar.warn("TLE submission runs within safety margin")
             elif duration >= self.limits.timeout:
-                log(f"No TLE submission finished within {self.limits.timeout}s")
-            eprint()
+                bar.log(f"No TLE submission finished within {self.limits.timeout}s")
+            bar.eprint()
         else:
-            log("No TLE submissions found")
+            bar.log("No TLE submissions found")
 
         if config.args.all:
             run_all(

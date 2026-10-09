@@ -7,10 +7,9 @@ from typing import Any, Final, Optional, TYPE_CHECKING
 
 from typing_extensions import override
 
-from bapctools import config, languages
+from bapctools import bar, config, languages
 from bapctools.program import Program
 from bapctools.util import (
-    BaseBar,
     ExecResult,
     ExecStatus,
     remove_path,
@@ -476,9 +475,7 @@ def _has_consecutive_whitespaces(file_bytes: bytes) -> bool:
     return any(bad in file_bytes for bad in (b" \n", b"  ", b"\n "))
 
 
-def sanity_check(
-    problem: "Problem", path: Path, bar: BaseBar, *, strict_whitespace: bool = True
-) -> None:
+def sanity_check(problem: "Problem", path: Path, *, strict_whitespace: bool = True) -> None:
     """
     Does some generic checks on input, answer, or output files of a test case, including
 
@@ -550,7 +547,7 @@ def sanity_check(
             bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
 
 
-def _sanity_check_override(file_bytes: bytes, bar: BaseBar, name: str) -> None:
+def _sanity_check_override(file_bytes: bytes, name: str) -> None:
     if len(file_bytes) == 0:
         return
     if _has_invalid_byte(file_bytes, other_whitespaces=False):
@@ -563,7 +560,7 @@ def _sanity_check_override(file_bytes: bytes, bar: BaseBar, name: str) -> None:
         bar.warn(f"{name} contains consecutive whitespace characters")
 
 
-def sanity_check_override(problem: "Problem", path: Path, bar: BaseBar) -> None:
+def sanity_check_override(problem: "Problem", path: Path) -> None:
     """
     Does some generic checks on override files, including
 
@@ -587,12 +584,10 @@ def sanity_check_override(problem: "Problem", path: Path, bar: BaseBar) -> None:
         ".in.download": "Download input",
         ".ans.download": "Download answer",
     }["".join(path.suffixes[-2:])]
-    _sanity_check_override(path.read_bytes(), bar, name)
+    _sanity_check_override(path.read_bytes(), name)
 
 
-def check_interaction(
-    problem: "Problem", path: Path, bar: BaseBar, *, startswith: bytes = b""
-) -> bool:
+def check_interaction(problem: "Problem", path: Path, *, startswith: bytes = b"") -> bool:
     """
     Checks the override as well as some specific checks for .interaction files, including
 
@@ -663,7 +658,7 @@ def check_interaction(
 
         data = b"".join(parsed)
         name = f"Interaction pass {p}" if problem.multi_pass else "Interaction"
-        _sanity_check_override(data, bar, name)
+        _sanity_check_override(data, name)
 
         if not has_jury:
             bar.warn(f"{name} has no team <- jury output")

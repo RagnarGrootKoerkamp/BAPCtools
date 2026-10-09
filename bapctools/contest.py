@@ -4,16 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools.util import (
-    error,
-    fatal,
-    log,
-    once,
-    read_yaml,
-    verbose,
-    YamlParser,
-)
+from bapctools import bar, config
+from bapctools.util import once, read_yaml, YamlParser
 
 if TYPE_CHECKING:
     import requests
@@ -61,7 +53,7 @@ class ProblemsYamlEntry:
             if rgb is None:
                 return None
             if not rgb.startswith("#"):
-                parser.bar.error(
+                bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -69,7 +61,7 @@ class ProblemsYamlEntry:
             if len(hex_part) == 3:
                 hex_part = "".join(c * 2 for c in hex_part)
             if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
-                parser.bar.error(
+                bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -87,18 +79,18 @@ class ProblemsYamlEntry:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                parser.bar.warn(
+                bar.warn(
                     f"invalid language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             elif not isinstance(name, str):
-                parser.bar.warn(
+                bar.warn(
                     f"incompatible value for language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             else:
                 self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
-            parser.bar.error(
+            bar.error(
                 f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
             )
             self.time_limit = None
@@ -119,7 +111,7 @@ def contest_yaml() -> ContestYaml:
     if contest_yaml_path.is_file():
         raw_yaml = read_yaml(contest_yaml_path, empty={})
         if not isinstance(raw_yaml, dict):
-            fatal("could not parse contest.yaml, must be a dict.")
+            bar.fatal("could not parse contest.yaml, must be a dict.")
     else:
         raw_yaml = None
 
@@ -133,23 +125,23 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
     if problems_yaml_path.is_file():
         raw_yaml = read_yaml(problems_yaml_path, empty=[])
     if not isinstance(raw_yaml, list):
-        fatal("could not parse problems.yaml, must be a list.")
+        bar.fatal("could not parse problems.yaml, must be a list.")
 
     problems = []
     labels: dict[str, str] = {}
     for i, yaml_data in enumerate(raw_yaml):
         if not isinstance(yaml_data, dict):
-            error("entries in problems.yaml must be dicts.")
+            bar.error("entries in problems.yaml must be dicts.")
             continue
         problem = ProblemsYamlEntry(yaml_data, i)
         if not problem.ok:
             continue
         if problem.label in labels:
-            error(f"label {problem.label} found twice in problems.yaml")
+            bar.error(f"label {problem.label} found twice in problems.yaml")
             continue
         labels[problem.label] = problem.id
         if not Path(problem.id).is_dir():
-            error(f"No directory found for problem {problem.id} mentioned in problems.yaml.")
+            bar.error(f"No directory found for problem {problem.id} mentioned in problems.yaml.")
             continue
         problems.append(problem)
 
@@ -159,7 +151,7 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
 def get_api() -> str:
     api = config.args.api or contest_yaml().api
     if not api:
-        fatal(
+        bar.fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."
         )
     api = api.removesuffix("/")
@@ -174,22 +166,22 @@ def get_contest_id() -> str:
     if contest_id is not None:
         if contest_id not in {c["id"] for c in contests}:
             for contest in contests:
-                log(f"{contest['id']}: {contest['name']}")
-            fatal(f"Contest {contest_id} not found.")
+                bar.log(f"{contest['id']}: {contest['name']}")
+            bar.fatal(f"Contest {contest_id} not found.")
         else:
             return contest_id
     if not contests:
-        fatal("Server has no active contests.")
+        bar.fatal("Server has no active contests.")
     elif len(contests) > 1:
         for contest in contests:
-            log(f"{contest['id']}: {contest['name']}")
-        fatal(
+            bar.log(f"{contest['id']}: {contest['name']}")
+        bar.fatal(
             "Server has multiple active contests. Pass --contest-id <cid> or set it in contest.yaml."
         )
     else:
         assert len(contests) == 1
         assert isinstance(contests[0]["id"], str)
-        log(f"The only active contest has id {contests[0]['id']}")
+        bar.log(f"The only active contest has id {contests[0]['id']}")
         return contests[0]["id"]
 
 
@@ -201,13 +193,13 @@ def get_contests() -> list[dict[str, Any]]:
 
 def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
     if config.args.username is None or config.args.password is None:
-        fatal("Username and Password are required to access CCS")
+        bar.fatal("Username and Password are required to access CCS")
 
     import requests  # Slow import, so only import it inside this function.
 
     assert endpoint.startswith("/")
     url = get_api() + endpoint
-    verbose(f"{method} {url}")
+    bar.verbose(f"{method} {url}")
     r = requests.request(
         method,
         url,
@@ -216,7 +208,7 @@ def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
     )
 
     if not r.ok:
-        error(r.text)
+        bar.error(r.text)
     return r
 
 
@@ -224,7 +216,7 @@ def get_request_json(r: "requests.Response") -> object:
     try:
         return r.json()
     except Exception as e:
-        error(f"\nError in decoding JSON:\n{e}\n{r.text}")
+        bar.error(f"\nError in decoding JSON:\n{e}\n{r.text}")
     return None
 
 

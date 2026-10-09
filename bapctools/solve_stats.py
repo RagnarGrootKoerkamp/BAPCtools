@@ -3,9 +3,9 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import Any, Final, Optional
 
-from bapctools import config, parallel
+from bapctools import bar, config, parallel
+from bapctools.bar import ProgressBar
 from bapctools.contest import call_api_get_json, get_contest_id
-from bapctools.util import ProgressBar
 
 # Note on multiprocessing:
 # Our custom parallel module uses light-weight threads, which all compete for the global interpreter lock:
@@ -69,6 +69,7 @@ def plot_problem(
     fig.savefig(f"solve_stats/activity/{label}.pdf", bbox_inches="tight", transparent=True)
 
 
+@bar.restore
 def generate_solve_stats(post_freeze: bool) -> None:
     # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
     import matplotlib
@@ -83,11 +84,12 @@ def generate_solve_stats(post_freeze: bool) -> None:
     contest_id = get_contest_id()
     url_prefix = f"/contests/{contest_id}/"
 
-    bar = ProgressBar("Fetching", count=3, max_len=len("Contest data"))
+    local_bar = ProgressBar("Fetching", count=3, max_len=len("Contest data"))
+    bar.make_global(local_bar)
 
-    bar.start("Contest")
+    local_bar.start("Contest")
     contest = call_api_get_json(url_prefix)
-    bar.done()
+    local_bar.done()
 
     freeze_duration = time_string_to_minutes(contest.get("scoreboard_freeze_duration"))
     contest_duration = time_string_to_minutes(contest.get("duration"))
@@ -97,7 +99,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         i, endpoint = i_endpoint
         data[i] = get_json_assoc(url_prefix + endpoint)
 
-    bar.start("Contest data")
+    local_bar.start("Contest data")
     data: list[Optional[dict[str, Any]]] = [None] * 5
     parallel.run_tasks(
         get_contest_data,
@@ -111,12 +113,12 @@ def generate_solve_stats(post_freeze: bool) -> None:
     assert teams is not None, "Could not fetch teams"
     assert languages is not None, "Could not fetch languages"
     assert judgement_types is not None, "Could not fetch judgement_types"
-    bar.done()
+    local_bar.done()
 
     assert PENDING not in judgement_types
     judgement_types[PENDING] = {"id": PENDING, "name": "pending"}
 
-    bar.start("Judgements")
+    local_bar.start("Judgements")
     for j in call_api_get_json(f"{url_prefix}judgements"):
         # Firstly, only one judgement should be 'valid': in case of rejudgings, this should be the "active" judgement.
         # Secondly, note that the submissions list only contains submissions that were submitted on time,
@@ -124,8 +126,8 @@ def generate_solve_stats(post_freeze: bool) -> None:
         if j["valid"] and j["submission_id"] in submissions:
             # Add judgement to submission.
             submissions[j["submission_id"]]["judgement"] = j
-    bar.done()
-    bar.finalize()
+    local_bar.done()
+    local_bar.finalize()
 
     class Submission:
         def __init__(self, data: Any) -> None:
@@ -247,9 +249,10 @@ def generate_solve_stats(post_freeze: bool) -> None:
 
     Path("solve_stats").mkdir(parents=True, exist_ok=True)
 
-    bar = ProgressBar("Plotting", items=list(plots))
+    local_bar = ProgressBar("Plotting", items=list(plots))
+    bar.make_global(local_bar)
     for name, function in plots.items():
-        bar.start(name)
+        local_bar.start(name)
         function()
-        bar.done()
-    bar.finalize()
+        local_bar.done()
+    local_bar.finalize()

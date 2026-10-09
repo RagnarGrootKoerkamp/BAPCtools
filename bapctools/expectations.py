@@ -2,9 +2,9 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Final, Optional, TYPE_CHECKING
 
-from bapctools import config
+from bapctools import bar, config
 from bapctools.test_case import TestCase
-from bapctools.util import BaseBar, error, fatal, once_per_instance, read_yaml, warn, YamlParser
+from bapctools.util import once_per_instance, read_yaml, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -13,11 +13,9 @@ if TYPE_CHECKING:
 
 
 class Person:
-    def __init__(
-        self, source: str, yaml_data: str | dict[object, object], parent_path: str, bar: BaseBar
-    ):
+    def __init__(self, source: str, yaml_data: str | dict[object, object], parent_path: str):
         if isinstance(yaml_data, dict):
-            parser = YamlParser(source, yaml_data, parent_path, bar)
+            parser = YamlParser(source, yaml_data, parent_path)
             self.name: str = parser.extract("name", "")
             self.email: Optional[str] = parser.extract_optional("email", str)
             self.kattis: Optional[str] = parser.extract_optional("kattis", str)
@@ -42,22 +40,19 @@ class Person:
             if value is None:
                 return []
             if isinstance(value, (str, dict)):
-                return [Person(source.source, value, key_path, source.bar)]
+                return [Person(source.source, value, key_path)]
             if isinstance(value, list):
                 if not all(isinstance(v, (str, dict)) for v in value):
-                    source.bar.warn(
+                    bar.warn(
                         f"some values for key `{key_path}` in {source.source} have invalid type. SKIPPED."
                     )
                     return []
                 if not value:
-                    source.bar.warn(
+                    bar.warn(
                         f"value for `{key_path}` in {source.source} should not be an empty list."
                     )
-                return [
-                    Person(source.source, v, f"{key_path}[{i}]", source.bar)
-                    for i, v in enumerate(value)
-                ]
-            source.bar.warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
+                return [Person(source.source, v, f"{key_path}[{i}]") for i, v in enumerate(value)]
+            bar.warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
         return []
 
 
@@ -106,7 +101,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
     # match from start and only match complete directories
     glob = f"^{glob}(/|$)"
     if suspicious is not None:
-        warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
+        bar.warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
     return re.compile(glob)
 
 
@@ -128,7 +123,7 @@ class TestCaseExpectation:
             if not verdicts:
                 return default
             if any(v not in KNOWN_EXPECTATION_VERDICTS for v in verdicts):
-                parser.bar.warn(
+                bar.warn(
                     f"some values for key `{parser.parent_path}.{key}` in submissions.yaml are unknown. SKIPPED."
                 )
                 return default
@@ -138,9 +133,7 @@ class TestCaseExpectation:
         self.required: set[Verdict] = extract_verdicts("required", self.permitted)
         if not self.required.issubset(self.permitted):
             missing = ",".join(v.short for v in self.required - self.permitted)
-            parser.bar.warn(
-                f"`{parser.parent_path}` has [{missing}] as required but not as permitted"
-            )
+            bar.warn(f"`{parser.parent_path}` has [{missing}] as required but not as permitted")
 
         if "score" in parser.remaining:
             # Not implemented
@@ -148,10 +141,10 @@ class TestCaseExpectation:
             is_list = isinstance(parser.remaining["score"], list)
             score = parser.extract_optional_list("score", float)
             if len(score) not in [0, 2 if is_list else 1]:
-                parser.bar.warn(
+                bar.warn(
                     f"(`{parser.parent_path}.score` must be a single float or a list of two floats.)"
                 )
-            parser.bar.warn("Scoring is not implemented in BAPCtools.")
+            bar.warn("Scoring is not implemented in BAPCtools.")
 
         self.message: Optional[str] = parser.extract_optional("message", str)
         self.lower_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED not in self.permitted
@@ -162,11 +155,11 @@ class TestCaseExpectation:
             self.lower_time_limit = use_for_time_limit == "lower"
             self.upper_time_limit = use_for_time_limit == "upper"
             if use_for_time_limit not in [True, False, "lower", "upper"]:
-                parser.bar.warn(
+                bar.warn(
                     f"`{parser.parent_path}.use_for_time_limit` must be bool, `lower`, or `upper`. SKIPPED."
                 )
         if self.lower_time_limit and self.upper_time_limit:
-            parser.bar.error(f"`{parser.parent_path}` is used for upper and lower time limit!")
+            bar.error(f"`{parser.parent_path}` is used for upper and lower time limit!")
 
     def matches(self, test_case: TestCase) -> bool:
         if self.test_case_regex is None:
@@ -201,7 +194,7 @@ class SubmissionExpectation:
                     has_prefix |= key == prefix
                     has_prefix |= key.startswith(f"{prefix}/")
                 if not has_prefix:
-                    parser.bar.warn(
+                    bar.warn(
                         f"test case glob `{key}` does not start with `sample`, `secret`, or `*`"
                     )
                 self.expectations.append(TestCaseExpectation(parser.extract_parser(key), key))
@@ -245,13 +238,13 @@ class Expectations:
                 continue
             yaml_data = read_yaml(file, empty={})
             if not isinstance(yaml_data, dict):
-                fatal("could not parse submissions.yaml.")
+                bar.fatal("could not parse submissions.yaml.")
             for submission_glob, expectation in yaml_data.items():
                 if not isinstance(submission_glob, str):
-                    error("keys in submissions.yaml must be strings. SKIPPED.")
+                    bar.error("keys in submissions.yaml must be strings. SKIPPED.")
                     continue
                 if not isinstance(expectation, dict):
-                    error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
+                    bar.error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
                     continue
                 self.expectations[submission_glob] = SubmissionExpectation(
                     submission_glob, expectation
@@ -285,14 +278,16 @@ class Expectations:
         combined.authors = list(min(authors, default=combined.authors))
 
         if len(languages) > 1:
-            warn(f"found multiple languages for {submission.name}, using {combined.language}")
+            bar.warn(f"found multiple languages for {submission.name}, using {combined.language}")
         if len(entrypoints) > 1:
-            warn(f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}")
+            bar.warn(
+                f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}"
+            )
         if len(authors) > 1:
             names = ", ".join([a.name for a in combined.authors])
-            warn(f"found multiple authors for {submission.name}, using {names}")
+            bar.warn(f"found multiple authors for {submission.name}, using {names}")
 
         if not found_match:
-            warn(f"{submission.name} not covered by submissions.yaml")
+            bar.warn(f"{submission.name} not covered by submissions.yaml")
 
         return combined

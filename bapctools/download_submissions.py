@@ -5,56 +5,60 @@ from os import makedirs
 from pathlib import Path
 from typing import Any
 
-from bapctools import config, parallel
+from bapctools import bar, config, parallel
+from bapctools.bar import ProgressBar
 from bapctools.contest import call_api_get_json, get_contest_id
-from bapctools.util import fatal, ProgressBar
 from bapctools.verdicts import from_string, Verdict
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]
 
 
+@bar.restore
 def download_submissions() -> None:
     contest_id = get_contest_id()
     if contest_id is None:
-        fatal("No contest ID found. Set in contest.yaml or pass --contest-id <cid>.")
+        bar.fatal("No contest ID found. Set in contest.yaml or pass --contest-id <cid>.")
 
     for d in ["submissions", "scoreboard"]:
         Path(d).mkdir(exist_ok=True)
 
-    bar = ProgressBar("Downloading metadata", count=3, max_len=len("submissions"))
-    bar.start("submissions")
+    local_bar = ProgressBar("Downloading metadata", count=3, max_len=len("submissions"))
+    bar.make_global(local_bar)
+
+    local_bar.start("submissions")
     submissions = {s["id"]: s for s in call_api_get_json(f"/contests/{contest_id}/submissions")}
-    bar.done()
+    local_bar.done()
 
     submission_digits = max(len(s["id"]) for s in submissions.values())
     team_digits = max(
         len(s["team_id"]) if s["team_id"].isdigit() else 0 for s in submissions.values()
     )
 
-    bar.start("scoreboard")
+    local_bar.start("scoreboard")
     for endpoint in ["teams", "organizations", "problems", "scoreboard", "clarifications"]:
         data = json.dumps(call_api_get_json(f"/contests/{contest_id}/{endpoint}"), indent=2)
         Path(f"scoreboard/{endpoint}.json").write_text(data)
-    bar.done()
+    local_bar.done()
 
-    bar.start("judgements")
+    local_bar.start("judgements")
     for j in call_api_get_json(f"/contests/{contest_id}/judgements"):
         # Note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.
         if j["submission_id"] in submissions:
             # Merge judgement with submission. Keys of judgement are overwritten by keys of submission.
             submissions[j["submission_id"]] = {**j, **submissions[j["submission_id"]]}
-    bar.done()
-    bar.finalize()
+    local_bar.done()
+    local_bar.finalize()
 
-    bar = ProgressBar("Downloading sources", count=len(submissions), max_len=4)
+    local_bar = ProgressBar("Downloading sources", count=len(submissions), max_len=4)
+    bar.make_global(local_bar)
 
     def download_submission(s: dict[str, Any]) -> None:
         i = int(s["id"])
-        bar.start(s["id"])
+        local_bar.start(s["id"])
         if "judgement_type_id" not in s:
-            bar.done()
+            local_bar.done()
             return
 
         verdict = from_string(s["judgement_type_id"])
@@ -69,10 +73,10 @@ def download_submissions() -> None:
 
         source_code = call_api_get_json(f"/contests/{contest_id}/submissions/{i}/source-code")
         if len(source_code) != 1:
-            bar.warn(
+            local_bar.warn(
                 f"\nSkipping submission {i}: has {len(source_code)} source files instead of 1."
             )
-            bar.done()
+            local_bar.done()
             return
         source: bytes = base64.b64decode(source_code[0]["source"])
         makedirs(f"submissions/{s['problem_id']}/{verdict_dir}", exist_ok=True)
@@ -81,11 +85,11 @@ def download_submissions() -> None:
         ext = source_code[0]["filename"].split(".")[-1]
         path = f"submissions/{s['problem_id']}/{verdict_dir}/t{teamid}_s{submissionid}_{s['max_run_time']}s.{ext}"
         Path(path).write_bytes(source)
-        bar.done()
+        local_bar.done()
 
     # When downloading submissions, we need to wait for the server to respond, so we can use more jobs
     with config.temporary_args():
         config.args.jobs *= 10
         parallel.run_tasks(download_submission, list(submissions.values()))
 
-    bar.finalize()
+    local_bar.finalize()
