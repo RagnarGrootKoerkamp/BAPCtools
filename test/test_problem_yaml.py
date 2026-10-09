@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from bapctools import config, problem
-from bapctools.bar import BaseBar
+from bapctools.bar import BaseBar, EmptyBar, PrintBar, ProgressBar
 from bapctools.util import YamlParser
 
 RUN_DIR = Path.cwd().absolute()
@@ -76,9 +76,10 @@ class TestProblemYaml:
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
 
-        monkeypatch.setattr(BaseBar, "fatal", fatal)
-        monkeypatch.setattr(BaseBar, "error", error)
-        monkeypatch.setattr(BaseBar, "warn", warn)
+        for bar in [BaseBar, EmptyBar, PrintBar, ProgressBar]:
+            monkeypatch.setattr(bar, "fatal", fatal)
+            monkeypatch.setattr(bar, "error", error)
+            monkeypatch.setattr(bar, "warn", warn)
 
         # Still expecting no change, because we're mocking the functions that increment these values
         assert config.n_error == 0 and config.n_warn == 0, (

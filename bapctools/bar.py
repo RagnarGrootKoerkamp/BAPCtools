@@ -6,8 +6,7 @@ import signal
 import sys
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator, Sequence
-from contextlib import contextmanager
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, NoReturn, Optional, ParamSpec, Protocol, TypeVar
 
@@ -234,7 +233,7 @@ class EmptyBar(BaseBar):
 
     @override
     def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        super().verbose(f"LOG: {message}", data, color)
+        super().log(f"LOG: {message}", data, color)
 
     @override
     def verbose(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
@@ -545,18 +544,6 @@ def restore(func: Callable[P, R]) -> Callable[P, R]:
             global_bar = old_bar
 
     return wrapped
-
-
-@contextmanager
-def temporary() -> Generator[None, None, None]:
-    assert threading.current_thread() is threading.main_thread()
-    global global_bar
-    assert not isinstance(global_bar, ProgressBar)
-    old_bar = global_bar
-    try:
-        yield
-    finally:
-        global_bar = old_bar
 
 
 def make_global(bar: BaseBar) -> None:
