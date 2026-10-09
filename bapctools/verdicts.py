@@ -54,8 +54,8 @@ def to_char(v: Optional[Verdict | Literal[False]], *, lower: bool = False) -> st
     if v is None or v is False:
         return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
-        char = str(v)[0].lower() if lower else str(v)[0].upper()
-        return f"{v.color}{char}{Style.RESET_ALL}"
+        char = str(v)[0]
+        return f"{v.color}{char.lower() if lower else char.upper()}{Style.RESET_ALL}"
 
 
 def to_string(v: Optional[Verdict | Literal[False]]) -> str:

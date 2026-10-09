@@ -213,7 +213,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 # Sort the problems
                 problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
-                verbose(f"order: {', '.join(str(p.label) for p in problems)}")
+                verbose(f"order: {', '.join(p.label or p.name for p in problems)}")
 
                 if ask_variable_bool("Update order in contest.yaml"):
                     contest_yaml_path = Path("contest.yaml")

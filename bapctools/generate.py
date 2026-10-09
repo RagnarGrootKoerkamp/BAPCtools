@@ -1586,7 +1586,7 @@ class TestCaseRule(Rule):
 
 # Helper that has the required keys needed from a parent directory.
 class RootDirectoryRule:
-    path = Path("")
+    path = Path()
     config = None
     numbered = False
 
@@ -1783,11 +1783,7 @@ def next_numbered_name(base_name: str, i: Iterator[int], n: int) -> Iterator[str
     width = len(str(n))
     while True:
         number_prefix = f"{next(i):0{width}}"
-        if base_name:
-            yield f"{number_prefix}-{base_name}"
-        else:
-            assert base_name is None or base_name == ""
-            yield number_prefix
+        yield f"{number_prefix}-{base_name}" if base_name else number_prefix
 
 
 AnyDirectoryRule = RootDirectoryRule | DirectoryRule
@@ -2218,7 +2214,7 @@ class GeneratorConfig:
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is Generator and program_path in self.generators:
-                    deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
+                    deps = [self.problem.path / d for d in self.generators[program_path]]
                     programs.append(Generator(self.problem, path, deps=deps))
                 elif program_type is Submission:
                     programs.append(Submission(self.problem, path, skip_double_build_warning=True))
@@ -2429,7 +2425,7 @@ data/*
                 name = path_in_gen.with_suffix("").as_posix().replace("/", "_")
                 new = CommentedMap({"copy": path_in_gen.with_suffix("").as_posix()})
                 new.fa.set_flow_style()
-                entry[-1][str(name)] = new
+                entry[-1][name] = new
                 bar.log("added to generators.yaml.")
             bar.done()
 
@@ -2500,7 +2496,7 @@ data/*
         # ok == False only indicates that some submission did not Fail
 
         test_case_paths = {t.in_path.relative_to(data).with_suffix("") for t in test_cases}
-        max_test_case_len = max([len(str(t)) for t in test_case_paths])
+        max_test_case_len = max([len(t.as_posix()) for t in test_case_paths])
         for d in directory_rules:
             eprint(f"\n{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
 
