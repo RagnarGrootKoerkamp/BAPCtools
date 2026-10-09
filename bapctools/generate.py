@@ -1848,7 +1848,7 @@ class GeneratorConfig:
         if not is_directory(raw_yaml):
             raise ParseError("could not parse generators.yaml, root must represent a directory.")
 
-        parser = YamlParser("generators.yaml", raw_yaml, bar=local_bar)
+        parser = YamlParser("generators.yaml", raw_yaml)
 
         # we don't really care about the version
         parser.pop("version")
@@ -1947,7 +1947,7 @@ class GeneratorConfig:
 
             ts: list[TestCaseRule] = []
             for count_value in count_list:
-                parser = YamlParser("generators.yaml", parser_yaml, bar=local_bar)
+                parser = YamlParser("generators.yaml", parser_yaml)
                 name = next(name_gen)
                 if has_count(parser.remaining):
                     name += f"-{count_value:0{padding}}"
@@ -2053,7 +2053,7 @@ class GeneratorConfig:
                     self.n_parse_error += 1
                     continue
 
-                sub_parser = YamlParser(parser.source, entry, bar=local_bar)
+                sub_parser = YamlParser(parser.source, entry)
 
                 # Process named children alphabetically, but not in the root directory.
                 # There, process in the 'natural order'.
@@ -2099,7 +2099,7 @@ class GeneratorConfig:
                         child_bar = local_bar.with_item(child_path)
                         bar.make_global(child_bar)
                         if is_directory(child_yaml):
-                            child_parser = YamlParser(sub_parser.source, child_yaml, bar=child_bar)
+                            child_parser = YamlParser(sub_parser.source, child_yaml)
                             cd = parse_directory(
                                 child_key, child_name, child_yaml, child_parser, d, child_bar
                             )

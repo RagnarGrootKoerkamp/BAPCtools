@@ -6,7 +6,8 @@ import pytest
 import yaml
 
 from bapctools import config, problem
-from bapctools.util import BaseBar, YamlParser
+from bapctools.bar import BaseBar
+from bapctools.util import YamlParser
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -90,12 +91,14 @@ class TestProblemYaml:
         except SystemExit as e:
             assert e.code == -42
 
-        assert ([call(test_data["fatal"])] if "fatal" in test_data else []) == fatal.mock_calls
+        assert (
+            [call(test_data["fatal"], None, force=None)] if "fatal" in test_data else []
+        ) == fatal.mock_calls
 
         if isinstance(test_data.get("error", None), str):
             test_data["error"] = [test_data["error"]]
-        assert [call(x) for x in test_data.get("error", [])] == error.mock_calls
+        assert [call(x, None) for x in test_data.get("error", [])] == error.mock_calls
 
         if isinstance(test_data.get("warn", None), str):
             test_data["warn"] = [test_data["warn"]]
-        assert [call(x) for x in test_data.get("warn", [])] == warn.mock_calls
+        assert [call(x, None) for x in test_data.get("warn", [])] == warn.mock_calls

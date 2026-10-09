@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from bapctools import config, generate, util
+from bapctools import bar, config, generate
 
 config.RUNNING_TEST = True
 
@@ -66,13 +66,15 @@ class TestGeneratorConfig:
             )
         ),
     )
+    @bar.restore
     def test_bad_generators_yamls(self, yamldoc):
         config.n_warn = 0
         config.n_error = 0
         with pytest.raises(generate.ParseError):
             gen_config = MockGeneratorConfig(MockProblem())
-            bar = util.PrintBar("mock")
-            gen_config._parse_root(yamldoc, bar)
+            local_bar = bar.PrintBar("mock")
+            bar.make_global(local_bar)
+            gen_config._parse_root(yamldoc, local_bar)
             if (
                 gen_config.n_test_case_error > 0
                 or gen_config.n_parse_error > 0
