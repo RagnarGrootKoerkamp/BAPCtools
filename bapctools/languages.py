@@ -38,7 +38,7 @@ class Language:
                 found, missing = "shebang_files", "shebang"
             parser.pop(found)
             parser.pop(missing)
-            parser.bar.warn(
+            bar.warn(
                 f"invalid entries in languages.yaml for '{code}', {found} must be accompanied by {missing}. SKIPPED."
             )
         self.shebang = None
@@ -49,7 +49,7 @@ class Language:
                 self.shebang = re.compile(shebang)
                 self.shebang_files = parser.extract_and_error("shebang_files", str).split()
             except re.error:
-                parser.bar.warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
+                bar.warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
 
         self.compile = parser.extract_optional("compile", str)
         self.run = parser.extract_and_error("run", str)
@@ -61,7 +61,7 @@ class Language:
                     continue
                 # cannot distinguish "{path}" from "{path:}" but better than nothing...
                 if format_spec:
-                    parser.bar.warn(
+                    bar.warn(
                         f"found meta variable {{{field}:{format_spec}}} in languages.yaml for '{code}', did you mean {{{field}}}?"
                     )
                 fields.append(field)
@@ -72,11 +72,11 @@ class Language:
         if self.compile is not None:
             variables |= get_variables(self.compile)
         for unknown in variables - set(Language.VARIABLES):
-            parser.bar.error(f"Unknown meta variable {unknown} in languages.yaml for '{code}'.")
+            bar.error(f"Unknown meta variable {unknown} in languages.yaml for '{code}'.")
             self.ok = False
         entry_points = variables & set(Language.ENTRY_POINTS)
         if len(entry_points) != 1:
-            parser.bar.error(f"Expected exactly one entry point in languages.yaml for '{code}'.")
+            bar.error(f"Expected exactly one entry point in languages.yaml for '{code}'.")
             self.ok = False
 
         def get_exe(key: str, command: str) -> Optional[str]:

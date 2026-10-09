@@ -53,7 +53,7 @@ class ProblemsYamlEntry:
             if rgb is None:
                 return None
             if not rgb.startswith("#"):
-                parser.bar.error(
+                bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -61,7 +61,7 @@ class ProblemsYamlEntry:
             if len(hex_part) == 3:
                 hex_part = "".join(c * 2 for c in hex_part)
             if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
-                parser.bar.error(
+                bar.error(
                     f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
                 )
                 return None
@@ -79,18 +79,18 @@ class ProblemsYamlEntry:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                parser.bar.warn(
+                bar.warn(
                     f"invalid language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             elif not isinstance(name, str):
-                parser.bar.warn(
+                bar.warn(
                     f"incompatible value for language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
                 )
             else:
                 self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
-            parser.bar.error(
+            bar.error(
                 f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
             )
             self.time_limit = None

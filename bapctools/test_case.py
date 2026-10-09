@@ -66,9 +66,7 @@ class TestGroup:
             bar.error(f"could not parse {file}. SKIPPED.")
             return
 
-        parser = YamlParser(
-            str(file) if file else "default test_group.yaml", yaml_data, bar=bar.global_bar
-        )
+        parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data)
 
         # parse deprecated keys
         parser.extract_deprecated("output_validator_flags", OutputValidator.args_key)

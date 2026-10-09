@@ -134,9 +134,7 @@ class ProblemCredits:
         if "credits" not in parser.remaining:
             return
         if isinstance(parser.remaining["credits"], str):
-            self.authors = [
-                Person("problem.yaml", parser.extract("credits", ""), "credits", parser.bar)
-            ]
+            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
             return
 
         credits = parser.extract_parser("credits")
@@ -148,7 +146,7 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.remaining.keys()):
             if not isinstance(lang, str):
-                parser.bar.warn(
+                bar.warn(
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
                 )
             else:
@@ -176,7 +174,7 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                parser.bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
+                bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
                 name = ""
             source.check_unknown_keys()
             return ProblemSource(name, url)
@@ -198,11 +196,11 @@ class ProblemSources(list[ProblemSource]):
                 elif isinstance(source, dict):
                     self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
                 else:
-                    parser.bar.warn(
+                    bar.warn(
                         f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED."
                     )
             return
-        parser.bar.warn("problem.yaml key `source` does not have the correct type")
+        bar.warn("problem.yaml key `source` does not have the correct type")
 
 
 class ProblemLimits:
@@ -226,7 +224,7 @@ class ProblemLimits:
         self.raw_time_limit: float = parser.extract("time_limit", self.time_resolution, "> 0")
         time_steps = self.raw_time_limit / self.time_resolution
         if abs(time_steps - round(time_steps)) >= 0.0001:
-            parser.bar.error(
+            bar.error(
                 f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
             )
 
@@ -252,9 +250,7 @@ class ProblemLimits:
             self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
         elif "validation_passes" in parser.remaining:
             parser.pop("validation_passes")
-            parser.bar.warn(
-                "limit: validation_passes is only used for multi-pass problems. SKIPPED."
-            )
+            bar.warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
             self.validation_passes = None
 
         # BAPCtools extensions:
@@ -263,9 +259,9 @@ class ProblemLimits:
 
         # warn for deprecated timelimit files
         if (problem.path / ".timelimit").is_file():
-            parser.bar.warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+            bar.warn("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
         if (problem.path / "domjudge-problem.ini").is_file():
-            parser.bar.warn(
+            bar.warn(
                 "domjudge-problem.ini is DEPRECATED. Use limits.time_limit if you want to set a timelimit."
             )
 
@@ -297,9 +293,9 @@ class ProblemSettings:
         self.problem_format_version: str = parser.extract("problem_format_version", "legacy-icpc")
 
         if self.problem_format_version.startswith("legacy"):
-            parser.bar.fatal("legacy is no longer supported, try running 'bt upgrade'")
+            bar.fatal("legacy is no longer supported, try running 'bt upgrade'")
         elif self.problem_format_version != config.SPEC_VERSION:
-            parser.bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
+            bar.fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parser.extract_deprecated("validation", "type")
         if "type" not in parser.remaining:
@@ -311,10 +307,10 @@ class ProblemSettings:
             if not mode:
                 mode = {"pass-fail"}
         else:
-            parser.bar.fatal("problem.yaml: `type` must be a string or a sequence")
+            bar.fatal("problem.yaml: `type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
-            parser.bar.fatal(
+            bar.fatal(
                 f"""problem.yaml: unrecognized value{
                     "" if len(unrecognized_type) == 1 else "s"
                 } for `type`: {" ".join(sorted(unrecognized_type))}"""
@@ -331,9 +327,9 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                parser.bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
             elif not isinstance(name, str):
-                parser.bar.warn(
+                bar.warn(
                     f"incompatible value for language `{lang}` for `name` in problem.yaml. SKIPPED."
                 )
             else:
@@ -363,9 +359,9 @@ class ProblemSettings:
         for keyword in self.keywords:
             match = known_keywords.find(keyword)
             if keyword in seen_keywords:
-                parser.bar.warn(f"found duplicate keyword {keyword}.")
+                bar.warn(f"found duplicate keyword {keyword}.")
             elif match:
-                parser.bar.warn(f"found keyword {keyword}. Did you mean {match}?")
+                bar.warn(f"found keyword {keyword}. Did you mean {match}?")
             seen_keywords.add(keyword)
 
         # an empty list means no restrction
@@ -382,33 +378,27 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.CONSTANT_NAME_REGEX.fullmatch(key):
-                parser.bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
                 continue
 
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
             if "value" not in value:
-                parser.bar.warn(
-                    f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED."
-                )
+                bar.warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
                 continue
             for sub, variant in value.items():
                 if sub == "value" and isinstance(variant, (int, float)):
                     variant = str(variant)
 
                 if not isinstance(sub, str) or not config.CONSTANT_NAME_REGEX.fullmatch(sub):
-                    parser.bar.warn(
-                        f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED."
-                    )
+                    bar.warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 elif isinstance(variant, (int, float)):
-                    parser.bar.warn(
+                    bar.warn(
                         f"invalid type {type(variant).__name__} for `constants.{key}.{sub}` in problem.yaml, use string. SKIPPED."
                     )
                 elif not isinstance(variant, str):
-                    parser.bar.warn(
-                        f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED."
-                    )
+                    bar.warn(f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 else:
                     variants.add(variant)
                     self.constants[f"{key}.{sub}"] = variant
@@ -419,9 +409,8 @@ class ProblemSettings:
             variant_numbers = {}
             for variant in variants:
                 normalized = variant
-                normalized = re.sub(
-                    r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", normalized
-                )  # LaTeX fraction
+                # LaTeX fraction
+                normalized = re.sub(r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", normalized)
                 normalized = normalized.replace("\\cdot{}", "*")  # LaTeX mul
                 normalized = normalized.replace("\\cdot", "*")  # LaTeX mul
                 normalized = normalized.replace("^", "**")  # latex pow
@@ -436,7 +425,7 @@ class ProblemSettings:
             # TODO: consider float values with an eps?
             #      (compare the largest and smallest found float with rel/abs error)
             if len(variant_numbers) > 1:
-                parser.bar.warn(
+                bar.warn(
                     f"found different variants for {key}: {', '.join(variant_numbers.values())}"
                 )
 
@@ -447,27 +436,25 @@ class ProblemSettings:
             "ans_is_output", not self.interactive and not self.multi_pass
         )
         if (self.interactive or self.multi_pass) and self.ans_is_output:
-            parser.bar.warn(
-                f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED."
-            )
+            bar.warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
             self.ans_is_output = False
 
         parser.check_unknown_keys()
 
         # checks
         if not is_uuid(self.uuid):
-            parser.bar.warn(f"invalid uuid: {self.uuid}")
+            bar.warn(f"invalid uuid: {self.uuid}")
         if self.license not in config.KNOWN_LICENSES:
-            parser.bar.warn(f"invalid license: {self.license}")
+            bar.warn(f"invalid license: {self.license}")
             self.license = "unknown"
         if self.license == "public domain":
             if self.rights_owner is not None:
-                parser.bar.warn(
+                bar.warn(
                     f"problem cannot have license 'public domain' and have a rights owner: {self.rights_owner}"
                 )
         elif self.license != "unknown":
             if self.rights_owner is None and not self.credits.authors and not self.source:
-                parser.bar.warn(
+                bar.warn(
                     f"problem with license '{self.license}': needs a rights owner, author, or source."
                 )
 
@@ -589,7 +576,7 @@ class Problem:
             yaml_path.write_text(raw)
             bar.log("Added new UUID to problem.yaml")
 
-        parser = YamlParser("problem.yaml", yaml_data, bar=bar.global_bar)
+        parser = YamlParser("problem.yaml", yaml_data)
         self.settings = ProblemSettings(parser, self)
 
         # Aliasing fields makes life easier for us 😛
