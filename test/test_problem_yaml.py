@@ -78,10 +78,6 @@ class TestProblemYaml:
         monkeypatch.setattr(BaseBar, "fatal", fatal)
         monkeypatch.setattr(BaseBar, "error", error)
         monkeypatch.setattr(BaseBar, "warn", warn)
-        for module in ["bapctools.expectations", "bapctools.problem", "bapctools.util"]:
-            monkeypatch.setattr(f"{module}.fatal", fatal)
-            monkeypatch.setattr(f"{module}.error", error)
-            monkeypatch.setattr(f"{module}.warn", warn)
 
         # Still expecting no change, because we're mocking the functions that increment these values
         assert config.n_error == 0 and config.n_warn == 0, (

@@ -490,6 +490,7 @@ def restore(func: Callable[P, R]) -> Callable[P, R]:
     @functools.wraps(func)
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
         global global_bar
+        assert not isinstance(global_bar, ProgressBar)
         old_bar = global_bar
         try:
             return func(*args, **kwargs)
