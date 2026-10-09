@@ -17,6 +17,14 @@ from typing_extensions import override, Self
 from bapctools import config
 
 
+# we almost always want to print to stderr
+# for legacy reasons this is intentionally not synchronized with the bar!
+# (this would break the TableProgressBar)
+def eprint(*args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
 def exit1(force: bool = False) -> NoReturn:
     if force:
         sys.stdout.close()
@@ -141,6 +149,7 @@ class BaseBar(ABC):
         self.item_width: Optional[int] = None
 
         if item is not None:
+            assert prefix is not None
             self.item_width = item_len(item) + 1
         if max_len is not None:
             self.item_width = max_len + 1
@@ -157,24 +166,27 @@ class BaseBar(ABC):
         return BaseBar.lock_depth > 0
 
     @abstractmethod
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
+    def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
+
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        self._log(message, data, color)
 
     # Same as log, but only in verbose mode.
     def verbose(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         if config.args.verbose:
-            self.log(message, data, color)
+            self._log(message, data, color)
 
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
             with self:
                 message = process_warning(message, self.item)
-                self.log(message, data, Fore.YELLOW)
+                self._log(message, data, Fore.YELLOW)
 
     def error(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 2:
             with self:
                 config.n_error += 1
-                self.log(message, data, Fore.RED)
+                self._log(message, data, Fore.RED)
 
     def fatal(
         self, message: str, data: Optional[str] = None, *, force: Optional[bool] = None
@@ -183,7 +195,7 @@ class BaseBar(ABC):
             force = threading.active_count() > 1
         with self:
             config.n_error += 1
-            self.log(message, data, Fore.RED)
+            self._log(message, data, Fore.RED)
             exit1(force=force)
 
     # Log an intermediate line if it's an error or we're in verbose mode.
@@ -209,6 +221,41 @@ class BaseBar(ABC):
                     self.warn(message, data)
                 else:
                     self.error(message, data)
+
+
+class EmptyBar(BaseBar):
+    def __init__(self) -> None:
+        super().__init__(None, None)
+
+    @override
+    def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        with self:
+            eprint(color, message, format_data(data), Style.RESET_ALL, sep="")
+
+    @override
+    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        super().verbose(f"LOG: {message}", data, color)
+
+    @override
+    def verbose(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+        super().verbose(f"VERBOSE: {message}", data, color)
+
+    @override
+    def warn(self, message: str, data: Optional[str] = None) -> None:
+        if config.args.suppress_warnings < 1:
+            with self:
+                message = process_warning(message, None)
+                self.log(f"WARNING: {message}", data, Fore.YELLOW)
+
+    @override
+    def error(self, message: str, data: Optional[str] = None) -> None:
+        super().error(f"ERROR: {message}", data)
+
+    @override
+    def fatal(
+        self, message: str, data: Optional[str] = None, *, force: Optional[bool] = None
+    ) -> NoReturn:
+        super().fatal(f"FATAL ERROR: {message}", data)
 
 
 class ProgressBarLocal(threading.local):
@@ -324,7 +371,7 @@ class ProgressBar(BaseBar):
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     @override
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+    def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         with self:
             self.clearline()
             self.logged = True
@@ -445,7 +492,7 @@ class ProgressBar(BaseBar):
 class PrintBar(BaseBar):
     def __init__(
         self,
-        prefix: Optional[str] = None,
+        prefix: str,
         max_len: Optional[int] = None,
         *,
         item: Optional[ItemType] = None,
@@ -462,7 +509,7 @@ class PrintBar(BaseBar):
             self.parent._set_logged()
 
     @override
-    def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+    def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         with self:
             self._set_logged()
             prefix = action(self.prefix, self.item, self.item_width, None)
@@ -480,7 +527,7 @@ class PrintBar(BaseBar):
 
 
 # global bar state
-global_bar: BaseBar = PrintBar()
+global_bar: BaseBar = EmptyBar()
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -500,15 +547,11 @@ def restore(func: Callable[P, R]) -> Callable[P, R]:
     return wrapped
 
 
-def make_global(bar: BaseBar) -> None:
-    global global_bar
-    global_bar = bar
-
-
 @contextmanager
 def temporary() -> Generator[None, None, None]:
     assert threading.current_thread() is threading.main_thread()
     global global_bar
+    assert not isinstance(global_bar, ProgressBar)
     old_bar = global_bar
     try:
         yield
@@ -516,13 +559,12 @@ def temporary() -> Generator[None, None, None]:
         global_bar = old_bar
 
 
-# we almost always want to print to stderr
-def eprint(*args: Any, **kwargs: Any) -> None:
-    # TODO
-    kwargs.setdefault("file", sys.stderr)
-    print(*args, **kwargs)
+def make_global(bar: BaseBar) -> None:
+    global global_bar
+    global_bar = bar
 
 
+# allow using the bar module the same way as a BaseBar
 def part_done(
     success: bool = True,
     message: str = "",
@@ -535,37 +577,19 @@ def part_done(
 
 def log(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
     global_bar.log(msg, data, color=color)
-    # eprint(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}")
 
 
 def verbose(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-    return global_bar.verbose(msg, data, color=color)
-    # if config.args.verbose >= 1:
-    #    eprint(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}")
+    global_bar.verbose(msg, data, color=color)
 
 
 def warn(msg: Any, data: Optional[str] = None) -> None:
-    return global_bar.warn(msg, data)
-    # if config.args.suppress_warnings < 1:
-    #    if msg in config.args.ignore_warning:
-    #        msg += " (ignored)"
-    #    else:
-    #        config.n_warn += 1
-    #    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
+    global_bar.warn(msg, data)
 
 
 def error(msg: Any, data: Optional[str] = None) -> None:
     global_bar.error(msg)
-    # if config.RUNNING_TEST:
-    #    fatal(msg, data)
-    # if config.args.suppress_warnings < 2:
-    #    config.n_error += 1
-    #    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
 
 
 def fatal(msg: Any, data: Optional[str] = None, *, force: Optional[bool] = None) -> NoReturn:
     global_bar.fatal(msg, data, force=force)
-    # if force is None:
-    #    force = threading.active_count() > 1
-    # eprint(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}")
-    # exit1(force)
