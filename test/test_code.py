@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bapctools import config, util
+from bapctools import bar, config, util
 
 
 def test_config_args_order():
@@ -12,15 +12,15 @@ def test_config_args_order():
 def test_warnings():
     count = config.n_warn
     with config.suppress_warnings():
-        util.warn("):")
+        bar.warn("):")
     assert count == config.n_warn
 
     with config.temporary_args():
         config.args.ignore_warning = ["):"]
-        util.warn("):")
+        bar.warn("):")
     assert count == config.n_warn
 
-    util.warn(":)")
+    bar.warn(":)")
     assert count < config.n_warn
 
 

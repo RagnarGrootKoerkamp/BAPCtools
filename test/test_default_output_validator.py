@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from bapctools import config, problem, test_case, util, validate
+from bapctools import bar, config, problem, test_case, util, validate
 
 RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.
@@ -49,10 +49,17 @@ def validator(request):
     tmpdir.mkdir(exist_ok=True)
     p = problem.Problem(Path("."), tmpdir)
     validator = validate.OutputValidator(p, config.RESOURCES_ROOT / "support" / request.param)
-    print(util.ProgressBar.current_bar)
-    bar = util.ProgressBar("build", max_len=1)
-    validator.build(bar)
-    bar.finalize()
+
+    @bar.restore
+    def build() -> None:
+        print(bar.ProgressBar.current_bar)
+        local_bar = bar.ProgressBar("build", max_len=1)
+        local_bar.start("Output validator")
+        validator.build()
+        local_bar.done()
+        local_bar.finalize()
+
+    build()
     yield (p, validator)
     os.chdir(RUN_DIR)
 
