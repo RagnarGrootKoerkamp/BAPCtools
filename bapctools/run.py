@@ -21,7 +21,7 @@ from bapctools import (
     parallel,
     validate,
 )
-from bapctools.bar import PrintBar, ProgressBar
+from bapctools.bar import EmptyBar, PrintBar, ProgressBar
 from bapctools.languages import Language
 from bapctools.program import Program
 from bapctools.test_case import TestCase
@@ -648,6 +648,7 @@ class Submission(Program):
             message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short:>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
         local_bar.finalize(message=message, suppress_newline=True)
+        bar.make_global(EmptyBar())
         if config.args.tree:
             verdict_table.print(new_lines=0)
             verdict_table.last_printed = []

@@ -16,14 +16,6 @@ from typing_extensions import override, Self
 from bapctools import config
 
 
-# we almost always want to print to stderr
-# for legacy reasons this is intentionally not synchronized with the bar!
-# (this would break the TableProgressBar)
-def eprint(*args: Any, **kwargs: Any) -> None:
-    kwargs.setdefault("file", sys.stderr)
-    print(*args, **kwargs)
-
-
 def exit1(force: bool = False) -> NoReturn:
     if force:
         sys.stdout.close()
@@ -164,6 +156,12 @@ class BaseBar(ABC):
     def _is_locked(self) -> bool:
         return BaseBar.lock_depth > 0
 
+    # we almost always want to print to stderr
+    def eprint(self, *args: Any, **kwargs: Any) -> None:
+        with self:
+            kwargs.setdefault("file", sys.stderr)
+            print(*args, **kwargs)
+
     @abstractmethod
     def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None: ...
 
@@ -177,9 +175,8 @@ class BaseBar(ABC):
 
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
-            with self:
-                message = process_warning(message, self.item)
-                self._log(message, data, Fore.YELLOW)
+            message = process_warning(message, self.item)
+            self._log(message, data, Fore.YELLOW)
 
     def error(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 2:
@@ -213,13 +210,12 @@ class BaseBar(ABC):
             else:
                 config.n_error += 1
         if config.args.verbose or not success:
-            with self:
-                if success:
-                    self.log(message, data)
-                elif warn_instead_of_error:
-                    self.warn(message, data)
-                else:
-                    self.error(message, data)
+            if success:
+                self.log(message, data)
+            elif warn_instead_of_error:
+                self.warn(message, data)
+            else:
+                self.error(message, data)
 
 
 class EmptyBar(BaseBar):
@@ -228,8 +224,7 @@ class EmptyBar(BaseBar):
 
     @override
     def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-        with self:
-            eprint(color, message, format_data(data), Style.RESET_ALL, sep="")
+        self.eprint(color, message, format_data(data), Style.RESET_ALL, sep="")
 
     @override
     def log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
@@ -242,9 +237,8 @@ class EmptyBar(BaseBar):
     @override
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
-            with self:
-                message = process_warning(message, None)
-                self.log(f"WARNING: {message}", data, Fore.YELLOW)
+            message = process_warning(message, None)
+            self.log(f"WARNING: {message}", data, Fore.YELLOW)
 
     @override
     def error(self, message: str, data: Optional[str] = None) -> None:
@@ -307,11 +301,6 @@ class ProgressBar(BaseBar):
         # thread local data used between bar.start() and bar.done()
         self.local = ProgressBarLocal()
 
-    def _print(self, *args: Any, **kwargs: Any) -> None:
-        kwargs.setdefault("sep", "")
-        kwargs.setdefault("flush", True)
-        eprint(*args, **kwargs)
-
     def bar_width(self) -> int:
         assert self.prefix is not None
         assert self.item_width is not None
@@ -321,7 +310,7 @@ class ProgressBar(BaseBar):
         assert self._is_locked()
         if config.args.no_bar:
             return
-        self._print(CARRIAGE_RETURN, end="", flush=False)
+        self.eprint(CARRIAGE_RETURN, end="", flush=False)
 
     def get_prefix(self, local: bool = False) -> str:
         item = self.local.item if local else self.item
@@ -346,9 +335,9 @@ class ProgressBar(BaseBar):
         bar = self.get_bar()
         prefix = self.get_prefix()
         if bar == "":
-            self._print(prefix, end="\r")
+            self.eprint(prefix, end="\r", flush=True)
         else:
-            self._print(prefix, bar, end="\r")
+            self.eprint(prefix, bar, sep="", end="\r", flush=True)
 
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
@@ -377,15 +366,17 @@ class ProgressBar(BaseBar):
             self.local.log()
 
             if self.needs_leading_newline:
-                self._print()
+                self.eprint(flush=True)
                 self.needs_leading_newline = False
 
-            self._print(
+            self.eprint(
                 self.get_prefix(local=True),
                 color,
                 message,
                 format_data(data),
                 Style.RESET_ALL,
+                sep="",
+                flush=True,
             )
             self._resume()
 
@@ -477,11 +468,11 @@ class ProgressBar(BaseBar):
                 message = f"{Fore.GREEN}Done{Style.RESET_ALL}"
 
             if message:
-                self._print(self.get_prefix(), message)
+                self.eprint(self.get_prefix(), message, sep="", flush=True)
 
             # When something was printed, add a newline between parts.
             if (self.logged or message) and not suppress_newline:
-                self._print()
+                self.eprint(flush=True)
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
@@ -512,7 +503,9 @@ class PrintBar(BaseBar):
         with self:
             self._set_logged()
             prefix = action(self.prefix, self.item, self.item_width, None)
-            eprint(prefix, color, message, format_data(data), Style.RESET_ALL, sep="")
+            self.eprint(
+                prefix, color, message, format_data(data), Style.RESET_ALL, sep="", flush=True
+            )
 
     def with_item(self, item: ItemType) -> Self:
         bar_copy = copy.copy(self)
@@ -560,6 +553,10 @@ def part_done(
     warn_instead_of_error: bool = False,
 ) -> None:
     global_bar.part_done(success, message, data, warn_instead_of_error=warn_instead_of_error)
+
+
+def eprint(*args: Any, **kwargs: Any) -> None:
+    global_bar.eprint(*args, **kwargs)
 
 
 def log(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
