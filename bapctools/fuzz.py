@@ -182,9 +182,9 @@ class FuzzProgressBar(ProgressBar):
         self.queue = queue
 
     @override
-    def _print(self, *args: Any, **kwargs: Any) -> None:
+    def eprint(self, *args: Any, **kwargs: Any) -> None:
         self.queue.ensure_alive()
-        super()._print(*args, **kwargs)
+        super().eprint(*args, **kwargs)
 
 
 class Fuzz:

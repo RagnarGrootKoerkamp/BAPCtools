@@ -12,7 +12,7 @@ from colorama import Fore, Style
 from typing_extensions import override
 
 from bapctools import bar, config
-from bapctools.bar import ItemType, ProgressBar
+from bapctools.bar import BaseBar, ItemType, ProgressBar
 from bapctools.test_case import TestCase
 
 if TYPE_CHECKING:
@@ -580,6 +580,7 @@ class VerdictTable:
 class IOThread:
     def __init__(self, table: VerdictTable) -> None:
         self.finalized = False
+        self.dead = False
         self.table = table
         self.buffer = list[Callable[[], None]]()
         self.has_buffered = threading.Event()
@@ -587,20 +588,29 @@ class IOThread:
         def buffer_printer() -> None:
             while True:
                 self.has_buffered.wait()
-                with ProgressBar.lock:
+                with BaseBar.lock:
                     if isinstance(sys.stderr, io.TextIOWrapper):
                         reset_line_buffering = sys.stderr.line_buffering
                         sys.stderr.reconfigure(line_buffering=False)
+
+                    # table will call IOThread.print()
+                    BaseBar.lock_depth += 1
+                    tmp, self.buffer = self.buffer, []
                     self.table._clear()
+                    self.buffer += tmp
+                    self.table.print(update=True, printed_lengths=[bar.COLUMNS])
+                    IOThread._print(end="", flush=True)
+                    BaseBar.lock_depth -= 1
+
                     for buffered in self.buffer:
                         buffered()
                     self.buffer = []
-                    self.table.print(update=True, printed_lengths=[bar.COLUMNS])
-                    bar.eprint(end="", flush=True)
+
                     self.has_buffered.clear()
                     if isinstance(sys.stderr, io.TextIOWrapper):
                         sys.stderr.reconfigure(line_buffering=reset_line_buffering)
                     if self.finalized:
+                        self.dead = True
                         break
                 # limit the number of prints per second
                 time.sleep(0.01)
@@ -612,9 +622,15 @@ class IOThread:
     def notify(self) -> None:
         self.has_buffered.set()
 
+    @staticmethod
+    def _print(*args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("file", sys.stderr)
+        print(*args, **kwargs)
+
     def print(self, *args: Any, **kwargs: Any) -> None:
-        assert not self.finalized
-        self.buffer.append(lambda: bar.eprint(*args, **kwargs))
+        with BaseBar.lock:
+            assert not self.dead
+            self.buffer.append(lambda: IOThread._print(*args, **kwargs))
 
     def finalize(self) -> None:
         self.finalized = True
@@ -651,11 +667,10 @@ class TableProgressBar(ProgressBar):
             self.io.notify()
 
     @override
-    def _print(self, *args: Any, **kwargs: Any) -> None:
-        assert self._is_locked()
-        kwargs.setdefault("sep", "")
-        kwargs["flush"] = False  # drop all flushes...
-        self.io.print(*args, **kwargs)
+    def eprint(self, *args: Any, **kwargs: Any) -> None:
+        with self:
+            kwargs["flush"] = False  # drop all flushes...
+            self.io.print(*args, **kwargs)
 
     @override
     def start(self, item: ItemType = "") -> None:
@@ -689,10 +704,9 @@ class TableProgressBar(ProgressBar):
         message: Optional[str] = None,
         suppress_newline: bool = False,
     ) -> None:
-        with self:
-            super().finalize(
-                print_done=print_done,
-                message=message,
-                suppress_newline=suppress_newline,
-            )
+        super().finalize(
+            print_done=print_done,
+            message=message,
+            suppress_newline=suppress_newline,
+        )
         self.io.finalize()
