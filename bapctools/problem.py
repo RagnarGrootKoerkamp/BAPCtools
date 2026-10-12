@@ -337,8 +337,8 @@ class ProblemSettings:
         self.source: ProblemSources = ProblemSources(parser)
         self.license: str = parser.extract("license", "unknown")
         self.rights_owner: Optional[str] = parser.extract_optional("rights_owner", str)
-        # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
-        # Note that datetime.datetime is also valid, as subclass of datetime.date
+        # Not implemented in BAPCtools. Should be a date or datetime.
+        # Note that datetime.datetime is valid since it is a subclass of datetime.date
         self.embargo_until: Optional[datetime.date] = parser.extract_optional(
             "embargo_until", datetime.date
         )
