@@ -140,15 +140,15 @@ class ARGS:
             print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
             n_warn += 1
 
-        T = TypeVar("T")
+        T = TypeVar("T", bound=bool | int | float | str | Path | list[Any])
 
-        def normalize_arg(value: object, t: type[object]) -> object:
+        def normalize_arg(value: object, t: type[T]) -> object:
             if isinstance(value, str) and t is Path:
                 value = Path(value)
             if isinstance(value, int) and t is float:
                 value = float(value)
             if isinstance(value, bool) and t is int:
-                value = bool(value)
+                value = int(value)
             return value
 
         def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:

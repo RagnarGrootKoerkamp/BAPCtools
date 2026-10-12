@@ -253,7 +253,13 @@ yaml:
     - name: name
       foo: "bar"
 warn: "found unknown key: foo in `source[0]`"
-
+---
+yaml:
+  problem_format_version: 2025-09
+  name: bools are not ints
+  limits:
+    memory: true
+warn: "incompatible value for key `limits.memory`. SKIPPED."
 ---
 # Embargo
 yaml:
