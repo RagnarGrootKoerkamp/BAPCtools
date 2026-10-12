@@ -225,13 +225,11 @@ class Expectations:
     def __init__(self, problem: "Problem") -> None:
         self.expectations: dict[str, SubmissionExpectation] = {}
 
-        files = [
-            config.RESOURCES_ROOT / "config" / "submissions.yaml",
-            problem.path / "submissions" / "submissions.yaml",
-        ]
-        for file in files:
+        for d in [config.RESOURCES_ROOT / "config", problem.path / "submissions"]:
+            file = d / "submissions.yaml"
             if not file.is_file():
                 continue
+
             yaml_data = read_yaml(file, empty={})
             if not isinstance(yaml_data, dict):
                 bar.fatal("could not parse submissions.yaml.")
