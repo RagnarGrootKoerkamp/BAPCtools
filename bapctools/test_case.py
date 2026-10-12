@@ -66,7 +66,7 @@ class TestGroup:
             bar.error(f"could not parse {file}. SKIPPED.")
             return
 
-        parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data)
+        parser = YamlParser(yaml_data)
 
         # parse deprecated keys
         parser.extract_deprecated("output_validator_flags", OutputValidator.args_key)
@@ -120,7 +120,7 @@ class TestGroup:
                     setattr(self, key, [])
                 else:
                     parser.pop(key)
-                    bar.warn(f"incompatible value for key `{key}` in {parser.source}. SKIPPED.")
+                    bar.warn(f"incompatible value for key `{key}`. SKIPPED.")
 
         # parse keys not currently used
         parser.extract_optional("full_feedback", bool)
@@ -131,9 +131,7 @@ class TestGroup:
         if file is None or not file.with_suffix(".in").is_file():
             for key in ["max_score", "score_aggregation", "static_validation_score"]:
                 if parser.pop(key) is not None:
-                    bar.error(
-                        f"key `{key}` not supported by BAPCtools in {parser.source}. SKIPPED."
-                    )
+                    bar.error(f"key `{key}` not supported by BAPCtools. SKIPPED.")
 
         parser.check_unknown_keys()
 

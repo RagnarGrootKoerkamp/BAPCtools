@@ -237,8 +237,7 @@ class Fuzz:
     @bar.restore
     def run(self) -> bool:
         # we reuse a PrintBar after an abort
-        printbar = PrintBar("Fuzz")
-        bar.make_global(printbar)
+        printbar = bar.use_globally(PrintBar("Fuzz"))
 
         if len(self.test_case_rules) == 0:
             bar.error("No invocations depending on {seed} found.")
@@ -272,8 +271,7 @@ class Fuzz:
         )
         max_len += len(f"{self.tmp_ids}: ")
         printbar.log("Press CTRL+C to stop\n")
-        progressbar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
-        bar.make_global(progressbar)
+        progressbar = bar.use_globally(FuzzProgressBar(self.queue, "Fuzz", max_len=max_len))
 
         try:
             try:

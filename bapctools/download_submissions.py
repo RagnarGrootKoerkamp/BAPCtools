@@ -23,8 +23,9 @@ def download_submissions() -> None:
     for d in ["submissions", "scoreboard"]:
         Path(d).mkdir(exist_ok=True)
 
-    local_bar = ProgressBar("Downloading metadata", count=3, max_len=len("submissions"))
-    bar.make_global(local_bar)
+    local_bar = bar.use_globally(
+        ProgressBar("Downloading metadata", count=3, max_len=len("submissions"))
+    )
 
     local_bar.start("submissions")
     submissions = {s["id"]: s for s in call_api_get_json(f"/contests/{contest_id}/submissions")}
@@ -51,8 +52,9 @@ def download_submissions() -> None:
     local_bar.done()
     local_bar.finalize()
 
-    local_bar = ProgressBar("Downloading sources", count=len(submissions), max_len=4)
-    bar.make_global(local_bar)
+    local_bar = bar.use_globally(
+        ProgressBar("Downloading sources", count=len(submissions), max_len=4)
+    )
 
     def download_submission(s: dict[str, Any]) -> None:
         i = int(s["id"])

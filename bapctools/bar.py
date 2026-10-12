@@ -83,10 +83,10 @@ def action(
 
 
 def process_warning(message: str, item: Optional[ItemType]) -> str:
+    if message in config.args.ignore_warning:
+        return f"{message} (ignored)"
     item_name = action(None, item, None, None)
     if item_name and f"{item_name} {message}" in config.args.ignore_warning:
-        return f"{message} (ignored)"
-    if message in config.args.ignore_warning:
         return f"{message} (ignored)"
     config.n_warn += 1
     return message
@@ -110,7 +110,7 @@ def crop_output(output: str) -> str:
         cropped = True
 
     if cropped:
-        output += f"{Fore.YELLOW}Use -e to show more.{Style.RESET_ALL}"
+        output = f"{output}{Fore.YELLOW}Use -e to show more.{Style.RESET_ALL}"
     return output
 
 
@@ -218,6 +218,7 @@ class BaseBar(ABC):
                 self.error(message, data)
 
 
+# a bar that holds neither a prefix nor an item
 class EmptyBar(BaseBar):
     def __init__(self) -> None:
         super().__init__(None, None)
@@ -518,8 +519,8 @@ class PrintBar(BaseBar):
         return bar_copy
 
 
-# global bar state
-global_bar: BaseBar = EmptyBar()
+# global bar state (private)
+_global_bar: BaseBar = EmptyBar()
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -528,20 +529,24 @@ R = TypeVar("R")
 def restore(func: Callable[P, R]) -> Callable[P, R]:
     @functools.wraps(func)
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
-        global global_bar
-        assert not isinstance(global_bar, ProgressBar)
-        old_bar = global_bar
+        global _global_bar
+        assert not isinstance(_global_bar, ProgressBar)
+        old_bar = _global_bar
         try:
             return func(*args, **kwargs)
         finally:
-            global_bar = old_bar
+            _global_bar = old_bar
 
     return wrapped
 
 
-def make_global(bar: BaseBar) -> None:
-    global global_bar
-    global_bar = bar
+T = TypeVar("T", bound=BaseBar)
+
+
+def use_globally(bar: T) -> T:
+    global _global_bar
+    _global_bar = bar
+    return bar
 
 
 # allow using the bar module the same way as a BaseBar
@@ -552,28 +557,28 @@ def part_done(
     *,
     warn_instead_of_error: bool = False,
 ) -> None:
-    global_bar.part_done(success, message, data, warn_instead_of_error=warn_instead_of_error)
+    _global_bar.part_done(success, message, data, warn_instead_of_error=warn_instead_of_error)
 
 
 def eprint(*args: Any, **kwargs: Any) -> None:
-    global_bar.eprint(*args, **kwargs)
+    _global_bar.eprint(*args, **kwargs)
 
 
 def log(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-    global_bar.log(msg, data, color=color)
+    _global_bar.log(msg, data, color=color)
 
 
 def verbose(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
-    global_bar.verbose(msg, data, color=color)
+    _global_bar.verbose(msg, data, color=color)
 
 
 def warn(msg: Any, data: Optional[str] = None) -> None:
-    global_bar.warn(msg, data)
+    _global_bar.warn(msg, data)
 
 
 def error(msg: Any, data: Optional[str] = None) -> None:
-    global_bar.error(msg)
+    _global_bar.error(msg)
 
 
 def fatal(msg: Any, data: Optional[str] = None, *, force: Optional[bool] = None) -> NoReturn:
-    global_bar.fatal(msg, data, force=force)
+    _global_bar.fatal(msg, data, force=force)

@@ -61,7 +61,7 @@ def remove_language_pdf_suffix(file: Path, lang: Optional[str]) -> Path:
 
 @bar.restore
 def build_samples_zip(problems: list[Problem], output: Path, languages: list[str]) -> None:
-    bar.make_global(PrintBar("Zip", len(output.name), item=output))
+    bar.use_globally(PrintBar("Zip", len(output.name), item=output))
     bar.log("writing sample zip file")
     with ZipFile(output, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:
         # Do not include contest PDF for kattis.
@@ -136,7 +136,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
 def build_problem_zip(problem: Problem, output: Path) -> bool:
     """Make DOMjudge/Kattis ZIP file for specified problem."""
 
-    bar.make_global(PrintBar("Zip", len(problem.name) + 4, item=problem))
+    bar.use_globally(PrintBar("Zip", len(problem.name) + 4, item=problem))
 
     from ruamel.yaml.comments import CommentedMap
 
@@ -271,7 +271,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     f.unlink()
                     f.write_text(text)
 
-    bar.make_global(PrintBar("Zip", item=f"{problem.name}.zip"))
+    bar.use_globally(PrintBar("Zip", item=f"{problem.name}.zip"))
 
     # move pdfs
     if not config.args.kattis:
@@ -466,7 +466,7 @@ def build_contest_zip(
     if not config.args.kattis:  # Kattis does not use problems.yaml.
         update_problems_yaml(problems)
 
-    bar.make_global(PrintBar("Zip", len(outfile), item=outfile))
+    bar.use_globally(PrintBar("Zip", len(outfile), item=outfile))
     bar.log("writing zip file")
 
     with ZipFile(outfile, mode="w", compression=ZIP_DEFLATED, allowZip64=False) as zf:

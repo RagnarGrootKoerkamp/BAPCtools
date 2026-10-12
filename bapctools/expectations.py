@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 
 class Person:
-    def __init__(self, source: str, yaml_data: str | dict[object, object], parent_path: str):
+    def __init__(self, yaml_data: str | dict[object, object], parent_path: str):
         if isinstance(yaml_data, dict):
-            parser = YamlParser(source, yaml_data, parent_path)
+            parser = YamlParser(yaml_data, parent_path)
             self.name: str = parser.extract("name", "")
             self.email: Optional[str] = parser.extract_optional("email", str)
             self.kattis: Optional[str] = parser.extract_optional("kattis", str)
@@ -40,19 +40,15 @@ class Person:
             if value is None:
                 return []
             if isinstance(value, (str, dict)):
-                return [Person(source.source, value, key_path)]
+                return [Person(value, key_path)]
             if isinstance(value, list):
                 if not all(isinstance(v, (str, dict)) for v in value):
-                    bar.warn(
-                        f"some values for key `{key_path}` in {source.source} have invalid type. SKIPPED."
-                    )
+                    bar.warn(f"some values for key `{key_path}` have invalid type. SKIPPED.")
                     return []
                 if not value:
-                    bar.warn(
-                        f"value for `{key_path}` in {source.source} should not be an empty list."
-                    )
-                return [Person(source.source, v, f"{key_path}[{i}]") for i, v in enumerate(value)]
-            bar.warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
+                    bar.warn(f"value for `{key_path}` should not be an empty list.")
+                return [Person(v, f"{key_path}[{i}]") for i, v in enumerate(value)]
+            bar.warn(f"incompatible value for key `{key_path}`. SKIPPED.")
         return []
 
 
@@ -109,7 +105,7 @@ def _compile_glob(raw: str) -> re.Pattern[str]:
 class TestCaseExpectation:
     def __init__(self, parser: Optional[YamlParser] = None, test_case_glob: Optional[str] = None):
         if parser is None:
-            parser = YamlParser("internal", {})
+            parser = YamlParser({})
 
         self.test_case_glob: Optional[str] = test_case_glob
         self.test_case_regex: Optional[re.Pattern[str]] = None
@@ -176,7 +172,7 @@ class SubmissionExpectation:
         self.submission_glob: str = submission_glob
         self.submission_regex: re.Pattern[str] = _compile_glob(submission_glob)
 
-        parser = YamlParser("submissions.yaml", yaml_data or {}, submission_glob)
+        parser = YamlParser(yaml_data or {}, submission_glob)
 
         self.language: Optional[str] = parser.extract_optional("language", str)
         self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
@@ -244,7 +240,7 @@ class Expectations:
                     bar.error("keys in submissions.yaml must be strings. SKIPPED.")
                     continue
                 if not isinstance(expectation, dict):
-                    bar.error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
+                    bar.error(f"invalid entry {expectation}. SKIPPED.")
                     continue
                 self.expectations[submission_glob] = SubmissionExpectation(
                     submission_glob, expectation

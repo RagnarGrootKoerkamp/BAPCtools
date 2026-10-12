@@ -719,15 +719,13 @@ def upgrade(problem_dir: Optional[Path]) -> None:
             bar.fatal(f"{problem_dir} does not contain a problem.yaml")
         paths = [problem_dir]
         names = [p.name for p in paths]
-        local_bar = ProgressBar("upgrade", items=names)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("upgrade", items=names))
     else:
         assert config.level == "problemset"
         contest_dir = Path.cwd()
         paths = [p for p in contest_dir.iterdir() if is_problem_directory(p)]
         names = [p.name for p in paths]
-        local_bar = ProgressBar("upgrade", items=["contest.yaml", *names])
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("upgrade", items=["contest.yaml", *names]))
 
         local_bar.start("contest.yaml")
         if (contest_dir / "contest.yaml").is_file():

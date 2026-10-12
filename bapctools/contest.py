@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 
 from bapctools import bar, config
+from bapctools.bar import PrintBar
 from bapctools.util import once, read_yaml, YamlParser
 
 if TYPE_CHECKING:
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 class ContestYaml:
     def __init__(self, yaml_data: Optional[dict[object, object]]) -> None:
         self.exists = yaml_data is not None
-        parser = YamlParser("contest.yaml", yaml_data or {})
+        parser = YamlParser(yaml_data or {})
 
         # known keys
         self.api: Optional[str] = parser.extract_optional("api", str)
@@ -47,14 +48,14 @@ class ContestYaml:
 class ProblemsYamlEntry:
     def __init__(self, yaml_data: dict[object, object], index: int) -> None:
         self.ok = False
-        parser = YamlParser("problems.yaml", yaml_data)
+        parser = YamlParser(yaml_data)
 
         def get_hex(rgb: Optional[str]) -> Optional[str]:
             if rgb is None:
                 return None
             if not rgb.startswith("#"):
                 bar.error(
-                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
+                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}). SKIPPED."
                 )
                 return None
             hex_part = rgb[1:].lower()
@@ -62,7 +63,7 @@ class ProblemsYamlEntry:
                 hex_part = "".join(c * 2 for c in hex_part)
             if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
                 bar.error(
-                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
+                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}). SKIPPED."
                 )
                 return None
             return hex_part
@@ -79,19 +80,17 @@ class ProblemsYamlEntry:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                bar.warn(
-                    f"invalid language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
-                )
+                bar.warn(f"invalid language '{lang}' for problem {index} (id: {self.id}). SKIPPED.")
             elif not isinstance(name, str):
                 bar.warn(
-                    f"incompatible value for language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
+                    f"incompatible value for language '{lang}' for problem {index} (id: {self.id}). SKIPPED."
                 )
             else:
                 self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
             bar.error(
-                f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
+                f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED."
             )
             self.time_limit = None
 
@@ -106,7 +105,9 @@ class ProblemsYamlEntry:
 
 
 @once
+@bar.restore
 def contest_yaml() -> ContestYaml:
+    bar.use_globally(PrintBar("contest.yaml"))
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
         raw_yaml = read_yaml(contest_yaml_path, empty={})
@@ -119,7 +120,9 @@ def contest_yaml() -> ContestYaml:
 
 
 @once
+@bar.restore
 def problems_yaml() -> Sequence[ProblemsYamlEntry]:
+    bar.use_globally(PrintBar("problems.yaml"))
     problems_yaml_path = Path("problems.yaml")
     raw_yaml: object = []
     if problems_yaml_path.is_file():

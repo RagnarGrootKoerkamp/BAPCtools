@@ -452,14 +452,15 @@ class Submission(Program):
         verdicts = Verdicts(runs, run_until)
 
         verdict_table.next_submission(verdicts)
-        local_bar = TableProgressBar(
-            verdict_table,
-            self.name,
-            count=len(runs),
-            max_len=max_item_len,
-            needs_leading_newline=False if config.args.verbose else True,
+        local_bar = bar.use_globally(
+            TableProgressBar(
+                verdict_table,
+                self.name,
+                count=len(runs),
+                max_len=max_item_len,
+                needs_leading_newline=False if config.args.verbose else True,
+            )
         )
-        bar.make_global(local_bar)
 
         time_sensitive_lower = self.problem.limits.time_limit / self.problem.limits.ac_to_time_limit
         time_sensitive_upper = (
@@ -648,12 +649,12 @@ class Submission(Program):
             message += f"  {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short:>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_test_case}{Style.RESET_ALL}"
 
         local_bar.finalize(message=message, suppress_newline=True)
-        bar.make_global(EmptyBar())
+        bar.use_globally(EmptyBar())
         if config.args.tree:
             verdict_table.print(new_lines=0)
             verdict_table.last_printed = []
             bar.eprint()
-        elif local_bar.logged:
+        elif local_bar.logged and not config.args.verbose:
             bar.eprint()
 
         return passed_permitted and passed_required
@@ -666,8 +667,7 @@ class Submission(Program):
         if not test_cases:
             return
 
-        local_bar = ProgressBar(self.name, items=test_cases)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar(self.name, items=test_cases))
         for test_case in test_cases:
             run = Run(self.problem, self, test_case)
             local_bar.start(test_case)
@@ -806,7 +806,7 @@ while True:
         is_tty = sys.stdin.isatty()
 
         for tc in itertools.count(1):
-            bar.make_global(local_bar.with_item(f"Run {tc}"))
+            bar.use_globally(local_bar.with_item(f"Run {tc}"))
             # Reinitialize the underlying program, so that changes to the source
             # code can be picked up in build.
             super().__init__(
@@ -816,7 +816,7 @@ while True:
                 limits=self.limits,
                 skip_double_build_warning=True,
             )
-            local_bar.log("from stdin" if is_tty else "from file")
+            bar.log("from stdin" if is_tty else "from file")
 
             tee_code = R"""
 import sys

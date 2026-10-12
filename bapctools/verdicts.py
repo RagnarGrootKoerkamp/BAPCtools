@@ -589,31 +589,32 @@ class IOThread:
             while True:
                 self.has_buffered.wait()
                 with BaseBar.lock:
-                    if isinstance(sys.stderr, io.TextIOWrapper):
-                        reset_line_buffering = sys.stderr.line_buffering
-                        sys.stderr.reconfigure(line_buffering=False)
-
-                    # table will call IOThread.print()
-                    BaseBar.lock_depth += 1
-                    tmp, self.buffer = self.buffer, []
-                    self.table._clear()
-                    self.buffer += tmp
-                    self.table.print(update=True, printed_lengths=[bar.COLUMNS])
-                    IOThread._print(end="", flush=True)
-                    BaseBar.lock_depth -= 1
-
-                    for buffered in self.buffer:
-                        buffered()
-                    self.buffer = []
-
                     self.has_buffered.clear()
-                    if isinstance(sys.stderr, io.TextIOWrapper):
-                        sys.stderr.reconfigure(line_buffering=reset_line_buffering)
+                    if self.buffer:
+                        if isinstance(sys.stderr, io.TextIOWrapper):
+                            reset_line_buffering = sys.stderr.line_buffering
+                            sys.stderr.reconfigure(line_buffering=False)
+
+                        # table will call IOThread.print()
+                        BaseBar.lock_depth += 1
+                        tmp, self.buffer = self.buffer, []
+                        self.table._clear()
+                        self.buffer += tmp
+                        self.table.print(update=True, printed_lengths=[bar.COLUMNS])
+                        IOThread._print(end="", flush=True)
+                        BaseBar.lock_depth -= 1
+
+                        for buffered in self.buffer:
+                            buffered()
+                        self.buffer = []
+
+                        if isinstance(sys.stderr, io.TextIOWrapper):
+                            sys.stderr.reconfigure(line_buffering=reset_line_buffering)
                     if self.finalized:
                         self.dead = True
                         break
                 # limit the number of prints per second
-                time.sleep(0.01)
+                time.sleep(1 / 60)
             assert not self.buffer
 
         self.io_thread = threading.Thread(target=buffer_printer, daemon=True)

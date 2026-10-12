@@ -242,8 +242,7 @@ def run(
     else:
         testing_tool = TestingTool(problem, tool_files[0])
 
-    local_bar = ProgressBar("Building testing tool", items=[testing_tool])
-    bar.make_global(local_bar)
+    local_bar = bar.use_globally(ProgressBar("Building testing tool", items=[testing_tool]))
 
     def build() -> bool:
         local_bar.start(testing_tool)
@@ -263,13 +262,14 @@ def run(
     max_testinput_len = max(len(x.name) for x in testinputs)
 
     for submission in wrapped_submissions:
-        local_bar = ProgressBar(
-            submission.name,
-            count=len(testinputs),
-            max_len=max_testinput_len + max_submission_len - len(submission.name),
-            needs_leading_newline=False if config.args.verbose else True,
+        local_bar = bar.use_globally(
+            ProgressBar(
+                submission.name,
+                count=len(testinputs),
+                max_len=max_testinput_len + max_submission_len - len(submission.name),
+                needs_leading_newline=False if config.args.verbose else True,
+            )
         )
-        bar.make_global(local_bar)
         cur_ok = True
 
         def run_submission(testinput: TestInput) -> None:
@@ -285,7 +285,7 @@ def run(
         parallel.run_tasks(run_submission, testinputs, pin=True)
         ok &= cur_ok
         local_bar.finalize(suppress_newline=True)
-        if local_bar.logged:
+        if local_bar.logged and not config.args.verbose:
             bar.eprint()
 
     return ok

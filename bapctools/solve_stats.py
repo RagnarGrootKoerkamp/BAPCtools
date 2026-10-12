@@ -84,8 +84,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
     contest_id = get_contest_id()
     url_prefix = f"/contests/{contest_id}/"
 
-    local_bar = ProgressBar("Fetching", count=3, max_len=len("Contest data"))
-    bar.make_global(local_bar)
+    local_bar = bar.use_globally(ProgressBar("Fetching", count=3, max_len=len("Contest data")))
 
     local_bar.start("Contest")
     contest = call_api_get_json(url_prefix)
@@ -249,8 +248,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
 
     Path("solve_stats").mkdir(parents=True, exist_ok=True)
 
-    local_bar = ProgressBar("Plotting", items=list(plots))
-    bar.make_global(local_bar)
+    local_bar = bar.use_globally(ProgressBar("Plotting", items=list(plots)))
     for name, function in plots.items():
         local_bar.start(name)
         function()

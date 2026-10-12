@@ -1773,6 +1773,8 @@ class GeneratorConfig:
     # Parse generators.yaml.
     @bar.restore
     def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
+        local_bar = bar.use_globally(PrintBar("generators.yaml"))
+
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         # we differentiate between two types or errors:
@@ -1821,8 +1823,6 @@ class GeneratorConfig:
             self.yaml = None
             self.has_yaml = False
 
-        local_bar = PrintBar("generators.yaml")
-        bar.make_global(local_bar)
         try:
             self.root_dir = self._parse_root(self.yaml, local_bar)
         except ParseError as e:
@@ -1844,11 +1844,11 @@ class GeneratorConfig:
             raw_yaml = {}
 
         if not isinstance(raw_yaml, dict):
-            raise ParseError("could not parse generators.yaml, must be a dict.")
+            raise ParseError("root must be a dict.")
         if not is_directory(raw_yaml):
-            raise ParseError("could not parse generators.yaml, root must represent a directory.")
+            raise ParseError("root must represent a directory.")
 
-        parser = YamlParser("generators.yaml", raw_yaml)
+        parser = YamlParser(raw_yaml)
 
         # we don't really care about the version
         parser.pop("version")
@@ -1871,7 +1871,7 @@ class GeneratorConfig:
                 path = Path("generators") / gen
                 deps = parser.extract_optional_list(gen, str, allow_value=False, allow_empty=True)
                 if not deps:
-                    local_bar.warn(f"Generator `{gen}` is missing dependencies. SKIPPED")
+                    local_bar.warn(f"Generator `{gen}` is missing dependencies. SKIPPED.")
                     continue
 
                 generators[path] = [Path("generators") / d for d in deps]
@@ -1947,7 +1947,7 @@ class GeneratorConfig:
 
             ts: list[TestCaseRule] = []
             for count_value in count_list:
-                parser = YamlParser("generators.yaml", parser_yaml)
+                parser = YamlParser(parser_yaml)
                 name = next(name_gen)
                 if has_count(parser.remaining):
                     name += f"-{count_value:0{padding}}"
@@ -2053,7 +2053,7 @@ class GeneratorConfig:
                     self.n_parse_error += 1
                     continue
 
-                sub_parser = YamlParser(parser.source, entry)
+                sub_parser = YamlParser(entry)
 
                 # Process named children alphabetically, but not in the root directory.
                 # There, process in the 'natural order'.
@@ -2096,10 +2096,9 @@ class GeneratorConfig:
                     @bar.restore
                     def parse_child() -> None:
                         child_path = ".".join(d.path.parts + (child_key or '""',))
-                        child_bar = local_bar.with_item(child_path)
-                        bar.make_global(child_bar)
+                        child_bar = bar.use_globally(local_bar.with_item(child_path))
                         if is_directory(child_yaml):
-                            child_parser = YamlParser(sub_parser.source, child_yaml)
+                            child_parser = YamlParser(child_yaml)
                             cd = parse_directory(
                                 child_key, child_name, child_yaml, child_parser, d, child_bar
                             )
@@ -2215,8 +2214,9 @@ class GeneratorConfig:
                         )
                     )
 
-            local_bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
-            bar.make_global(local_bar)
+            local_bar = bar.use_globally(
+                ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
+            )
 
             def build_program(p: Generator | Submission) -> None:
                 local_bar.start(p)
@@ -2256,8 +2256,7 @@ class GeneratorConfig:
             item_names.extend(d.path / name for name in d.includes)
 
         self.root_dir.walk(None, count_dir)
-        local_bar = ProgressBar("Generate", items=item_names)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("Generate", items=item_names))
 
         # Test cases are generated in two steps:
         # 1. Generate directories and unique test cases listed in generators.yaml.
@@ -2404,8 +2403,7 @@ data/*
         parent = ryaml_get_or_add(parent, "secret")
         entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
-        local_bar = ProgressBar("Adding", items=in_files)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("Adding", items=in_files))
         for in_file in sorted(in_files, key=lambda x: x.name):
             local_bar.start(in_file)
             if not (self.problem.path / in_file).exists():
@@ -2558,8 +2556,7 @@ data/*
             # test case that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
             # see class TestCaseResult.
             # Worstcase runtime test cases^2 * submissions
-            local_bar = ProgressBar("Reorder", items=todo)
-            bar.make_global(local_bar)
+            local_bar = bar.use_globally(ProgressBar("Reorder", items=todo))
             done = []
             weights = [1] * len(submissions)
             while todo:

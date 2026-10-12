@@ -182,8 +182,8 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
     except Exception as e:
         if suppress_errors:
             return None
-        bar.eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
-        bar.fatal(f"Failed to parse {path}.")
+        bar.eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}")
+        bar.fatal(f"Failed to parse {path or 'yaml'}.")
 
 
 def read_yaml(
@@ -207,10 +207,9 @@ T = TypeVar("T")
 
 
 class YamlParser:
-    def __init__(self, source: str, yaml: dict[object, object], parent_path: Optional[str] = None):
+    def __init__(self, yaml: dict[object, object], parent_path: Optional[str] = None):
         assert isinstance(yaml, dict)
         self.errors = 0
-        self.source = source
         self.remaining = dict(yaml)
         self.known_keys = set[str]()
         self.parent_path = parent_path
@@ -223,11 +222,11 @@ class YamlParser:
         func = bar.warn if warn else bar.log
         for key in self.remaining:
             if not isinstance(key, str):
-                func(f"invalid {self.source} key: {key} in {self.parent_str}")
+                func(f"invalid key: {key} in {self.parent_str}")
             else:
                 closest = difflib.get_close_matches(key, self.known_keys, n=1)
                 hint = f". Did you mean: {closest[0]}?" if closest else ""
-                func(f"found unknown {self.source} key: {key} in {self.parent_str}{hint}")
+                func(f"found unknown key: {key} in {self.parent_str}{hint}")
 
     def pop(self, key: str) -> object:
         self.known_keys.add(key)
@@ -239,9 +238,7 @@ class YamlParser:
             value = normalize_yaml_value(self.remaining.pop(key), t)
             if value is None or isinstance(value, t):
                 return value
-            bar.warn(
-                f"incompatible value for key `{self._key_path(key)}` in {self.source}. SKIPPED."
-            )
+            bar.warn(f"incompatible value for key `{self._key_path(key)}`. SKIPPED.")
         return None
 
     def extract(self, key: str, default: T, constraint: Optional[str] = None) -> T:
@@ -253,7 +250,7 @@ class YamlParser:
             assert eval(f"{default} {constraint}")
             if not eval(f"{result} {constraint}"):
                 bar.warn(
-                    f"value for `{self._key_path(key)}` in {self.source} should be {constraint} but is {result}. SKIPPED."
+                    f"value for `{self._key_path(key)}` should be {constraint} but is {result}. SKIPPED."
                 )
                 return default
         return result
@@ -264,9 +261,9 @@ class YamlParser:
             value = normalize_yaml_value(self.remaining.pop(key), t)
             if isinstance(value, t):
                 return value
-            bar.error(f"incompatible value for key '{key}' in {self.source}.")
+            bar.error(f"incompatible value for key '{key}'.")
         else:
-            bar.error(f"missing key `{self._key_path(key)}` in {self.source}.")
+            bar.error(f"missing key `{self._key_path(key)}`.")
         self.errors += 1
         return t()
 
@@ -296,22 +293,18 @@ class YamlParser:
             if isinstance(value, list):
                 if not all(isinstance(v, t) for v in value):
                     bar.warn(
-                        f"some values for key `{self._key_path(key)}` in {self.source} do not have type {t.__name__}. SKIPPED."
+                        f"some values for key `{self._key_path(key)}` do not have type {t.__name__}. SKIPPED."
                     )
                     return []
                 if not value and not allow_empty:
-                    bar.warn(
-                        f"value for `{self._key_path(key)}` in {self.source} should not be an empty list."
-                    )
+                    bar.warn(f"value for `{self._key_path(key)}` should not be an empty list.")
                 return value
-            bar.warn(
-                f"incompatible value for key `{self._key_path(key)}` in {self.source}. SKIPPED."
-            )
+            bar.warn(f"incompatible value for key `{self._key_path(key)}`. SKIPPED.")
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
         self.known_keys.add(key)
-        return YamlParser(self.source, self.extract(key, {}), self._key_path(key))
+        return YamlParser(self.extract(key, {}), self._key_path(key))
 
 
 @overload

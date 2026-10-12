@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Final, Optional
 
 from bapctools import bar, config
+from bapctools.bar import PrintBar
 from bapctools.util import home_config_dir, once, read_yaml, YamlParser
 
 
@@ -24,7 +25,7 @@ class Language:
         self.ok = True
         self.internal = internal
         self.warned_fallback = False
-        parser = YamlParser("languages.yaml", conf, code)
+        parser = YamlParser(conf, code)
 
         self.code = code
         self.name = parser.extract_and_error("name", str)
@@ -39,7 +40,7 @@ class Language:
             parser.pop(found)
             parser.pop(missing)
             bar.warn(
-                f"invalid entries in languages.yaml for '{code}', {found} must be accompanied by {missing}. SKIPPED."
+                f"invalid entries for '{code}', {found} must be accompanied by {missing}. SKIPPED."
             )
         self.shebang = None
         self.shebang_files = None
@@ -49,7 +50,7 @@ class Language:
                 self.shebang = re.compile(shebang)
                 self.shebang_files = parser.extract_and_error("shebang_files", str).split()
             except re.error:
-                bar.warn(f"invalid shebang in languages.yaml for '{code}'. SKIPPED.")
+                bar.warn(f"invalid shebang for '{code}'. SKIPPED.")
 
         self.compile = parser.extract_optional("compile", str)
         self.run = parser.extract_and_error("run", str)
@@ -62,7 +63,7 @@ class Language:
                 # cannot distinguish "{path}" from "{path:}" but better than nothing...
                 if format_spec:
                     bar.warn(
-                        f"found meta variable {{{field}:{format_spec}}} in languages.yaml for '{code}', did you mean {{{field}}}?"
+                        f"found meta variable {{{field}:{format_spec}}} for '{code}', did you mean {{{field}}}?"
                     )
                 fields.append(field)
             return set(fields)
@@ -72,11 +73,11 @@ class Language:
         if self.compile is not None:
             variables |= get_variables(self.compile)
         for unknown in variables - set(Language.VARIABLES):
-            bar.error(f"Unknown meta variable {unknown} in languages.yaml for '{code}'.")
+            bar.error(f"Unknown meta variable {unknown} for '{code}'.")
             self.ok = False
         entry_points = variables & set(Language.ENTRY_POINTS)
         if len(entry_points) != 1:
-            bar.error(f"Expected exactly one entry point in languages.yaml for '{code}'.")
+            bar.error(f"Expected exactly one entry point for '{code}'.")
             self.ok = False
 
         def get_exe(key: str, command: str) -> Optional[str]:
@@ -85,7 +86,7 @@ class Language:
                 if exe and exe[0] != "{":
                     return exe
             except (IndexError, ValueError):
-                bar.error(f"invalid value for key '{key}' in languages.yaml for '{code}'")
+                bar.error(f"invalid value for key '{key}' for '{code}'")
                 self.ok = False
             return None
 
@@ -249,8 +250,10 @@ VALIDATOR_LANGUAGE_CODES: Final[Sequence[str]] = (
 
 
 @once
+@bar.restore
 def languages() -> Sequence[Language]:
     languages_path = Path("languages.yaml")
+    bar.use_globally(PrintBar(languages_path.name))
     raw_languages: dict[object, object] = {}
 
     def deepmerge(target: dict[object, object], overrides: dict[object, object]) -> None:
@@ -282,13 +285,13 @@ def languages() -> Sequence[Language]:
     priorities: dict[int, str] = {}
     for code, merged in raw_merged.items():
         if not isinstance(code, str):
-            bar.error("keys in languages.yaml must be strings. SKIPPED.")
+            bar.error("keys must be strings. SKIPPED.")
             continue
         if not Language.CODE_REGEX.match(code):
-            bar.error(f"key {code} in languages.yaml is invalid. SKIPPED.")
+            bar.error(f"key {code} is invalid. SKIPPED.")
             continue
         if not isinstance(merged, dict):
-            bar.error(f"invalid entry {code} in languages.yaml. SKIPPED.")
+            bar.error(f"invalid entry {code}. SKIPPED.")
             continue
 
         fallback = raw_languages.get(code)
@@ -301,9 +304,7 @@ def languages() -> Sequence[Language]:
 
         languages.append(lang)
         if lang.priority in priorities:
-            bar.warn(
-                f"'{lang.code}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
-            )
+            bar.warn(f"'{lang.code}' and '{priorities[lang.priority]}' have the same priority.")
         priorities[lang.priority] = lang.code
 
     if config.args.error:
