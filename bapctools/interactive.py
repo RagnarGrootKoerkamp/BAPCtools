@@ -686,7 +686,7 @@ def interactor_prints_unprompted(
         return None
     assert output_validator.run_command
 
-    bar.make_global(PrintBar("Interaction run"))
+    bar.use_globally(PrintBar("Interaction run"))
 
     validator_dir = output_validator.tmpdir
     feedbackdir = problem.tmpdir / "tool_runs" / "interaction_feedback"

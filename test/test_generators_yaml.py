@@ -5,6 +5,7 @@ import pytest
 import yaml
 
 from bapctools import bar, config, generate
+from bapctools.bar import PrintBar
 
 config.RUNNING_TEST = True
 
@@ -72,8 +73,7 @@ class TestGeneratorConfig:
         config.n_error = 0
         with pytest.raises(generate.ParseError):
             gen_config = MockGeneratorConfig(MockProblem())
-            local_bar = bar.PrintBar("mock")
-            bar.make_global(local_bar)
+            local_bar = bar.use_globally(PrintBar("mock"))
             gen_config._parse_root(yamldoc, local_bar)
             if (
                 gen_config.n_test_case_error > 0

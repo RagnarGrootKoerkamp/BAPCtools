@@ -3,26 +3,26 @@
 yaml:
   problem_format_version: 2025-09
   mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in root"
+warn: "found unknown key: mumbo in root"
 ---
 yaml:
   problem_format_version: 2025-09
   credits:
     mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in `credits`"
+warn: "found unknown key: mumbo in `credits`"
 ---
 yaml:
   problem_format_version: 2025-09
   limits:
     mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in `limits`"
+warn: "found unknown key: mumbo in `limits`"
 ---
 yaml:
   problem_format_version: 2025-09
   limits:
     time_multipliers:
       mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
+warn: "found unknown key: mumbo in `limits.time_multipliers`"
 
 ---
 # UUID
@@ -43,13 +43,13 @@ warn: "invalid uuid: 12345678-abcd-efgh-ijkl-12345678"
 yaml:
   problem_format_version: 2025-09
   name: 42
-warn: incompatible value for key `name` in problem.yaml. SKIPPED.
+warn: incompatible value for key `name`. SKIPPED.
 ---
 yaml:
   problem_format_version: 2025-09
   name:
     en: 42
-warn: incompatible value for language `en` for `name` in problem.yaml. SKIPPED.
+warn: incompatible value for language `en` for `name`. SKIPPED.
 
 ---
 # Validation/type
@@ -64,7 +64,7 @@ yaml:
   problem_format_version: 2025-09
   name: Incorrect type
   type: mumbo-jumbo
-fatal: "problem.yaml: unrecognized value for `type`: mumbo-jumbo"
+fatal: "unrecognized value for `type`: mumbo-jumbo"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -77,7 +77,7 @@ yaml:
   problem_format_version: 2025-09
   name: Incorrect type
   type: mumbo jumbo
-fatal: "problem.yaml: unrecognized values for `type`: jumbo mumbo"
+fatal: "unrecognized values for `type`: jumbo mumbo"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -85,20 +85,20 @@ yaml:
   type:
     - mumbo
     - jumbo
-fatal: "problem.yaml: unrecognized values for `type`: jumbo mumbo"
+fatal: "unrecognized values for `type`: jumbo mumbo"
 ---
 yaml:
   problem_format_version: 2025-09
   name: Incorrect type (int)
   type:
     mumbo: jumbo
-fatal: "problem.yaml: `type` must be a string or a sequence"
+fatal: "`type` must be a string or a sequence"
 ---
 yaml:
   problem_format_version: 2025-09
   name: Incorrect type (dict)
   type: 42
-fatal: "problem.yaml: `type` must be a string or a sequence"
+fatal: "`type` must be a string or a sequence"
 
 ---
 # Limits
@@ -107,14 +107,14 @@ yaml:
   name: Negative time limit
   limits:
     time_limit: -1
-warn: "value for `limits.time_limit` in problem.yaml should be > 0 but is -1.0. SKIPPED."
+warn: "value for `limits.time_limit` should be > 0 but is -1.0. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
   name: Zero time limit
   limits:
     time_limit: 0
-warn: "value for `limits.time_limit` in problem.yaml should be > 0 but is 0.0. SKIPPED."
+warn: "value for `limits.time_limit` should be > 0 but is 0.0. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -122,7 +122,7 @@ yaml:
   limits:
     time_multipliers:
       ac_to_time_limit: 0.9
-warn: "value for `limits.time_multipliers.ac_to_time_limit` in problem.yaml should be >= 1 but is 0.9. SKIPPED."
+warn: "value for `limits.time_multipliers.ac_to_time_limit` should be >= 1 but is 0.9. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -130,7 +130,7 @@ yaml:
   type: multi-pass
   limits:
     validation_passes: 1
-warn: "value for `limits.validation_passes` in problem.yaml should be >= 2 but is 1. SKIPPED."
+warn: "value for `limits.validation_passes` should be >= 2 but is 1. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -138,7 +138,7 @@ yaml:
   type: multi-pass
   limits:
     validation_passes: 2.5
-warn: "incompatible value for key `limits.validation_passes` in problem.yaml. SKIPPED."
+warn: "incompatible value for key `limits.validation_passes`. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -153,7 +153,7 @@ yaml:
   problem_format_version: 2025-09
   name: pass-fail type from empty type
   type: []
-warn: "value for `type` in problem.yaml should not be an empty list."
+warn: "value for `type` should not be an empty list."
 
 ---
 # Credits
@@ -164,14 +164,14 @@ yaml:
     - name: Alice
     - name: Audrey Authorson
       email: bob@foo.bar
-warn: "incompatible value for key `credits` in problem.yaml. SKIPPED."
+warn: "incompatible value for key `credits`. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
   name: Empty list for authors
   credits:
     authors: []
-warn: "value for `credits.authors` in problem.yaml should not be an empty list."
+warn: "value for `credits.authors` should not be an empty list."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -179,7 +179,7 @@ yaml:
   credits:
     authors:
       - name: 42
-warn: "incompatible value for key `credits.authors[0].name` in problem.yaml. SKIPPED."
+warn: "incompatible value for key `credits.authors[0].name`. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
@@ -194,7 +194,7 @@ yaml:
   name: Invalid key in credits
   credits:
     foo: "bar"
-warn: "found unknown problem.yaml key: foo in `credits`"
+warn: "found unknown key: foo in `credits`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -202,7 +202,7 @@ yaml:
   credits:
     authors:
       foo: "bar"
-warn: "found unknown problem.yaml key: foo in `credits.authors`"
+warn: "found unknown key: foo in `credits.authors`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -210,7 +210,7 @@ yaml:
   credits:
     authors:
       - foo: "bar"
-warn: "found unknown problem.yaml key: foo in `credits.authors[0]`"
+warn: "found unknown key: foo in `credits.authors[0]`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -218,7 +218,7 @@ yaml:
   credits:
     authors:
       - 42: "bar"
-warn: "invalid problem.yaml key: 42 in `credits.authors[0]`"
+warn: "invalid key: 42 in `credits.authors[0]`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -227,7 +227,7 @@ yaml:
     translators:
       en:
         - 42: "bar"
-warn: "invalid problem.yaml key: 42 in `credits.translators.en[0]`"
+warn: "invalid key: 42 in `credits.translators.en[0]`"
 
 ---
 # Source
@@ -236,7 +236,7 @@ yaml:
   name: Source must have a name
   source:
     - url: https://2025.nwerc.example/contest
-warn: "problem.yaml: `name` is required in `source[0]`"
+warn: "`name` is required in `source[0]`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -244,7 +244,7 @@ yaml:
   source:
     name: name
     foo: "bar"
-warn: "found unknown problem.yaml key: foo in `source`"
+warn: "found unknown key: foo in `source`"
 ---
 yaml:
   problem_format_version: 2025-09
@@ -252,7 +252,7 @@ yaml:
   source:
     - name: name
       foo: "bar"
-warn: "found unknown problem.yaml key: foo in `source[0]`"
+warn: "found unknown key: foo in `source[0]`"
 
 ---
 # Embargo
@@ -260,7 +260,7 @@ yaml:
   problem_format_version: 2025-09
   name: Embargo is not a date
   embargo_until: not a date
-warn: "incompatible value for key `embargo_until` in problem.yaml. SKIPPED."
+warn: "incompatible value for key `embargo_until`. SKIPPED."
 #---
 #yaml:
 #  problem_format_version: 2025-09

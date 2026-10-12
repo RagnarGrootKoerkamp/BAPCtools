@@ -432,7 +432,7 @@ def build_problem_pdf(
     """
     main_file = build_type.path(ext="-web.tex" if web else ".tex").name
 
-    bar.make_global(PrintBar(f"{main_file[:-4]}.{language}.pdf"))
+    bar.use_globally(PrintBar(f"{main_file[:-4]}.{language}.pdf"))
     bar.log(f"Building PDF for language {language}")
 
     prepare_problem(problem, language)
@@ -457,7 +457,7 @@ def build_problem_pdfs(
     (either via config files or --lang arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
     """
-    bar.make_global(PrintBar(problem.name))
+    bar.use_globally(PrintBar(problem.name))
     if config.args.lang is not None:
         for lang in config.args.lang:
             if lang not in problem.statement_languages:
@@ -507,7 +507,7 @@ def build_contest_pdf(
     main_file = "problem-slides" if problem_slides else "solutions" if solutions else "contest"
     main_file += "-web.tex" if web else ".tex"
 
-    bar.make_global(PrintBar(f"{main_file[:-4]}.{language}.pdf"))
+    bar.use_globally(PrintBar(f"{main_file[:-4]}.{language}.pdf"))
     bar.log(f"Building PDF for language {language}")
 
     config_data = {
@@ -599,7 +599,7 @@ def build_contest_pdfs(
     if lang:
         return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web=web)
 
-    bar.make_global(PrintBar(contest))
+    bar.use_globally(PrintBar(contest))
     """Build contest PDFs for all available languages"""
     statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
     if not statement_languages:

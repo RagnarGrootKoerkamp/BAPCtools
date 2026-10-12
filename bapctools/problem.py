@@ -68,11 +68,11 @@ class Keywords:
         synonyms_parser = parser.extract_parser("synonyms")
         for key, value in synonyms_parser.remaining.items():
             if not isinstance(key, str):
-                bar.warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{key}`. SKIPPED.")
                 continue
             self.keywords.add(key)
             if not isinstance(value, str):
-                bar.warn(f"invalid entry `{value}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{value}`. SKIPPED.")
                 continue
             self.keywords.add(value)
             self.synonyms[key] = value
@@ -83,7 +83,7 @@ class Keywords:
             elif isinstance(yaml, dict):
                 for key, value in yaml.items():
                     if not isinstance(key, str):
-                        bar.warn(f"invalid entry `{key}` in keywords.yaml. SKIPPED.")
+                        bar.warn(f"invalid entry `{key}`. SKIPPED.")
                     else:
                         parse(key, parent)
                         parse(value, key)
@@ -94,7 +94,7 @@ class Keywords:
                 if parent is not None:
                     self.keywords.add(yaml)
             else:
-                bar.warn(f"invalid entry `{yaml}` in keywords.yaml. SKIPPED.")
+                bar.warn(f"invalid entry `{yaml}`. SKIPPED.")
 
         parse(parser.remaining)
 
@@ -104,7 +104,7 @@ class Keywords:
         seen = set[str]()
         while closest in self.synonyms:
             if closest in seen:
-                bar.error(f"could not resolve {closest}. keywords.yaml contains cycle.")
+                bar.error(f"could not resolve {closest}. Synonyms form cycle.")
             seen.add(closest)
             closest = self.synonyms[closest]
         if closest is not None:
@@ -114,11 +114,13 @@ class Keywords:
 
 
 @once
+@bar.restore
 def keywords() -> Keywords:
+    bar.use_globally(PrintBar("keywords.yaml"))
     raw_keywords = read_yaml(config.RESOURCES_ROOT / "config" / "keywords.yaml")
     if not isinstance(raw_keywords, dict):
         bar.fatal("could not parse keywords.yaml.")
-    return Keywords(YamlParser("keywords.yaml", raw_keywords))
+    return Keywords(YamlParser(raw_keywords))
 
 
 class ProblemCredits:
@@ -134,7 +136,7 @@ class ProblemCredits:
         if "credits" not in parser.remaining:
             return
         if isinstance(parser.remaining["credits"], str):
-            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
+            self.authors = [Person(parser.extract("credits", ""), "credits")]
             return
 
         credits = parser.extract_parser("credits")
@@ -146,9 +148,7 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.remaining.keys()):
             if not isinstance(lang, str):
-                bar.warn(
-                    f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
-                )
+                bar.warn(f"invalid language `{lang}` for {translators.parent_str}. SKIPPED.")
             else:
                 self.translators[lang] = Person.extract_optional_persons(translators, lang)
 
@@ -174,7 +174,7 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                bar.warn(f"problem.yaml: `name` is required in {source.parent_str}")
+                bar.warn(f"`name` is required in {source.parent_str}")
                 name = ""
             source.check_unknown_keys()
             return ProblemSource(name, url)
@@ -194,13 +194,11 @@ class ProblemSources(list[ProblemSource]):
                 if isinstance(source, str):
                     self.append(ProblemSource(source))
                 elif isinstance(source, dict):
-                    self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
+                    self.append(parse_source(YamlParser(source, f"source[{i}]")))
                 else:
-                    bar.warn(
-                        f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED."
-                    )
+                    bar.warn(f"key `source[{i}]` does not have the correct type. SKIPPED.")
             return
-        bar.warn("problem.yaml key `source` does not have the correct type")
+        bar.warn("key `source` does not have the correct type")
 
 
 class ProblemLimits:
@@ -225,7 +223,7 @@ class ProblemLimits:
         time_steps = self.raw_time_limit / self.time_resolution
         if abs(time_steps - round(time_steps)) >= 0.0001:
             bar.error(
-                f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
+                f"time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
             )
 
         self.memory: int = parser.extract("memory", config.DEFAULT_MEMORY, "> 0")  # in MiB
@@ -307,13 +305,13 @@ class ProblemSettings:
             if not mode:
                 mode = {"pass-fail"}
         else:
-            bar.fatal("problem.yaml: `type` must be a string or a sequence")
+            bar.fatal("`type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
             bar.fatal(
-                f"""problem.yaml: unrecognized value{
-                    "" if len(unrecognized_type) == 1 else "s"
-                } for `type`: {" ".join(sorted(unrecognized_type))}"""
+                f"""unrecognized value{"" if len(unrecognized_type) == 1 else "s"} for `type`: {
+                    " ".join(sorted(unrecognized_type))
+                }"""
             )
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
@@ -327,11 +325,9 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                bar.warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid language `{lang}` for `name`. SKIPPED.")
             elif not isinstance(name, str):
-                bar.warn(
-                    f"incompatible value for language `{lang}` for `name` in problem.yaml. SKIPPED."
-                )
+                bar.warn(f"incompatible value for language `{lang}` for `name`. SKIPPED.")
             else:
                 self.name[lang] = name
 
@@ -378,27 +374,27 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.CONSTANT_NAME_REGEX.fullmatch(key):
-                bar.warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
+                bar.warn(f"invalid name `{key}` for `constants`. SKIPPED.")
                 continue
 
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
             if "value" not in value:
-                bar.warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
+                bar.warn(f"missing `value` for key `constants.{key}`. SKIPPED.")
                 continue
             for sub, variant in value.items():
                 if sub == "value" and isinstance(variant, (int, float)):
                     variant = str(variant)
 
                 if not isinstance(sub, str) or not config.CONSTANT_NAME_REGEX.fullmatch(sub):
-                    bar.warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                    bar.warn(f"invalid key `constants.{key}.{sub}`. SKIPPED.")
                 elif isinstance(variant, (int, float)):
                     bar.warn(
-                        f"invalid type {type(variant).__name__} for `constants.{key}.{sub}` in problem.yaml, use string. SKIPPED."
+                        f"invalid type {type(variant).__name__} for `constants.{key}.{sub}`, use string. SKIPPED."
                     )
                 elif not isinstance(variant, str):
-                    bar.warn(f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                    bar.warn(f"invalid type for `constants.{key}.{sub}`. SKIPPED.")
                 else:
                     variants.add(variant)
                     self.constants[f"{key}.{sub}"] = variant
@@ -482,7 +478,7 @@ class Problem:
         self.tmpdir: Path = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
 
-        bar.make_global(PrintBar(self.name))
+        bar.use_globally(PrintBar(self.name))
         if not self.path.is_dir():
             bar.fatal("problem directory not found")
         if not Problem.SHORTNAME_REGEX.fullmatch(self.name):
@@ -557,7 +553,10 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
+    @bar.restore
     def _read_settings(self) -> None:
+        bar.use_globally(PrintBar("problem.yaml"))
+
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
@@ -576,7 +575,7 @@ class Problem:
             yaml_path.write_text(raw)
             bar.log("Added new UUID to problem.yaml")
 
-        parser = YamlParser("problem.yaml", yaml_data)
+        parser = YamlParser(yaml_data)
         self.settings = ProblemSettings(parser, self)
 
         # Aliasing fields makes life easier for us 😛
@@ -905,7 +904,9 @@ class Problem:
             return tuple(s for s in submissions if s.expectations.is_accepted())
 
     @once_per_instance
+    @bar.restore
     def expectations(self) -> Expectations:
+        bar.use_globally(PrintBar("submissions.yaml"))
         return Expectations(self)
 
     # Returns a list of all submissions the submissions might or might not have already
@@ -975,8 +976,7 @@ class Problem:
     def submissions(self) -> Sequence[Submission]:
         programs = self.raw_submissions()
 
-        local_bar = ProgressBar("Build submissions", items=programs)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("Build submissions", items=programs))
 
         def build_program(p: Submission) -> None:
             local_bar.start(p)
@@ -1003,8 +1003,9 @@ class Problem:
         if not path.is_dir():
             return None
         visualizer = cls(self, path)
-        local_bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(
+            ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+        )
         local_bar.start(visualizer)
         visualizer.build()
         local_bar.done()
@@ -1117,8 +1118,9 @@ class Problem:
             )
             for path in paths
         )
-        local_bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(
+            ProgressBar(f"Building {cls.validator_type} validator", items=validators)
+        )
 
         def build_program(p: "Program") -> None:
             local_bar.start(p)
@@ -1192,7 +1194,7 @@ class Problem:
             if config.args.local_time_multiplier is not None and config.args.time_limit is None
             else ""
         )
-        bar.make_global(PrintBar("Run"))
+        bar.use_globally(PrintBar("Run"))
         bar.log(f"using {msg}timelimit: {self.limits.time_limit:.1f}s\n", color="")
 
         ok, verdict_table = Problem.run_some(test_cases, submissions)
@@ -1408,8 +1410,7 @@ class Problem:
             return True
 
         success = True
-        local_bar = ProgressBar("Output validator checks", items=runs)
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar("Output validator checks", items=runs))
 
         def run(run: CheckRun) -> None:
             nonlocal success
@@ -1535,7 +1536,7 @@ class Problem:
 
     @bar.restore
     def validate_invalid_extra_data(self) -> bool:
-        bar.make_global(PrintBar("Generic Invalidation"))
+        bar.use_globally(PrintBar("Generic Invalidation"))
 
         assert config.args.generic is not None
         base_path = self.tmpdir / "invalid_data"
@@ -1618,7 +1619,7 @@ class Problem:
 
     @bar.restore
     def validate_valid_extra_data(self) -> bool:
-        bar.make_global(PrintBar("Generic output validation"))
+        bar.use_globally(PrintBar("Generic output validation"))
 
         assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
@@ -1727,8 +1728,7 @@ class Problem:
         self.reset_test_case_hashes()
 
         # validate the test cases
-        local_bar = ProgressBar(action, items=[t.name for t in test_cases])
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(ProgressBar(action, items=[t.name for t in test_cases]))
 
         def process_test_case(test_case: TestCase) -> None:
             nonlocal success
@@ -1820,8 +1820,9 @@ class Problem:
 
         success = True
         data = self.path / "data"
-        local_bar = ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
-        bar.make_global(local_bar)
+        local_bar = bar.use_globally(
+            ProgressBar("Overrides validation", items=[f.relative_to(data) for f in files])
+        )
 
         def process_file(file: Path) -> None:
             nonlocal success

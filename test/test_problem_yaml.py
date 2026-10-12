@@ -5,8 +5,8 @@ from unittest.mock import call, MagicMock
 import pytest
 import yaml
 
-from bapctools import config, problem
-from bapctools.bar import BaseBar, EmptyBar, PrintBar, ProgressBar
+from bapctools import bar, config, problem
+from bapctools.bar import PrintBar
 from bapctools.util import YamlParser
 
 RUN_DIR = Path.cwd().absolute()
@@ -55,11 +55,13 @@ class MockProblem:
 
 class TestProblemYaml:
     @pytest.mark.parametrize("test_data", read_tests("valid"))
+    @bar.restore
     def test_valid(self, test_data):
         config.n_error = 0
         config.n_warn = 0
 
-        parser = YamlParser("problem.yaml", test_data["yaml"])
+        bar.use_globally(PrintBar("problem.yaml"))
+        parser = YamlParser(test_data["yaml"])
         p = problem.ProblemSettings(parser, cast("problem.Problem", MockProblem()))
         assert config.n_error == 0 and config.n_warn == 0, (
             f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
@@ -68,6 +70,7 @@ class TestProblemYaml:
             assert_equal(p, test_data["eq"])
 
     @pytest.mark.parametrize("test_data", read_tests("invalid"))
+    @bar.restore
     def test_invalid(self, monkeypatch, test_data):
         config.n_error = 0
         config.n_warn = 0
@@ -76,10 +79,11 @@ class TestProblemYaml:
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
 
-        for bar in [BaseBar, EmptyBar, PrintBar, ProgressBar]:
-            monkeypatch.setattr(bar, "fatal", fatal)
-            monkeypatch.setattr(bar, "error", error)
-            monkeypatch.setattr(bar, "warn", warn)
+        monkeypatch.setattr(PrintBar, "fatal", fatal)
+        monkeypatch.setattr(PrintBar, "error", error)
+        monkeypatch.setattr(PrintBar, "warn", warn)
+
+        bar.use_globally(PrintBar("problem.yaml"))
 
         # Still expecting no change, because we're mocking the functions that increment these values
         assert config.n_error == 0 and config.n_warn == 0, (
@@ -87,7 +91,7 @@ class TestProblemYaml:
         )
 
         try:
-            parser = YamlParser("problem.yaml", test_data["yaml"])
+            parser = YamlParser(test_data["yaml"])
             problem.ProblemSettings(parser, cast("problem.Problem", MockProblem()))
         except SystemExit as e:
             assert e.code == -42
