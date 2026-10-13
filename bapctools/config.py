@@ -212,7 +212,6 @@ class ARGS:
         self.contest_id: Optional[str] = get_optional_arg("contest_id", str)
         self.contestname: Optional[str] = get_optional_arg("contestname", str)
         self.cp: bool = get_arg("cp", False)
-        self.default_solution: Optional[Path] = get_optional_arg("default_solution", Path)
         self.defaults: bool = get_arg("defaults", False)
         self.depth: Optional[int] = get_optional_arg("depth", int, ">= 0")
         self.directory: list[Path] = get_list_arg("directory", Path) or []
