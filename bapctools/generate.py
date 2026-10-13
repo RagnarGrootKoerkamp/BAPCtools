@@ -340,61 +340,51 @@ class SolutionInvocation(Invocation):
         return True
 
 
-# Return absolute path to default submission, starting from the submissions directory.
+# Return absolute path to a fallback submission, starting from the submissions directory.
 # This function will always print a message.
-# Which submission is used is implementation defined, unless one is explicitly given on the command line.
+# Which submission is used is implementation defined.
 def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
     solution = None
     stored_solution = problem.tmpdir / ".default_solution"
-    if config.args.default_solution:
-        if generator_config.has_yaml:
-            bar.warn(
-                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
-solution: /{config.args.default_solution}"""
-            )
-        else:
-            solution = problem.path / config.args.default_solution
+
+    # Use one of the accepted submissions.
+    solutions = [s for s in problem.raw_submissions() if s.expectations.is_accepted()]
+    if len(solutions) == 0:
+        bar.fatal("No solution specified and no accepted submissions found.")
+
+    # always try to take the same solution to not mess with hashing
+    if stored_solution.is_file():
+        old_solution = Path(stored_solution.read_text().strip())
+        if any(old_solution == s.path for s in solutions):
+            solution = old_solution
+
+    if solution is None:
+        # prefer solutions which are marked as model_solution
+        if any(s.expectations.model_solution for s in solutions):
+            solutions = [s for s in solutions if s.expectations.model_solution]
+        solution = random.choice(solutions).path
+
+    solution_short_path = solution.relative_to(problem.path / "submissions")
+
+    if (
+        not generator_config.has_yaml
+        or not isinstance(generator_config.yaml, dict)
+        or "solution" in generator_config.yaml
+    ):
+        bar.warn(
+            f"No solution specified. {solution_short_path} could not be added to generators.yaml"
+        )
     else:
-        # Use one of the accepted submissions.
-        solutions = [s for s in problem.raw_submissions() if s.expectations.is_accepted()]
-        if len(solutions) == 0:
-            bar.fatal("No solution specified and no accepted submissions found.")
+        yaml_path = problem.path / "generators" / "generators.yaml"
+        raw = yaml_path.read_text()
+        raw = f"solution: /{solution.relative_to(problem.path)}\n{raw}"
+        yaml_path.write_text(raw)
+        bar.log(
+            f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
+        )
 
-        # always try to take the same solution to not mess with hashing
-        if stored_solution.is_file():
-            old_solution = Path(stored_solution.read_text().strip())
-            if any(old_solution == s.path for s in solutions):
-                solution = old_solution
-
-        if solution is None:
-            # prefer solutions which are marked as model_solution
-            if any(s.expectations.model_solution for s in solutions):
-                solutions = [s for s in solutions if s.expectations.model_solution]
-            solution = random.choice(solutions).path
-
-        solution_short_path = solution.relative_to(problem.path / "submissions")
-
-        if generator_config.has_yaml:
-            if not isinstance(generator_config.yaml, dict) or "solution" in generator_config.yaml:
-                bar.warn(
-                    f"No solution specified. {solution_short_path} could not be added to generators.yaml"
-                )
-            else:
-                yaml_path = problem.path / "generators" / "generators.yaml"
-                raw = yaml_path.read_text()
-                raw = f"solution: /{solution.relative_to(problem.path)}\n{raw}"
-                yaml_path.write_text(raw)
-                bar.log(
-                    f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
-                )
-        else:
-            bar.log(
-                f"""No solution specified. Selected {solution_short_path}. Use
---default_solution {solution.relative_to(problem.path)}
-to use a specific solution."""
-            )
-    assert solution
+    assert solution is not None
     stored_solution.write_text(solution.as_posix())
     return Path("/") / solution.relative_to(problem.path)
 

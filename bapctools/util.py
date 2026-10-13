@@ -198,7 +198,7 @@ def read_yaml(
 
 
 YamlBaseType = bool | int | float | str
-SupportedYamlType = YamlBaseType | Path | list[Any] | dict[Any, Any] | datetime.date | object
+SupportedYamlType = YamlBaseType | list[Any] | dict[Any, Any] | datetime.date | object
 S = TypeVar("S", bound=YamlBaseType)
 T = TypeVar("T", bound=SupportedYamlType)
 
@@ -213,8 +213,6 @@ def yaml_isinstance(value: object, t: type[T]) -> TypeGuard[T]:
 
 
 def normalize_yaml_value(value: object, t: type[T]) -> object:
-    if yaml_isinstance(value, str) and t is Path:
-        return Path(value)
     if yaml_isinstance(value, int) and t is float:
         return float(value)
     return value
