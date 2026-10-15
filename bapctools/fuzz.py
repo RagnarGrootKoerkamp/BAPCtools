@@ -57,15 +57,14 @@ class GeneratorTask:
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
         remove_path(cwd)
         cwd.mkdir(parents=True, exist_ok=True)
-        name = "testcase"
-        infile = cwd / f"{name}.in"
-        ansfile = cwd / f"{name}.ans"
+        infile = cwd / "testcase.in"
+        ansfile = cwd / "testcase.ans"
 
         local_bar.start(f"{self.i}: {self.command}")
         local_bar.done(force_log=True)
 
         local_bar.start(f"{self.i}: generate")
-        result = self.generator.run(cwd, name, self.seed)
+        result = self.generator.run(cwd, infile.stem, self.seed)
         self.fuzz.queue.ensure_alive()
         if not result.status:
             local_bar.done()
@@ -74,7 +73,7 @@ class GeneratorTask:
             ansfile.write_text(self.rule.hardcoded[".ans"])
         local_bar.done()
 
-        test_case = TestCase(self.fuzz.problem, infile, short_path=dir / f"{name}.in")
+        test_case = TestCase(self.fuzz.problem, infile, short_path=dir / infile.name)
 
         # Validate the generated .in.
         local_bar.start(f"{self.i}: validate input")
@@ -91,7 +90,7 @@ class GeneratorTask:
                 if self.solution:
                     # Run the solution and validate the generated .ans.
                     local_bar.start(f"{self.i}: generate ans")
-                    if not self.solution.run(cwd).status:
+                    if not self.solution.run(test_case).status:
                         self.fuzz.queue.ensure_alive()
                         local_bar.done()
                         return False

@@ -302,14 +302,13 @@ class SolutionInvocation(Invocation):
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, cwd: Path) -> ExecResult:
+    def run(self, t: TestCase) -> ExecResult:
         assert isinstance(self.program, Submission), "Submission program must be built!"
 
-        in_path = cwd / "testcase.in"
-        ans_path = cwd / "testcase.ans"
+        cwd = t.in_path.parent
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(in_path, ans_path, cwd=cwd, generator_timeout=True)
+        result = self.program.run(t.in_path, t.ans_path, cwd=cwd, generator_timeout=True)
 
         if result.status == ExecStatus.TIMEOUT:
             bar.verbose(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
@@ -322,19 +321,18 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, cwd: Path, t: "TestCaseRule") -> bool:
-        in_path = cwd / "testcase.in"
-        interaction_path = cwd / "testcase.interaction"
-        interaction_path.unlink(missing_ok=True)
-
-        test_case = TestCase(self.problem, in_path, short_path=t.path.parent / f"{t.name}.in")
+    def generate_interaction(self, t: TestCase) -> bool:
         assert isinstance(self.program, Submission)
-        r = Run(self.problem, self.program, test_case)
+        r = Run(self.problem, self.program, t)
+
+        interaction_path = t.with_suffix(".interaction")
+        remove_path(interaction_path)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = r.run(interaction=interaction_path)
         if result.verdict != Verdict.ACCEPTED:
             bar.error(f"could not generate .interaction, submission got {result.verdict}")
+            remove_path(interaction_path)
             return False
 
         return True
@@ -1204,7 +1202,7 @@ class TestCaseRule(Rule):
                             for ext in [".out", ".in.statement", ".ans.statement"]
                         )
                     ):
-                        if not self.config.solution.generate_interaction(cwd, self):
+                        if not self.config.solution.generate_interaction(test_case):
                             return False
                         used_solution = True
                         # We need the cast, because key/value types in dicts are invariant,
@@ -1221,7 +1219,7 @@ class TestCaseRule(Rule):
                 if needed(".ans"):
                     # Run the solution if available.
                     if self.config.solution:
-                        if not self.config.solution.run(cwd).status:
+                        if not self.config.solution.run(test_case).status:
                             return False
                         used_solution = True
                         changed_ans = True
