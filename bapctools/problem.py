@@ -553,19 +553,16 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    @bar.restore
     def _read_settings(self) -> None:
-        bar.use_globally(PrintBar("problem.yaml"))
-
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         try:
             yaml_data = read_yaml(yaml_path, empty={})
         except ScannerError:
-            bar.fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
+            bar.fatal("Make sure problem.yaml does not contain any more {% ... %}.")
 
         if not isinstance(yaml_data, dict):
-            bar.fatal(f"{self.name}/problem.yaml is illformed.")
+            bar.fatal("problem.yaml is illformed.")
 
         if "uuid" not in yaml_data:
             uuid = generate_problem_uuid()
