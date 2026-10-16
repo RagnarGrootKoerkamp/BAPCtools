@@ -545,15 +545,13 @@ def ensure_symlink(
     try:
         # on windows copy if necessary
         if is_windows() and not windows_can_symlink:
-            if link.exists() or link.is_symlink():
-                link.unlink()
+            remove_path(link)
             shutil.copyfile(target, link)
             return True
 
         # For output files: copy them on Windows, or when --cp is passed.
         if output and config.args.cp:
-            if link.exists() or link.is_symlink():
-                link.unlink()
+            remove_path(link)
             shutil.copyfile(target, link)
             return True
 
@@ -625,8 +623,7 @@ def copy_and_substitute(
         bar.log(f'File "{inpath}" is not a text file.')
         return
     data = substitute(data, variables, pattern=pattern)
-    if outpath.is_symlink():
-        outpath.unlink()
+    remove_path(outpath)
     outpath.write_text(data)
 
 

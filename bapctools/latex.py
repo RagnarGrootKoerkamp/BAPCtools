@@ -18,6 +18,7 @@ from bapctools.util import (
     ensure_symlink,
     exec_command,
     ExecResult,
+    remove_path,
     substitute,
     tail,
 )
@@ -313,7 +314,7 @@ def build_latex_pdf(
         if config.args.open is None:
             latexmk_command.append("-view=none")
         # write pdf directly in the problem folder
-        dest_path.unlink(True)
+        remove_path(dest_path)
         latexmk_command.append(f"--jobname={tex_path.stem}.{language}")
         latexmk_command.append(f"-output-directory={dest_path.parent.absolute()}")
         if not config.args.error:
@@ -339,7 +340,7 @@ def build_latex_pdf(
     latexmk_command.append(tex_path.absolute())
 
     def run_latexmk(stdout: Optional[BinaryIO], stderr: Optional[BinaryIO]) -> ExecResult:
-        logfile.unlink(True)
+        remove_path(logfile)
         return exec_command(
             latexmk_command,
             crop=False,

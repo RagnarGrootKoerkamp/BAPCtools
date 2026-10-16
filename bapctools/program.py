@@ -388,8 +388,7 @@ class Program:
                 return False
 
         # Link all source_files
-        if self.tmpdir.is_file():
-            self.tmpdir.unlink()
+        remove_path(self.tmpdir)
         self.tmpdir.mkdir(parents=True, exist_ok=True)
         self.input_files = []
         hashes = []

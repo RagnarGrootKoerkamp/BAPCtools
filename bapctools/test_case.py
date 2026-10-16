@@ -15,6 +15,7 @@ from bapctools.util import (
     hash_file_content,
     parse_yaml,
     print_name,
+    remove_path,
     shorten_path,
     substitute,
     YamlParser,
@@ -559,10 +560,8 @@ class TestCase:
             # Remove test case if specified.
             elif mode == validate.Mode.INPUT and config.args.remove:
                 bar.log(f"{Fore.RED}REMOVING TESTCASE!{Style.RESET_ALL}")
-                if self.in_path.exists():
-                    self.in_path.unlink()
-                if self.ans_path.exists():
-                    self.ans_path.unlink()
+                remove_path(self.in_path)
+                remove_path(self.ans_path)
 
             break
 
