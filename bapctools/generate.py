@@ -1081,8 +1081,7 @@ class TestCaseRule(Rule):
                 # Step 3: Write hardcoded files.
                 for ext, contents in self.hardcoded.items():
                     file = infile.with_suffix(ext)
-                    if file.exists():
-                        file.unlink()
+                    remove_path(file)
                     # substitute in contents? -> No!
                     file.write_text(contents)
 
@@ -1281,9 +1280,12 @@ class TestCaseRule(Rule):
                         assert problem.settings.ans_is_output
                         out_path = ans_path
 
-            if visualizer is None:
+            def remove_visualization() -> None:
                 for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                    in_path.with_suffix(ext).unlink(True)
+                    remove_path(in_path.with_suffix(ext))
+
+            if visualizer is None:
+                remove_visualization()
                 use_feedback_image(feedbackdir, "validator")
                 return True
 
@@ -1295,8 +1297,7 @@ class TestCaseRule(Rule):
             if meta_yaml.visualizer_hash == visualizer_hash:
                 return True
 
-            for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                in_path.with_suffix(ext).unlink(True)
+            remove_visualization()
 
             if isinstance(visualizer, InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
