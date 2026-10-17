@@ -564,21 +564,21 @@ def eprint(*args: Any, **kwargs: Any) -> None:
     _global_bar.eprint(*args, **kwargs)
 
 
-def log(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+def log(msg: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
     _global_bar.log(msg, data, color=color)
 
 
-def verbose(msg: Any, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
+def verbose(msg: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
     _global_bar.verbose(msg, data, color=color)
 
 
-def warn(msg: Any, data: Optional[str] = None) -> None:
+def warn(msg: str, data: Optional[str] = None) -> None:
     _global_bar.warn(msg, data)
 
 
-def error(msg: Any, data: Optional[str] = None) -> None:
+def error(msg: str, data: Optional[str] = None) -> None:
     _global_bar.error(msg, data)
 
 
-def fatal(msg: Any, data: Optional[str] = None, *, force: Optional[bool] = None) -> NoReturn:
+def fatal(msg: str, data: Optional[str] = None, *, force: Optional[bool] = None) -> NoReturn:
     _global_bar.fatal(msg, data, force=force)

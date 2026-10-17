@@ -524,7 +524,7 @@ def export_contest(cid: Optional[str]) -> str:
         data["id"] = cid
 
     bar.verbose("Uploading contest.yaml:")
-    bar.verbose(data)
+    bar.verbose(str(data))
     r = call_api(
         "POST",
         "/contests",
@@ -707,7 +707,9 @@ def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
 
 # Export the contest and individual problems to DOMjudge.
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
+@bar.restore
 def export_contest_and_problems(problems: list[Problem], languages: list[str]) -> None:
+    bar.use_globally(PrintBar("export"))
     if config.args.contest_id:
         cid: Optional[str] = config.args.contest_id
     else:
