@@ -140,7 +140,7 @@ class ARGS:
             print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
             n_warn += 1
 
-        T = TypeVar("T", bound=bool | int | float | str | Path | list[Any])
+        T = TypeVar("T")
 
         def normalize_arg(value: object, t: type[T]) -> object:
             if isinstance(value, str) and t is Path:
