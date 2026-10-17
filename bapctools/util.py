@@ -138,7 +138,7 @@ def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concat
             cache[key] = method(self, *args, **kwargs)
         return cache[key]
 
-    return cast("Callable[Concatenate[T, P], R]", wrapped)
+    return cast("Callable[Concatenate[U, P], R]", wrapped)
 
 
 @once
@@ -258,7 +258,7 @@ def read_yaml(
 
 
 YamlBaseType = bool | int | float | str
-SupportedYamlType = YamlBaseType | list[Any] | dict[Any, Any] | datetime.date | object
+SupportedYamlType = YamlBaseType | list[Any] | dict[Any, Any] | datetime.date
 S = TypeVar("S", bound=YamlBaseType)
 T = TypeVar("T", bound=SupportedYamlType)
 
@@ -352,18 +352,35 @@ class YamlParser:
             bar.warn(f"key `{self._key_path(key)}` is reserved. SKIPPED.")
             self.remaining.pop(key)
 
+    @overload
+    def extract_optional_list(
+        self, key: str, *, allow_value: bool = True, allow_empty: bool = False
+    ) -> list[object]: ...
+    @overload
     def extract_optional_list(
         self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
-    ) -> list[T]:
+    ) -> list[T]: ...
+    def extract_optional_list(
+        self,
+        key: str,
+        t: Optional[type[T]] = None,
+        *,
+        allow_value: bool = True,
+        allow_empty: bool = False,
+    ) -> list[T] | list[object]:
         self.known_keys.add(key)
         if key in self.remaining:
             value = self.remaining.pop(key)
             if value is None:
                 return []
-            if allow_value and yaml_isinstance(value, t) and not yaml_isinstance(value, list):
+            if (
+                allow_value
+                and (t is None or yaml_isinstance(value, t))
+                and not yaml_isinstance(value, list)
+            ):
                 return [value]
             if yaml_isinstance(value, list):
-                if not all(yaml_isinstance(v, t) for v in value):
+                if t is not None and not all(yaml_isinstance(v, t) for v in value):
                     bar.warn(
                         f"some values for key `{self._key_path(key)}` do not have type {t.__name__}. SKIPPED."
                     )

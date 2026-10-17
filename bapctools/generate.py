@@ -710,7 +710,7 @@ class TestCaseRule(Rule):
                     parser.remaining["match"] = {"in": raw_match_entries}
             match_parser = parser.extract_parser("match")
             for ext in ["in", "ans"]:
-                entries = match_parser.extract_optional_list(ext, object, allow_empty=True)
+                entries = match_parser.extract_optional_list(ext, allow_empty=True)
                 for i, entry in enumerate(entries):
                     if not isinstance(entry, str):
                         generator_config.n_test_case_error += 1
@@ -1982,7 +1982,7 @@ class GeneratorConfig:
             def add_included_dir(d: DirectoryRule) -> None:
                 included_test_cases.extend(d.includes.values())
 
-            includes = parser.extract_optional_list("include", object, allow_empty=True)
+            includes = parser.extract_optional_list("include", allow_empty=True)
             for i, include in enumerate(includes):
                 if not isinstance(include, str):
                     self.n_parse_error += 1
@@ -2016,7 +2016,7 @@ class GeneratorConfig:
                 else:
                     rule.walk(add_included_case, add_included_dir, skip_restricted=False)
 
-            data = parser.extract_optional_list("data", object, allow_empty=True)
+            data = parser.extract_optional_list("data", allow_empty=True)
             assert is_list_type(data, dict, "data")
 
             # 2. pre determine the number of test child test groups
