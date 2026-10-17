@@ -245,7 +245,7 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
         if suppress_errors:
             return None
         bar.eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}")
-        bar.fatal(f"Failed to parse {path or 'yaml'}.")
+        bar.fatal(f"Failed to parse {path or 'yaml object'}.")
 
 
 def read_yaml(

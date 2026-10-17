@@ -13,7 +13,6 @@ from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap
-from ruamel.yaml.scanner import ScannerError
 
 from bapctools import (
     bar,
@@ -556,10 +555,7 @@ class Problem:
     def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
-        try:
-            yaml_data = read_yaml(yaml_path, empty={})
-        except ScannerError:
-            bar.fatal("Make sure problem.yaml does not contain any more {% ... %}.")
+        yaml_data = read_yaml(yaml_path, empty={})
 
         if not isinstance(yaml_data, dict):
             bar.fatal("problem.yaml is illformed.")
