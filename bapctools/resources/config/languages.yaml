@@ -189,7 +189,7 @@ java:
     priority: 851
     files: '*.java'
     compile: 'javac -encoding UTF-8 -cp {path} -sourcepath {path} -d {path} {files}'
-    run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path} {mainclass}'
+    run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2 -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path} {mainclass}'
 
 javascript:
     name: 'JavaScript'
@@ -203,7 +203,7 @@ kotlin:
     priority: 250
     files: '*.kt'
     compile: 'kotlinc -d {path}/ -- {files}'
-    run: 'kotlin -Dfile.encoding=UTF-8 -J-XX:+UseSerialGC -J-Xss64m -J-Xms{memlim}m -J-Xmx{memlim}m -cp {path}/ {Mainclass}Kt'
+    run: 'kotlin -Dfile.encoding=UTF-8 -J-XX:+UseSerialGC -J-XX:TieredStopAtLevel=1 -J-XX:ActiveProcessorCount=2 -J-Xss64m -J-Xms{memlim}m -J-Xmx{memlim}m -cp {path}/ {Mainclass}Kt'
 
 lisp:
     name: 'Common Lisp'
@@ -290,8 +290,9 @@ scala:
     name: 'Scala'
     priority: 550
     files: '*.sc *.scala'
-    compile: 'scalac -encoding UTF-8 -sourcepath {path} -d {path} {files}'
-    run: 'scala -J-Xmx{memlim}m -classpath {path} {mainclass}'
+    compile: 'scalac -encoding UTF-8 -cp {path} -sourcepath {path} -d {path} {files}'
+    # this requires Scala 3
+    run: 'scala run -J -XX:+UseSerialGC -J -XX:TieredStopAtLevel=1 -J -XX:ActiveProcessorCount=2 -J -Xss64m -J -Xms{memlim}m -J -Xmx{memlim}m -cp {path} -M {Mainclass}'
 
 # the following languages are BAPCtools extensions
 # ================================================

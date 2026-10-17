@@ -1285,7 +1285,15 @@ class ExecResult:
 
 def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
     # https://bugs.openjdk.org/browse/JDK-8071445
-    return Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc", "sbcl"]
+    return Path(command[0]).name not in [
+        "java",
+        "javac",
+        "kotlin",
+        "kotlinc",
+        "sbcl",
+        "scala",
+        "scalac",
+    ]
 
 
 def limit_setter(
