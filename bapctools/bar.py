@@ -577,7 +577,7 @@ def warn(msg: Any, data: Optional[str] = None) -> None:
 
 
 def error(msg: Any, data: Optional[str] = None) -> None:
-    _global_bar.error(msg)
+    _global_bar.error(msg, data)
 
 
 def fatal(msg: Any, data: Optional[str] = None, *, force: Optional[bool] = None) -> NoReturn:

@@ -1,7 +1,6 @@
 import os
 import shlex
 import shutil
-import subprocess
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
@@ -329,7 +328,6 @@ class Program:
         try:
             ret = exec_command(
                 self.compile_command,
-                stdout=subprocess.PIPE,
                 cwd=self.tmpdir,
                 # Compile errors are never cropped.
                 crop=False,
