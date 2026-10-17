@@ -205,6 +205,12 @@ VIVA: Final[Language] = Language(
         "run": shlex.join(
             [
                 "java",
+                "-XX:+UseSerialGC",
+                "-XX:TieredStopAtLevel=1",
+                "-XX:ActiveProcessorCount=2",
+                "-Xss64m",
+                "-Xms{memlim}m",
+                "-Xmx{memlim}m",
                 "-jar",
                 str(config.RESOURCES_ROOT / "third_party" / "viva" / "viva.jar"),
                 "{mainfile}",
