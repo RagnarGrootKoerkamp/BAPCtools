@@ -839,7 +839,6 @@ def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
         "javac",
         "kotlin",
         "kotlinc",
-        "sbcl",
         "scala",
         "scalac",
     ]
