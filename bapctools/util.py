@@ -260,14 +260,14 @@ def yaml_isinstance(value: object, t: type[T]) -> TypeGuard[T]:
     """same as isinstance(value, t) except that True and False are not considered int's"""
     if not isinstance(value, t):
         return False
-    if isinstance(value, bool) and issubclass(t, int):
+    if isinstance(value, bool) and t is int:
         return False
     return True
 
 
 def normalize_yaml_value(value: object, t: type[object]) -> object:
-    if yaml_isinstance(value, int) and issubclass(t, float):
-        return t(value)
+    if yaml_isinstance(value, int) and t is float:
+        return float(value)
     return value
 
 
