@@ -1,9 +1,7 @@
-import hashlib
 import os
 import shlex
 import shutil
 import subprocess
-import tempfile
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
@@ -20,6 +18,7 @@ from bapctools.util import (
     exec_command,
     ExecResult,
     ExecStatus,
+    get_cwd_tmpdir,
     glob,
     has_substitute,
     hash_file,
@@ -35,8 +34,10 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 @once
 def create_aliases() -> None:
-    h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
-    tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}" / ".aliases").resolve()
+    tmpdir = get_cwd_tmpdir() / ".aliases"
+    remove_path(tmpdir)
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
 
     langs = languages.languages()
 
@@ -70,10 +71,6 @@ def create_aliases() -> None:
         ensure_symlink(alias_path, Path(exe))
         if config.args.verbose >= 2:
             bar.verbose(f"Adding alias {alias}: {alias_path.as_posix()} -> {exe}")
-
-    remove_path(tmpdir)
-    tmpdir.mkdir(parents=True, exist_ok=True)
-    os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
 
     create_alias("python3", "python3", use_compile=False)
     create_alias("c", "cc", use_compile=True)

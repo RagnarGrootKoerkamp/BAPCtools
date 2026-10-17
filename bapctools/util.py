@@ -30,7 +30,6 @@ from typing import (
     Concatenate,
     Generic,
     Literal,
-    NoReturn,
     Optional,
     overload,
     ParamSpec,
@@ -81,16 +80,68 @@ if not is_windows():
     import resource
 
 
-def exit1(force: bool = False) -> NoReturn:
-    if force:
-        sys.stdout.close()
-        sys.stderr.close()
-        # exit even more forcefully to ensure that daemon threads dont break something
-        os._exit(1)
-    else:
-        sys.exit(1)
+R = TypeVar("R")
 
 
+class OnceWrapper(Generic[R]):
+    def __init__(self, function: Callable[[], R]):
+        self._function = function
+        self._lock = threading.Lock()
+        self._done = False
+        self._result: Optional[R] = None
+        functools.wraps(function)(self)
+
+    def __call__(self) -> R:
+        with self._lock:
+            if not self._done:
+                self._result = self._function()
+                self._done = True
+            return cast("R", self._result)
+
+    def reset(self) -> None:
+        with self._lock:
+            self._done = False
+            self._result = None
+
+
+def once(function: Callable[[], R]) -> OnceWrapper[R]:
+    """This decorator ensures that a function is executed at most once (this is thread safe)"""
+    return OnceWrapper(function)
+
+
+U = TypeVar("U")
+P = ParamSpec("P")
+
+
+def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concatenate[U, P], R]:
+    """
+    This decorator ensures that a instance method is executed at most once.
+    This is **not** threadsafe!
+    """
+    cache_name = f"__cache_{method.__name__}"
+    signature = inspect.signature(method)
+    instance_parameter = next(iter(signature.parameters))
+
+    @functools.wraps(method)
+    def wrapped(self: U, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not hasattr(self, cache_name):
+            setattr(self, cache_name, {})
+        cache: dict[object, R] = getattr(self, cache_name)
+
+        bound = signature.bind(self, *args, **kwargs)
+        bound.apply_defaults()
+        key = tuple(
+            (name, value) for name, value in bound.arguments.items() if name != instance_parameter
+        )
+        if key not in cache:
+            assert threading.current_thread() is threading.main_thread()
+            cache[key] = method(self, *args, **kwargs)
+        return cache[key]
+
+    return cast("Callable[Concatenate[T, P], R]", wrapped)
+
+
+@once
 def home_config_dir() -> Path:
     if is_windows():
         home_dir = Path(os.getenv("APPDATA", Path.home()))
@@ -99,6 +150,15 @@ def home_config_dir() -> Path:
     else:
         home_dir = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
     return home_dir / "bapctools"
+
+
+@once
+def get_cwd_tmpdir() -> Path:
+    # We create one tmpdir per contest.
+    h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
+    tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}").resolve()
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    return tmpdir
 
 
 def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
@@ -966,6 +1026,26 @@ def exec_command(
     return ExecResult(process.returncode, status, duration, timeout_expired, res_err, res_out)
 
 
+class ShellCommand:
+    @staticmethod
+    def get(cmd: str) -> Optional["ShellCommand"]:
+        if shutil.which(cmd) is None:
+            return None
+        return ShellCommand(cmd)
+
+    def __init__(self, cmd: str) -> None:
+        self.cmd = cmd
+
+    def __call__(self, *args: str | Path) -> str:
+        res = exec_command(
+            [self.cmd, *args],
+            crop=False,
+            preexec_fn=False,
+            timeout=None,
+        )
+        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
+
+
 def inc_label(label: str) -> str:
     prefix = label.rstrip("Z")
     mid = chr(ord(prefix[-1]) + 1) if prefix else "A"
@@ -1062,84 +1142,3 @@ def is_uuid(uuid: str) -> bool:
         return uuid.casefold() == str(UUID(uuid)).casefold()
     except ValueError:
         return False
-
-
-class ShellCommand:
-    @staticmethod
-    def get(cmd: str) -> Optional["ShellCommand"]:
-        if shutil.which(cmd) is None:
-            return None
-        return ShellCommand(cmd)
-
-    def __init__(self, cmd: str) -> None:
-        self.cmd = cmd
-
-    def __call__(self, *args: str | Path) -> str:
-        res = exec_command(
-            [self.cmd, *args],
-            crop=False,
-            preexec_fn=False,
-            timeout=None,
-        )
-        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
-
-
-R = TypeVar("R")
-
-
-class OnceWrapper(Generic[R]):
-    def __init__(self, function: Callable[[], R]):
-        self._function = function
-        self._lock = threading.Lock()
-        self._done = False
-        self._result: Optional[R] = None
-        functools.wraps(function)(self)
-
-    def __call__(self) -> R:
-        with self._lock:
-            if not self._done:
-                self._result = self._function()
-                self._done = True
-            return cast("R", self._result)
-
-    def reset(self) -> None:
-        with self._lock:
-            self._done = False
-            self._result = None
-
-
-def once(function: Callable[[], R]) -> OnceWrapper[R]:
-    """This decorator ensures that a function is executed at most once (this is thread safe)"""
-    return OnceWrapper(function)
-
-
-U = TypeVar("U")
-P = ParamSpec("P")
-
-
-def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concatenate[U, P], R]:
-    """
-    This decorator ensures that a instance method is executed at most once.
-    This is **not** threadsafe!
-    """
-    cache_name = f"__cache_{method.__name__}"
-    signature = inspect.signature(method)
-    instance_parameter = next(iter(signature.parameters))
-
-    @functools.wraps(method)
-    def wrapped(self: U, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not hasattr(self, cache_name):
-            setattr(self, cache_name, {})
-        cache: dict[object, R] = getattr(self, cache_name)
-
-        bound = signature.bind(self, *args, **kwargs)
-        bound.apply_defaults()
-        key = tuple(
-            (name, value) for name, value in bound.arguments.items() if name != instance_parameter
-        )
-        if key not in cache:
-            assert threading.current_thread() is threading.main_thread()
-            cache[key] = method(self, *args, **kwargs)
-        return cache[key]
-
-    return cast("Callable[Concatenate[T, P], R]", wrapped)

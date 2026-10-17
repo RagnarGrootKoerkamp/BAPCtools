@@ -16,11 +16,9 @@ Bommel.
 
 import argparse
 import difflib
-import hashlib
 import os
 import re
 import sys
-import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Optional
@@ -65,6 +63,7 @@ from bapctools.problem import Problem
 from bapctools.util import (
     AbortError,
     ask_variable_bool,
+    get_cwd_tmpdir,
     glob,
     home_config_dir,
     inc_label,
@@ -99,10 +98,7 @@ def change_directory() -> Optional[Path]:
 # Either use the problems.yaml,
 # or check the existence of problem.yaml and sort by shortname.
 def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
-    # We create one tmpdir per contest.
-    h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
-    tmpdir = (Path(tempfile.gettempdir()) / f"bapctools_{h}").resolve()
-    tmpdir.mkdir(parents=True, exist_ok=True)
+    tmpdir = get_cwd_tmpdir()
 
     def fallback_problems() -> list[tuple[Path, str]]:
         problem_paths = list(filter(is_problem_directory, glob(Path(), "*/")))
