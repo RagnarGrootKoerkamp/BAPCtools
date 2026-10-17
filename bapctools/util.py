@@ -833,7 +833,8 @@ class ExecResult:
 
 
 def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
-    # https://bugs.openjdk.org/browse/JDK-8071445
+    # JVM does not work with limited ram: https://bugs.openjdk.org/browse/JDK-8071445
+    # sbcl has a hardcoded limit of (typically) 1GB, if the memory limit is lower it would break
     return Path(command[0]).name not in [
         "java",
         "javac",
@@ -841,6 +842,7 @@ def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
         "kotlinc",
         "scala",
         "scalac",
+        "sbcl",
     ]
 
 
