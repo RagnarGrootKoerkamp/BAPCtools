@@ -1,6 +1,5 @@
 # read problem settings from config files
 
-import datetime
 import difflib
 import errno
 import functools
@@ -109,11 +108,11 @@ def once(function: Callable[[], R]) -> OnceWrapper[R]:
     return OnceWrapper(function)
 
 
-U = TypeVar("U")
+T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concatenate[U, P], R]:
+def once_per_instance(method: Callable[Concatenate[T, P], R]) -> Callable[Concatenate[T, P], R]:
     """
     This decorator ensures that a instance method is executed at most once.
     This is **not** threadsafe!
@@ -123,7 +122,7 @@ def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concat
     instance_parameter = next(iter(signature.parameters))
 
     @functools.wraps(method)
-    def wrapped(self: U, *args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapped(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
         if not hasattr(self, cache_name):
             setattr(self, cache_name, {})
         cache: dict[object, R] = getattr(self, cache_name)
@@ -138,7 +137,7 @@ def once_per_instance(method: Callable[Concatenate[U, P], R]) -> Callable[Concat
             cache[key] = method(self, *args, **kwargs)
         return cache[key]
 
-    return cast("Callable[Concatenate[U, P], R]", wrapped)
+    return cast("Callable[Concatenate[T, P], R]", wrapped)
 
 
 @once
@@ -257,24 +256,18 @@ def read_yaml(
     return empty if ret is None else ret
 
 
-YamlBaseType = bool | int | float | str
-SupportedYamlType = YamlBaseType | list[Any] | dict[Any, Any] | datetime.date
-S = TypeVar("S", bound=YamlBaseType)
-T = TypeVar("T", bound=SupportedYamlType)
-
-
 def yaml_isinstance(value: object, t: type[T]) -> TypeGuard[T]:
     """same as isinstance(value, t) except that True and False are not considered int's"""
     if not isinstance(value, t):
         return False
-    if isinstance(value, bool) and t is int:
+    if isinstance(value, bool) and issubclass(t, int):
         return False
     return True
 
 
-def normalize_yaml_value(value: object, t: type[T]) -> object:
-    if yaml_isinstance(value, int) and t is float:
-        return float(value)
+def normalize_yaml_value(value: object, t: type[object]) -> object:
+    if yaml_isinstance(value, int) and issubclass(t, float):
+        return t(value)
     return value
 
 
@@ -327,7 +320,7 @@ class YamlParser:
                 return default
         return result
 
-    def extract_and_error(self, key: str, t: type[S]) -> S:
+    def extract_and_error(self, key: str, t: type[T]) -> T:
         self.known_keys.add(key)
         if key in self.remaining:
             value = normalize_yaml_value(self.remaining.pop(key), t)
@@ -352,35 +345,18 @@ class YamlParser:
             bar.warn(f"key `{self._key_path(key)}` is reserved. SKIPPED.")
             self.remaining.pop(key)
 
-    @overload
-    def extract_optional_list(
-        self, key: str, *, allow_value: bool = True, allow_empty: bool = False
-    ) -> list[object]: ...
-    @overload
     def extract_optional_list(
         self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
-    ) -> list[T]: ...
-    def extract_optional_list(
-        self,
-        key: str,
-        t: Optional[type[T]] = None,
-        *,
-        allow_value: bool = True,
-        allow_empty: bool = False,
-    ) -> list[T] | list[object]:
+    ) -> list[T]:
         self.known_keys.add(key)
         if key in self.remaining:
             value = self.remaining.pop(key)
             if value is None:
                 return []
-            if (
-                allow_value
-                and (t is None or yaml_isinstance(value, t))
-                and not yaml_isinstance(value, list)
-            ):
+            if allow_value and yaml_isinstance(value, t) and not yaml_isinstance(value, list):
                 return [value]
             if yaml_isinstance(value, list):
-                if t is not None and not all(yaml_isinstance(v, t) for v in value):
+                if not all(yaml_isinstance(v, t) for v in value):
                     bar.warn(
                         f"some values for key `{self._key_path(key)}` do not have type {t.__name__}. SKIPPED."
                     )
