@@ -41,7 +41,8 @@ from uuid import UUID
 from colorama import Fore, Style
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.constructor import DuplicateKeyError
+from ruamel.yaml.constructor import DuplicateKeyError, RoundTripConstructor
+from ruamel.yaml.nodes import ScalarNode
 
 from bapctools import bar, config
 from bapctools.bar import crop_output
@@ -160,6 +161,16 @@ def get_cwd_tmpdir() -> Path:
     return tmpdir
 
 
+# Drops the first two path components <problem>/<type>/
+def print_name(path: Path, *, keep_type: bool = False) -> str:
+    return str(Path(*path.parts[1 if keep_type else 2 :]))
+
+
+# A path is a problem directory if it contains a `problem.yaml` file.
+def is_problem_directory(path: Path) -> bool:
+    return (path / "problem.yaml").is_file()
+
+
 def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     p = problem.path
     return [p / type, p, p.parent, config.current_working_directory]
@@ -216,18 +227,41 @@ def drop_suffix(path: Path, suffixes: Sequence[str]) -> Path:
     return path
 
 
-# Drops the first two path components <problem>/<type>/
-def print_name(path: Path, *, keep_type: bool = False) -> str:
-    return str(Path(*path.parts[1 if keep_type else 2 :]))
+# safer function to remove a path, handles files, dirs and broken symlinks
+def remove_path(path: Path) -> None:
+    with suppress(NotADirectoryError, FileNotFoundError):
+        try:
+            path.unlink()
+        except OSError:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                raise
+
+
+class DateAwareYamlConstructor(RoundTripConstructor):
+    def construct_yaml_timestamp(self, node: ScalarNode, values: Any = None) -> Any:
+        # if something looks like a date (XXXX-XX-XX) but is not a valid
+        # date (like 2025-02-30) we should not parse it as a date
+        # If we use a YamlParser we will raise a type error later on
+        try:
+            return super().construct_yaml_timestamp(node, values)
+        except ValueError:
+            return self.construct_scalar(node)
+
+    yaml_constructors = RoundTripConstructor.yaml_constructors.copy()
+    yaml_constructors["tag:yaml.org,2002:timestamp"] = construct_yaml_timestamp
 
 
 def _ryaml() -> YAML:
-    ret = YAML(typ="rt")
-    ret.default_flow_style = False
-    ret.indent(mapping=2, sequence=4, offset=2)
-    ret.width = sys.maxsize
-    ret.preserve_quotes = True
-    return ret
+    ryaml = YAML(typ="rt")
+    ryaml.Constructor = DateAwareYamlConstructor
+    ryaml.default_flow_style = False
+    ryaml.indent(mapping=2, sequence=4, offset=2)
+    ryaml.width = sys.maxsize
+    ryaml.preserve_quotes = True
+    ryaml.load("2025-02-29")
+    return ryaml
 
 
 def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool = False) -> object:
@@ -236,15 +270,14 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
     except DuplicateKeyError as e:
         if suppress_errors:
             return None
-        if path is not None:
-            bar.fatal(f"Duplicate key in yaml file {path}!\n{e.args[0]}\n{e.args[2]}")
-        else:
-            bar.fatal(f"Duplicate key in yaml object!\n{e}")
+        source = "object" if path is None else f"file {path}"
+        bar.fatal(f"Duplicate key in yaml {source}!\n{e.args[0]}\n{e.args[2]}")
     except Exception as e:
         if suppress_errors:
             return None
         bar.eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}")
-        bar.fatal(f"Failed to parse {path or 'yaml object'}.")
+        source = "object" if path is None else f"file {path}"
+        bar.fatal(f"Failed to parse yaml {source}.")
 
 
 def read_yaml(
@@ -533,29 +566,6 @@ def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str
                 bar.warn(f"unknown option: {got}")
 
 
-# glob, but without hidden files
-def glob(path: Path, expression: str, *, include_hidden: bool = False) -> list[Path]:
-    def keep(p: Path) -> bool:
-        if not include_hidden:
-            for d in p.parts:
-                if d[0] == ".":
-                    return False
-
-        if p.suffix in [".template", ".disabled"]:
-            return False
-
-        if config.RUNNING_TEST:
-            suffixes = p.suffixes
-            if len(suffixes) >= 1 and suffixes[-1] == ".bad":
-                return False
-            if len(suffixes) >= 2 and suffixes[-2] == ".bad":
-                return False
-
-        return True
-
-    return sorted(p for p in path.glob(expression) if keep(p))
-
-
 # check if windows supports symlinks
 if is_windows():
     link_parent = Path(tempfile.gettempdir()) / "bapctools"
@@ -577,18 +587,6 @@ if is_windows():
 - Enable the option "Developer Mode"
 """
         )
-
-
-# safer function to remove a path, handles files, dirs and broken symlinks
-def remove_path(path: Path) -> None:
-    with suppress(NotADirectoryError, FileNotFoundError):
-        try:
-            path.unlink()
-        except OSError:
-            if path.is_dir():
-                shutil.rmtree(path)
-            else:
-                raise
 
 
 # When output is True, copy the file when args.cp is true.
@@ -629,6 +627,29 @@ def ensure_symlink(
     except (FileNotFoundError, FileExistsError):
         # this must be a race condition
         return False
+
+
+# glob, but without hidden files
+def glob(path: Path, expression: str, *, include_hidden: bool = False) -> list[Path]:
+    def keep(p: Path) -> bool:
+        if not include_hidden:
+            for d in p.parts:
+                if d[0] == ".":
+                    return False
+
+        if p.suffix in [".template", ".disabled"]:
+            return False
+
+        if config.RUNNING_TEST:
+            suffixes = p.suffixes
+            if len(suffixes) >= 1 and suffixes[-1] == ".bad":
+                return False
+            if len(suffixes) >= 2 and suffixes[-2] == ".bad":
+                return False
+
+        return True
+
+    return sorted(p for p in path.glob(expression) if keep(p))
 
 
 def has_substitute(
@@ -1044,11 +1065,6 @@ def inc_label(label: str) -> str:
     mid = chr(ord(prefix[-1]) + 1) if prefix else "A"
     suffix = "A" * (len(label) - len(prefix))
     return prefix[:-1] + mid + suffix
-
-
-# A path is a problem directory if it contains a `problem.yaml` file.
-def is_problem_directory(path: Path) -> bool:
-    return (path / "problem.yaml").is_file()
 
 
 def combine_hashes(values: Sequence[str]) -> str:
