@@ -283,8 +283,8 @@ class Fuzz:
                 self.queue.done()
             except KeyboardInterrupt:
                 self.queue.abort()
-                with progressbar:
-                    bar.eprint(bar.CARRIAGE_RETURN)
+                with printbar:
+                    printbar.eprint(bar.CARRIAGE_RETURN)
                     printbar.error("Running interrupted (waiting on remaining tasks)\n")
         except KeyboardInterrupt:
             printbar.fatal("Running interrupted", force=True)
