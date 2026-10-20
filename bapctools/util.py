@@ -149,7 +149,7 @@ def home_config_dir() -> Path:
         home_dir = Path.home() / "Library" / "Application Support"
     else:
         home_dir = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return home_dir / "bapctools"
+    return home_dir.resolve() / "bapctools"
 
 
 @once
