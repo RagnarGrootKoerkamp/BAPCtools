@@ -162,8 +162,8 @@ class SubmissionTask:
         assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
-            self.generator_task.save_test(local_bar, self.submission, result.verdict)
             local_bar.done(False, f"{result.verdict}!")
+            self.generator_task.save_test(local_bar, self.submission, result.verdict)
         else:
             local_bar.done()
 
