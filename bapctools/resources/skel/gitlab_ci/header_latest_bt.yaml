@@ -3,6 +3,10 @@ image:
   entrypoint: [""]
 
 default:
+  cache:
+    key: bapctools-pip
+    paths:
+      - .cache/pip/
   before_script:
-    - git -C /cache/BAPCtools pull --ff-only || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /cache/BAPCtools
-    - ln -s /cache/BAPCtools/bin/tools.py bt
+    - PIP_CACHE_DIR="$CI_PROJECT_DIR/.cache/pip" pipx upgrade bapctools
+    - ln -sf "$(command -v bt)" bt

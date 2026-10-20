@@ -57,11 +57,10 @@ If you cannot or do not want to use WSL, you'll need the following in your `%PAT
 
 ### Docker
 
-A docker image containing this git repo and dependencies, together with commonly used languages, is provided at [ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+A docker image containing the public PyPI release of BAPCtools and its dependencies, together with commonly used languages, is provided at [ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
 This version may be somewhat outdated, but we intend to update it whenever dependencies change.
 Ping us if you'd like it to be updated.
-Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools, and use `pacman -Sy <package>` to install potential missing dependencies.
-<!-- TODO: update the Docker image to use installation via Pip. -->
+Alternatively, inside the Docker container, you can run `pipx upgrade bapctools` to update to the latest version of BAPCtools, and use `pacman -Sy <package>` to install potential missing dependencies.
 
 This image can be used for e.g.:
 
@@ -171,7 +170,7 @@ This can only be done by maintainers:
 $ sudo systemctl start docker
 $ docker pull archlinux:latest
 $ docker login
-$ docker build . -t ragnargrootkoerkamp/bapctools
+$ docker build --network=host . -t ragnargrootkoerkamp/bapctools
 $ docker push ragnargrootkoerkamp/bapctools
 $ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```

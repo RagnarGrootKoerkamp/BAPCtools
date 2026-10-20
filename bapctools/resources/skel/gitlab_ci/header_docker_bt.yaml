@@ -4,4 +4,4 @@ image:
 
 default:
   before_script:
-    - ln -s /usr/bin/bt bt
+    - ln -sf "$(command -v bt)" bt

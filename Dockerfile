@@ -1,4 +1,4 @@
-# NOTE: This installs the BAPCtools version from the GitHub master branch.
+# Install the latest public BAPCtools release from PyPI.
 FROM archlinux:latest
 MAINTAINER ragnar.grootkoerkamp@gmail.com
 
@@ -17,6 +17,7 @@ RUN pacman -Syu --noconfirm \
 	python-colorama \
 	python-matplotlib \
 	python-pip \
+	python-pipx \
 	python-pytest \
 	python-requests \
 	python-ruamel-yaml \
@@ -40,11 +41,11 @@ RUN pacman -Syu --noconfirm \
 	cue \
 	&& pacman -Scc --noconfirm
 
-RUN pip install checktestdata vermin --break-system-packages
-
-RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
-	ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt
+ENV PIPX_HOME=/opt/pipx
+ENV PIPX_BIN_DIR=/usr/local/bin
+RUN pipx install bapctools
 
 RUN mkdir /data
 WORKDIR /data
-ENTRYPOINT ["/bin/bt"]
+RUN ln -s /usr/local/bin/bt bt
+ENTRYPOINT ["bt"]
