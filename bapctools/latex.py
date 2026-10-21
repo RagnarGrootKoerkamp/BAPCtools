@@ -402,6 +402,10 @@ def build_latex_pdf(
             continue
         if not path.is_relative_to(dest_path.absolute().parent):
             continue
+        if path.is_relative_to(Path("latex").absolute()):
+            continue
+        if path.is_relative_to(Path("solve_stats").absolute()):
+            continue
         rel_path = path.relative_to(dest_path.absolute().parent)
         if path.suffix.lower() in (".svg", ".bmp"):
             bar.warn(f"unsupported filetype {path.suffix} for {rel_path.as_posix()}")
