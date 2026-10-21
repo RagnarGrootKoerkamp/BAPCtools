@@ -1,3 +1,6 @@
+---
+render_macros: false
+---
 # Implementation Notes
 
 This document explains some miscellaneous parts of the implementation of BAPCtools.
