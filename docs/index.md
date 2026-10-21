@@ -6,7 +6,7 @@ The aim of this tool is to run all necessary compilation, validation, and testin
 Ideally, one should never have to manually run any compilation or testing command themselves.
 
 We are always interested to know who's using this, so feel free to inform us (e.g. via an issue) if so 😄
-The main user base is sitting in Europe with regular users from the BAPC, GCPC and NWERC.
+The main user base is based in Europe with regular users from the BAPC, GCPC and NWERC.
 BAPCtools has also been used to prepare problems for the EUC and the ICPC WF.
 
 !!! warning
