@@ -1,6 +1,7 @@
 name: {%problem_path%}
 enable-email-notifications: true
 on:
+  workflow_dispatch:
   push:
     paths:
       - {%problem_path%}/**
@@ -16,6 +17,6 @@ jobs:
       image: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup
+{%setup_action%}
       - run: |
-          ./bt all --cp --error --no-bar --force-build --jobs 0 --problem {%problem_path%}
+          bt all --cp --error --no-bar --force-build --jobs 0 --problem {%problem_path%}

@@ -1,0 +1,8 @@
+name: Setup BAPCtools
+runs:
+  using: composite
+  steps:
+    - name: update BAPCtools
+      shell: bash
+      run: |
+        PIP_CACHE_DIR=/opt/hostedtoolcache/pip pipx upgrade bapctools

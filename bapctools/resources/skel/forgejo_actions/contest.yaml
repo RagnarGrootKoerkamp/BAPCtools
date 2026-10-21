@@ -1,6 +1,7 @@
 name: {%contest%} PDFs
 enable-email-notifications: true
 on:
+  workflow_dispatch:
   push:
     paths:
       - {%contest_path%}/*/statement/**
@@ -13,10 +14,10 @@ jobs:
       image: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup
+{%setup_action%}
       - run: |
-          ./bt pdf --cp --error --no-bar --contest {%contest_path%}
-          ./bt solutions --cp --error --no-bar --contest {%contest_path%}
+          bt pdf --cp --error --no-bar --contest {%contest_path%}
+          bt solutions --cp --error --no-bar --contest {%contest_path%}
 
       - uses: actions/upload-artifact@v3
         with:

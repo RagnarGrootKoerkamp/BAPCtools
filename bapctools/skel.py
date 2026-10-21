@@ -344,20 +344,20 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
     else:
         bar.fatal(".git and ../.git not found after changing to contest directory.")
 
-    src_name = "forgejo_actions_latest_bt" if config.args.latest_bt else "forgejo_actions_docker_bt"
-    src = config.RESOURCES_ROOT / "skel" / src_name
+    src = config.RESOURCES_ROOT / "skel" / "forgejo_actions"
 
+    setup_action = ""
     if config.args.latest_bt:
-        # Copy the 'setup' action:
-        setup_action_source = src / "setup.yaml"
         setup_action_target = forgejo / "actions" / "setup" / "action.yml"
         setup_action_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(setup_action_source, setup_action_target)
+        shutil.copy(src / "setup.yaml", setup_action_target)
+        setup_action = "      - uses: ./.forgejo/actions/setup\n"
 
     # Copy the contest-level workflow.
     contest_workflow_source = (src / "contest.yaml").read_text()
     contest_workflow = substitute(
-        contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
+        contest_workflow_source,
+        {"contest": contest, "contest_path": str(contest_path), "setup_action": setup_action},
     )
     contest_workflow_target = forgejo / "workflows" / contest / "_contest.yaml"
     contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
@@ -369,7 +369,8 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
         problem = problem_obj.name
         problem_path = contest_path / problem
         problem_workflow = substitute(
-            problem_workflow_source, {"problem": problem, "problem_path": str(problem_path)}
+            problem_workflow_source,
+            {"problem": problem, "problem_path": str(problem_path), "setup_action": setup_action},
         )
         problem_workflow_target = forgejo / "workflows" / contest / f"{problem}.yaml"
         problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
@@ -393,12 +394,13 @@ def create_github_actions(contest: str, problems: list[Problem]) -> None:
     else:
         bar.fatal(".git and ../.git not found after changing to contest directory.")
 
-    skel_dir = config.RESOURCES_ROOT / "skel" / "forgejo_actions_docker_bt"
+    skel_dir = config.RESOURCES_ROOT / "skel" / "forgejo_actions"
 
     # Copy the contest-level workflow.
     contest_workflow_source = (skel_dir / "contest.yaml").read_text()
     contest_workflow = substitute(
-        contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
+        contest_workflow_source,
+        {"contest": contest, "contest_path": str(contest_path), "setup_action": ""},
     )
     contest_workflow_name = f"{contest}.yaml" if nest else "contest.yaml"
     contest_workflow_target = github / "workflows" / contest_workflow_name
@@ -411,7 +413,8 @@ def create_github_actions(contest: str, problems: list[Problem]) -> None:
         problem = problem_obj.name
         problem_path = contest_path / problem
         problem_workflow = substitute(
-            problem_workflow_source, {"problem": problem, "problem_path": str(problem_path)}
+            problem_workflow_source,
+            {"problem": problem, "problem_path": str(problem_path), "setup_action": ""},
         )
         problem_workflow_name = f"{contest}_{problem}.yaml" if nest else f"{problem}.yaml"
         problem_workflow_target = github / "workflows" / problem_workflow_name
