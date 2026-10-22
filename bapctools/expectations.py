@@ -231,13 +231,13 @@ class Expectations:
                 bar.fatal("could not parse submissions.yaml.")
             for submission_glob, expectation in yaml_data.items():
                 if not isinstance(submission_glob, str):
-                    bar.error("keys in submissions.yaml must be strings. SKIPPED.")
+                    bar.error(f"invalid key: {submission_glob}. SKIPPED.")
                     continue
                 if not isinstance(expectation, dict):
-                    bar.error(f"invalid entry {expectation}. SKIPPED.")
+                    bar.error(f"incompatible value for key `{submission_glob}`. SKIPPED.")
                     continue
                 if submission_glob in self.expectations:
-                    bar.error(f"key {submission_glob} is reseved. SKIPPED.")
+                    bar.error(f"key `{submission_glob}` is reseved. SKIPPED.")
                     continue
                 self.expectations[submission_glob] = SubmissionExpectation(
                     submission_glob, expectation

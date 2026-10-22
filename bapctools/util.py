@@ -320,7 +320,7 @@ class YamlParser:
         func = bar.warn if warn else bar.log
         for key in self.remaining:
             if not yaml_isinstance(key, str):
-                func(f"invalid key: {key} in {self.parent_str}")
+                func(f"invalid key: `{key}` in {self.parent_str}. SKIPPED.")
             else:
                 closest = difflib.get_close_matches(key, self.known_keys, n=1)
                 hint = f". Did you mean: {closest[0]}?" if closest else ""
