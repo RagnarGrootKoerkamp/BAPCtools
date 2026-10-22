@@ -133,9 +133,8 @@
                     ]
                 },
                 "use_for_time_limit": {
-                    "description": "Opt this (set of) submission(s) out of (false) or into (lower/upper) determining the time\nlimit. lower is equivalent to permitted: [AC, WA, RTE]; upper is equivalent to required: [TLE].",
+                    "description": "Opt this (set of) submission(s)into (lower/upper) determining the time\nlimit.",
                     "enum": [
-                        false,
                         "lower",
                         "upper"
                     ]
