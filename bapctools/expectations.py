@@ -143,19 +143,15 @@ class TestCaseExpectation:
             bar.warn("Scoring is not implemented in BAPCtools.")
 
         self.message: Optional[str] = parser.extract_optional("message", str)
-        self.lower_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED not in self.permitted
-        self.upper_time_limit: bool = {Verdict.TIME_LIMIT_EXCEEDED} == self.required
-        self.allowed_for_time_limit: bool = True
-        use_for_time_limit = parser.pop("use_for_time_limit")
-        if use_for_time_limit not in [True, None]:
-            self.lower_time_limit = use_for_time_limit == "lower"
-            self.upper_time_limit = use_for_time_limit == "upper"
-            if use_for_time_limit not in [True, False, "lower", "upper"]:
-                bar.warn(
-                    f"`{parser.parent_path}.use_for_time_limit` must be bool, `lower`, or `upper`. SKIPPED."
-                )
-        if self.lower_time_limit and self.upper_time_limit:
-            bar.error(f"`{parser.parent_path}` is used for upper and lower time limit!")
+
+        use_for_time_limit = parser.extract_optional("use_for_time_limit", str)
+        if use_for_time_limit not in [None, "lower", "upper"]:
+            bar.warn(
+                f"`{parser.parent_path}.use_for_time_limit` must be `lower`, or `upper`. SKIPPED."
+            )
+        self.lower_time_limit: bool = use_for_time_limit == "lower"
+        self.upper_time_limit: bool = use_for_time_limit == "upper"
+        assert not self.lower_time_limit or not self.upper_time_limit
 
     def matches(self, test_case: TestCase) -> bool:
         if self.test_case_regex is None:
@@ -239,6 +235,9 @@ class Expectations:
                     continue
                 if not isinstance(expectation, dict):
                     bar.error(f"invalid entry {expectation}. SKIPPED.")
+                    continue
+                if submission_glob in self.expectations:
+                    bar.error(f"key {submission_glob} is reseved. SKIPPED.")
                     continue
                 self.expectations[submission_glob] = SubmissionExpectation(
                     submission_glob, expectation
