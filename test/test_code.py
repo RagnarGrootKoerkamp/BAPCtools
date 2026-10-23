@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bapctools import bar, config, util
+from bapctools import bar, config, expectations, util
 
 
 def test_config_args_order():
@@ -61,3 +61,54 @@ def test_inc_label():
     assert util.inc_label("ZZZZZ") == "AAAAAA"
     assert util.inc_label("YZZZZZ") == "ZAAAAA"
     assert util.inc_label("ZZZZZY") == "ZZZZZZ"
+
+
+def test_glob():
+    cases = [
+        # Parents
+        ("a", "a", True),  # exact match
+        ("A", "a", False),  # case sensitive
+        ("a", "A", False),  # case sensitive
+        ("a", "a/b", True),  # matches a parent
+        ("a", "a/b.ext", True),  # matches a parent
+        ("a/*", "a/b/c", True),  # matches a parent
+        ("a/*", "a/b/c.ext", True),  # matches a parent
+        ("a/*/d.ext", "a/b/c/d.ext", False),  # * does not match a/b
+        ("a/*/*/d.ext", "a/b/c/d.ext", True),  # */* matches a/b
+        ("a*/b", "a/b", True),  # * can match the empty string
+        ("a/*.ext", "a/b.ext", True),  # * can match part of a string
+        # Braces
+        ("{a,b}", "a", True),
+        ("{a,b}", "b", True),
+        ("{a,b}", "c", False),
+        ("{a,b}", "{a,b}", False),
+        ("{a,}b", "b", True),
+        ("{a,}b", "ab", True),
+        ("{a,b/c}", "b/c", True),
+        # Braces with *
+        ("{a,*}", "b", True),
+        ("{a,*}b", "c/b", False),
+        # Nested braces
+        ("{a,{b,c}}", "{a,b}", True),
+        ("{a,{b,c}}", "{a,c}", True),
+        ("{a,{b,c}}", "{a,{b,c}}", False),
+        ("{a,{b,c}}", "a", False),
+        # Literal matches
+        ("a,b", "a,b", True),
+        ("a,b", "a", False),
+        ("a.c", "a.c", True),
+        ("a.c", "abc", False),
+        ("a+", "a+", True),
+        ("a+", "aaa", False),
+        ("ab?", "ab?", True),
+        ("ab?", "a", False),
+        ("[a]", "[a]", True),
+        ("[a]", "a", False),
+        ("(a|b)", "a", False),
+        ("(a|b)", "(a|b)", True),
+        ("%$)(][-#$+*?", "%$)(][-#$+*?", True),
+    ]
+    for glob, path, expected in cases:
+        regex = expectations._compile_glob(glob)
+        got = regex.match(path) is not None
+        assert expected == got, f"{glob} {path} {expected}"
