@@ -67,16 +67,19 @@ def test_glob():
     cases = [
         # Parents
         ("a", "a", True),  # exact match
+        ("a", "ab", False),  # do not match partially
         ("A", "a", False),  # case sensitive
         ("a", "A", False),  # case sensitive
         ("a", "a/b", True),  # matches a parent
         ("a", "a/b.ext", True),  # matches a parent
+        # Star
         ("a/*", "a/b/c", True),  # matches a parent
         ("a/*", "a/b/c.ext", True),  # matches a parent
         ("a/*/d.ext", "a/b/c/d.ext", False),  # * does not match a/b
         ("a/*/*/d.ext", "a/b/c/d.ext", True),  # */* matches a/b
         ("a*/b", "a/b", True),  # * can match the empty string
         ("a/*.ext", "a/b.ext", True),  # * can match part of a string
+        ("a*b", "abc", False),  # do not match partially
         # Braces
         ("{a,b}", "a", True),
         ("{a,b}", "b", True),
