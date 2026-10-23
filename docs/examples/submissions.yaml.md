@@ -25,6 +25,7 @@ ac_or_wa:
 # All cases must be accepted.
 accepted:
   permitted: [AC]
+  use_for_time_limit: lower
 
 # At least one case is not accepted.
 rejected:
@@ -39,6 +40,7 @@ wrong_answer:
 time_limit_exceeded:
   permitted: [AC, TLE]
   required: [TLE]
+  use_for_time_limit: upper
 
 # All cases AC or RTE, at least one RTE.
 run_time_error:
