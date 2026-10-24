@@ -65,52 +65,69 @@ KNOWN_EXPECTATION_VERDICTS: Final[Mapping[str, Verdict]] = {
 SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
 
 
-def _compile_glob(raw: str) -> re.Pattern[str]:
-    suspicious: Optional[str] = None
+class Glob:
+    @staticmethod
+    def _compile(raw: Optional[str]) -> Optional[re.Pattern[str]]:
+        if raw is None:
+            return None
 
-    def check_suspicious(token: str) -> None:
-        nonlocal suspicious
-        match = SUSPICIOUS_GLOB_REGEX.search(token)
-        if suspicious is None and match is not None:
-            suspicious = match.group()
+        suspicious: Optional[str] = None
 
-    glob = raw
-    # dir/ and dir should match the same
-    glob = glob.removesuffix("/")
-    parts = re.split("{([^{}]*)}", glob)
-    for i, part in enumerate(parts):
-        if i % 2 == 0:
-            check_suspicious(part)
-            part = re.escape(part)
-        else:
-            sub_parts = list(part.split(","))
-            for j, sub_part in enumerate(sub_parts):
-                sub_part = sub_part.strip()
-                check_suspicious(sub_part)
-                sub_part = re.escape(sub_part)
-                sub_parts[j] = sub_part
-            part = f"({'|'.join(sub_parts)})"
-        parts[i] = part
-    glob = "".join(parts)
-    # stars match anything exept /
-    glob = glob.replace(re.escape("*"), "[^/]*")
-    # match from start and only match complete directories
-    glob = f"^{glob}(/|$)"
-    if suspicious is not None:
-        bar.warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
-    return re.compile(glob)
+        def check_suspicious(token: str) -> None:
+            nonlocal suspicious
+            match = SUSPICIOUS_GLOB_REGEX.search(token)
+            if suspicious is None and match is not None:
+                suspicious = match.group()
+
+        glob = raw
+        # dir/ and dir should match the same
+        glob = glob.removesuffix("/")
+        parts = re.split("{([^{}]*)}", glob)
+        for i, part in enumerate(parts):
+            if i % 2 == 0:
+                check_suspicious(part)
+                part = re.escape(part)
+            else:
+                sub_parts = list(part.split(","))
+                for j, sub_part in enumerate(sub_parts):
+                    sub_part = sub_part.strip()
+                    check_suspicious(sub_part)
+                    sub_part = re.escape(sub_part)
+                    sub_parts[j] = sub_part
+                part = f"({'|'.join(sub_parts)})"
+            parts[i] = part
+        glob = "".join(parts)
+        # stars match anything exept /
+        glob = glob.replace(re.escape("*"), "[^/]*")
+        # match from start and only match complete directories
+        glob = f"^{glob}(/|$)"
+        if suspicious is not None:
+            bar.warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
+        return re.compile(glob)
+
+    def __init__(self, glob: Optional[str]) -> None:
+        self.glob = glob
+        self.regex = Glob._compile(glob)
+
+    def __str__(self) -> str:
+        return self.glob or ""
+
+    def is_root(self) -> bool:
+        return self.regex is None
+
+    def matches(self, path: str) -> bool:
+        if self.regex is None:
+            return True
+        return self.regex.match(path) is not None
 
 
 # Represents a submissions.yaml entry of a test case glob
 class TestCaseExpectation:
-    def __init__(self, parser: Optional[YamlParser] = None, test_case_glob: Optional[str] = None):
+    def __init__(self, parser: Optional[YamlParser] = None, glob: Optional[str] = None):
         if parser is None:
             parser = YamlParser({})
 
-        self.test_case_glob: Optional[str] = test_case_glob
-        self.test_case_regex: Optional[re.Pattern[str]] = None
-        if test_case_glob is not None:
-            self.test_case_regex = _compile_glob(test_case_glob)
+        self.glob = Glob(glob)
 
         def extract_verdicts(key: str, default: Optional[set[Verdict]] = None) -> set[Verdict]:
             if default is None:
@@ -119,9 +136,7 @@ class TestCaseExpectation:
             if not verdicts:
                 return default
             if any(v not in KNOWN_EXPECTATION_VERDICTS for v in verdicts):
-                bar.warn(
-                    f"some values for key `{parser.parent_path}.{key}` in submissions.yaml are unknown. SKIPPED."
-                )
+                bar.warn(f"some values for key `{parser.parent_path}.{key}` are unknown. SKIPPED.")
                 return default
             return {KNOWN_EXPECTATION_VERDICTS[v] for v in verdicts}
 
@@ -154,21 +169,16 @@ class TestCaseExpectation:
         assert not self.lower_time_limit or not self.upper_time_limit
 
     def matches(self, test_case: TestCase) -> bool:
-        if self.test_case_regex is None:
-            return True
-        return self.test_case_regex.match(test_case.name) is not None
+        return self.glob.matches(test_case.name)
 
 
 # Represents a submissions.yaml entry of a submission glob
 # This stores all test case globs
 class SubmissionExpectation:
-    def __init__(
-        self, submission_glob: str, yaml_data: Optional[dict[object, object]] = None
-    ) -> None:
-        self.submission_glob: str = submission_glob
-        self.submission_regex: re.Pattern[str] = _compile_glob(submission_glob)
+    def __init__(self, glob: str, yaml_data: Optional[dict[object, object]] = None) -> None:
+        self.glob = Glob(glob)
 
-        parser = YamlParser(yaml_data or {}, submission_glob)
+        parser = YamlParser(yaml_data or {}, glob)
 
         self.language: Optional[str] = parser.extract_optional("language", str)
         self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
@@ -193,7 +203,7 @@ class SubmissionExpectation:
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
-        return self.submission_regex.match(submission.name) is not None
+        return self.glob.matches(submission.name)
 
     def all_matches(self, test_case: Optional[TestCase] = None) -> list[TestCaseExpectation]:
         if test_case is None:
@@ -207,7 +217,7 @@ class SubmissionExpectation:
         return permitted
 
     def root_expectations(self) -> list[TestCaseExpectation]:
-        return [e for e in self.expectations if e.test_case_glob is None]
+        return [e for e in self.expectations if e.glob.is_root()]
 
     def is_accepted(self) -> bool:
         """
@@ -229,19 +239,17 @@ class Expectations:
             yaml_data = read_yaml(file, empty={})
             if not isinstance(yaml_data, dict):
                 bar.fatal("could not parse submissions.yaml.")
-            for submission_glob, expectation in yaml_data.items():
-                if not isinstance(submission_glob, str):
-                    bar.error(f"invalid key: {submission_glob}. SKIPPED.")
+            for glob, expectation in yaml_data.items():
+                if not isinstance(glob, str):
+                    bar.error(f"invalid key: {glob}. SKIPPED.")
                     continue
                 if not isinstance(expectation, dict):
-                    bar.error(f"incompatible value for key `{submission_glob}`. SKIPPED.")
+                    bar.error(f"incompatible value for key `{glob}`. SKIPPED.")
                     continue
-                if submission_glob in self.expectations:
-                    bar.error(f"key `{submission_glob}` is reseved. SKIPPED.")
+                if glob in self.expectations:
+                    bar.error(f"key `{glob}` is reseved. SKIPPED.")
                     continue
-                self.expectations[submission_glob] = SubmissionExpectation(
-                    submission_glob, expectation
-                )
+                self.expectations[glob] = SubmissionExpectation(glob, expectation)
 
     @once_per_instance
     def all_matches(self, submission: "Submission") -> SubmissionExpectation:

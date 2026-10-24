@@ -112,6 +112,5 @@ def test_glob():
         ("%$)(][-#$+*?", "%$)(][-#$+*?", True),
     ]
     for glob, path, expected in cases:
-        regex = expectations._compile_glob(glob)
-        got = regex.match(path) is not None
+        got = expectations.Glob(glob).matches(path)
         assert expected == got, f"{glob} {path} {expected}"

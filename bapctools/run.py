@@ -591,8 +591,8 @@ class Submission(Program):
                 requiredmsg = ",".join([v.short for v in expectation.required])
                 gotmsg = ",".join([v.short for v in got])
                 msg = [f"required: [{requiredmsg}]"]
-                if expectation.test_case_glob is not None:
-                    msg += ["for", expectation.test_case_glob]
+                if not expectation.glob.is_root():
+                    msg.append(f"for {expectation.glob}")
                 bar.warn(f"{' '.join(msg)}, got: [{gotmsg}]")
                 passed_required = False
             if message is not None:
