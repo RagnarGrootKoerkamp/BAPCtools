@@ -36,11 +36,17 @@ def create_aliases() -> None:
     tmpdir = get_cwd_tmpdir() / ".aliases"
     remove_path(tmpdir)
     tmpdir.mkdir(parents=True, exist_ok=True)
-    os.environ["PATH"] = str(tmpdir) + os.pathsep + os.environ["PATH"]
+    os.environ["PATH"] += f"{os.pathsep}{tmpdir}"
 
     langs = languages.languages()
 
     def create_alias(code: str, alias: str, *, use_compile: bool) -> None:
+        known_alias = shutil.which(alias)
+        if known_alias is not None:
+            if config.args.verbose >= 2:
+                bar.verbose(f"Found alias {alias}: {known_alias}")
+            return
+
         language = None
         fallback = False
         exe = None
