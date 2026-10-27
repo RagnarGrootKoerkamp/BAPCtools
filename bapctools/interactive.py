@@ -44,8 +44,6 @@ class Connection:
         log: Optional[IO[str]],
         read: Optional[IO[bytes]],
         write: Optional[IO[bytes]],
-        *,
-        propagate_eof: bool = False,
     ) -> None:
         # we need unbuffered IO
         assert isinstance(read, io.RawIOBase)  # type: ignore[unreachable]
@@ -58,7 +56,9 @@ class Connection:
         self.log_buffer: list[str] = []
         self.read: io.RawIOBase = read
         self.write: io.RawIOBase = write
-        self.propagate_eof: bool = propagate_eof
+        # EOF should only be propagated after a programm exits
+        # https://github.com/Kattis/problem-package-format/pull/615
+        self.propagate_eof: bool = False
 
         self.transmitted: int = 0
         self.buffered: int = 0
@@ -182,17 +182,11 @@ class Relay(threading.Thread):
         submission: subprocess.Popen[bytes],
     ) -> None:
         super().__init__(daemon=True)
-        # Domjudge propagates EOF, while Kattis does not
-        # https://github.com/DOMjudge/domjudge/pull/1709
-        # https://github.com/Kattis/problemtools/blob/b89cb38a65c500928303da19f24ba0f9975662e4/support/interactive/interactive.cc#L257
-        # We assume that the output validator knows what it does and directly propagate
-        # a closed stream. For the submission on the other hand we only propagte a closed
-        # stream after the submission died
         vs, sv = "<", ">"
         if log is not None and log.isatty():
             vs = f"{Fore.YELLOW}{vs}{Style.RESET_ALL}"
             sv = f"{Fore.CYAN}{sv}{Style.RESET_ALL}"
-        self.vs = Connection(vs, log, validator.stdout, submission.stdin, propagate_eof=True)
+        self.vs = Connection(vs, log, validator.stdout, submission.stdin)
         self.sv = Connection(sv, log, submission.stdout, validator.stdin)
         self._wait, self._notify = os.pipe()
         os.set_blocking(self._wait, False)

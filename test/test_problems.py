@@ -18,7 +18,6 @@ PROBLEMS = [
     "divsort",
     "interactivemultipass",
     "multipass",
-    "pseudointeraction",
     "constants",
     "testexpectations",
     "alternativeencryption",
