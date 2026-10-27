@@ -5,7 +5,7 @@ import shlex
 import shutil
 import string
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from pathlib import Path
 from typing import Final, Optional
 
@@ -15,8 +15,8 @@ from bapctools.util import home_config_dir, once, read_yaml, YamlParser
 
 
 class TemplateCommand:
-    ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
-    VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
+    ENTRY_POINTS: Final[Set[str]] = {"binary", "mainfile", "mainclass", "Mainclass"}
+    VARIABLES: Final[Set[str]] = {"path", "files", *ENTRY_POINTS, "memlim"}
     # Do not warn for the same missing executeable multiple times.
     warn_cache: set[str] = set()
 
@@ -24,9 +24,9 @@ class TemplateCommand:
     def find_variables(command: str) -> set[str]:
         return {f for _, f, _, _ in string.Formatter().parse(command) if f is not None}
 
-    def __init__(self, name: str, command: Optional[str]) -> None:
+    def __init__(self, key: str, command: Optional[str]) -> None:
         self.ok = True
-        self.name = name
+        self.key = key
         self.command = command
 
         self.exe = None
@@ -39,14 +39,14 @@ class TemplateCommand:
                     self._exe = exe
                     self.exe = shutil.which(exe)
             except (IndexError, ValueError):
-                bar.error(f"invalid value for key '{self.name}'")
+                bar.error(f"invalid value for `{self.key}`")
                 self.ok = False
 
     def variables(self) -> set[str]:
         return TemplateCommand.find_variables(self.command or "")
 
     def substitute(self, vars: Mapping[str, object]) -> list[str]:
-        assert set(vars) <= set(TemplateCommand.VARIABLES)
+        assert set(vars) <= TemplateCommand.VARIABLES
         ret = shlex.split((self.command or "").format(**vars))
         if self.exe is not None:
             ret[0] = self.exe
@@ -61,7 +61,7 @@ class TemplateCommand:
         ):
             TemplateCommand.warn_cache.add(self._exe)
             bar.verbose(
-                f"{self.name.title()} program {self._exe} not found. Falling back to lower priority languages."
+                f"{self.key.title()} program {self._exe} not found. Falling back to lower priority languages."
             )
         return self.exe is not None or self._exe is None
 
@@ -101,19 +101,19 @@ class Language:
                 bar.warn(f"invalid shebang for '{code}'. SKIPPED.")
 
         compile = parser.extract_optional("compile", str)
-        self.compile = TemplateCommand("compile", compile)
+        self.compile = TemplateCommand(f"{code}.compile", compile)
         self.ok &= self.compile.ok
 
         run = parser.extract_and_error("run", str)
-        self.run = TemplateCommand("run", run)
+        self.run = TemplateCommand(f"{code}.run", run)
         self.ok &= self.run.ok
 
         # check the language specification
         variables = self.run.variables() | self.compile.variables()
-        for unknown in variables - set(TemplateCommand.VARIABLES):
+        for unknown in variables - TemplateCommand.VARIABLES:
             bar.error(f"Unknown meta variable {unknown} for '{code}'.")
             self.ok = False
-        entry_points = variables & set(TemplateCommand.ENTRY_POINTS)
+        entry_points = variables & TemplateCommand.ENTRY_POINTS
         if len(entry_points) != 1:
             bar.error(f"Expected exactly one entry point for '{code}'.")
             self.ok = False
