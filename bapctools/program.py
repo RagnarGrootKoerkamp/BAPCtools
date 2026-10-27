@@ -1,6 +1,4 @@
 import os
-import shlex
-import shutil
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
@@ -36,17 +34,11 @@ def create_aliases() -> None:
     tmpdir = get_cwd_tmpdir() / ".aliases"
     remove_path(tmpdir)
     tmpdir.mkdir(parents=True, exist_ok=True)
-    os.environ["PATH"] += f"{os.pathsep}{tmpdir}"
+    os.environ["PATH"] = f"{tmpdir}{os.pathsep}{os.environ['PATH']}"
 
     langs = languages.languages()
 
     def create_alias(code: str, alias: str, *, use_compile: bool) -> None:
-        known_alias = shutil.which(alias)
-        if known_alias is not None:
-            if config.args.verbose >= 2:
-                bar.verbose(f"Found alias {alias}: {known_alias}")
-            return
-
         language = None
         fallback = False
         exe = None
@@ -56,7 +48,7 @@ def create_aliases() -> None:
             if not lang.is_installed():
                 fallback = True
                 continue
-            exe = lang.compile_exe if use_compile else lang.run_exe
+            exe = lang.compile.exe if use_compile else lang.run.exe
             if exe is None:
                 continue
             language = lang
@@ -65,8 +57,6 @@ def create_aliases() -> None:
         if language is None:
             bar.warn(f"Did not find required language {code}")
             return
-        assert exe is not None
-        exe = shutil.which(exe)
         assert exe is not None
 
         if fallback:
@@ -82,10 +72,10 @@ def create_aliases() -> None:
     create_alias("cpp", "c++", use_compile=True)
 
 
-SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
-    "c": {"compile": "-fsanitize=undefined,address"},
-    "cpp": {"compile": "-fsanitize=undefined,address"},
-    "cppgmp": {"compile": "-fsanitize=undefined,address"},
+SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, Sequence[str]]]] = {
+    "c": {"compile": ["-fsanitize=undefined,address"]},
+    "cpp": {"compile": ["-fsanitize=undefined,address"]},
+    "cppgmp": {"compile": ["-fsanitize=undefined,address"]},
 }
 
 
@@ -425,8 +415,8 @@ class Program:
         # A file containing the compile command and hash.
         meta_path = self.tmpdir / "meta_.yaml"
 
-        compile_command = self.language.compile or ""
-        run_command = self.language.run
+        self.compile_command = self.language.compile.substitute(self.env)
+        self.run_command = self.language.run.substitute(self.env)
 
         if (
             self.subdir == "submissions"
@@ -435,12 +425,9 @@ class Program:
         ):
             sanitizer = SANITIZER_FLAGS[self.language.code]
             if "compile" in sanitizer:
-                compile_command += " " + sanitizer["compile"]
+                self.compile_command += sanitizer["compile"]
             if "run" in sanitizer:
-                run_command += " " + sanitizer["run"]
-
-        self.compile_command = shlex.split(compile_command.format(**self.env))
-        self.run_command = shlex.split(run_command.format(**self.env))
+                self.run_command += sanitizer["run"]
 
         # Compare the hash to the last build.
         up_to_date = False

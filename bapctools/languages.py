@@ -5,7 +5,7 @@ import shlex
 import shutil
 import string
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, Optional
 
@@ -14,12 +14,70 @@ from bapctools.bar import PrintBar
 from bapctools.util import home_config_dir, once, read_yaml, YamlParser
 
 
-class Language:
-    CODE_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
+class TemplateCommand:
     ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
     VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
     # Do not warn for the same missing executeable multiple times.
     warn_cache: set[str] = set()
+
+    @staticmethod
+    def find_variables(command: str) -> set[str]:
+        return {f for _, f, _, _ in string.Formatter().parse(command) if f is not None}
+
+    def __init__(self, name: str, command: Optional[str]) -> None:
+        self.name = name
+        self.ok = True
+
+        try:
+            parts = shlex.split(command or "")
+        except ValueError:
+            bar.error(f"invalid value for key '{self.name}'")
+            self.ok = False
+            parts = []
+
+        if not parts:
+            self.exe = None
+            self._installed = False
+        elif TemplateCommand.find_variables(parts[0]):
+            self.exe = None
+            self._installed = True
+        else:
+            self.exe = shutil.which(parts[0])
+            self._installed = self.exe is not None
+
+        if self.exe is None:
+            self.resolved = []
+            self.template = parts
+        else:
+            self.resolved = [self.exe]
+            self.template = parts[1:]
+
+    def variables(self) -> set[str]:
+        variables = set()
+        for part in self.template:
+            variables |= TemplateCommand.find_variables(part)
+        return variables
+
+    def substitute(self, vars: Mapping[str, object]) -> list[str]:
+        assert set(vars) <= set(TemplateCommand.VARIABLES)
+        return self.resolved + [part.format(**vars) for part in self.template]
+
+    def is_installed(self) -> bool:
+        if (
+            not self._installed
+            and self.exe is not None
+            and self.exe not in TemplateCommand.warn_cache
+            and config.args.verbose
+        ):
+            TemplateCommand.warn_cache.add(self.exe)
+            bar.verbose(
+                f"Compile program {self.name} not found. Falling back to lower priority languages."
+            )
+        return self._installed
+
+
+class Language:
+    CODE_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
 
     def __init__(self, code: str, conf: dict[object, object], *, internal: bool = False) -> None:
         self.ok = True
@@ -52,46 +110,19 @@ class Language:
             except re.error:
                 bar.warn(f"invalid shebang for '{code}'. SKIPPED.")
 
-        self.compile = parser.extract_optional("compile", str)
-        self.run = parser.extract_and_error("run", str)
+        compile = parser.extract_optional("compile", str)
+        self.compile = TemplateCommand("compile", compile)
+        self.ok &= self.compile.ok
 
-        def get_variables(command: str) -> set[str]:
-            fields = []
-            for _, field, format_spec, _ in string.Formatter().parse(command):
-                if field is None:
-                    continue
-                # cannot distinguish "{path}" from "{path:}" but better than nothing...
-                if format_spec:
-                    bar.warn(
-                        f"found meta variable {{{field}:{format_spec}}} for '{code}', did you mean {{{field}}}?"
-                    )
-                fields.append(field)
-            return set(fields)
+        run = parser.extract_and_error("run", str)
+        self.run = TemplateCommand("run", run)
+        self.ok &= self.run.ok
 
         # check the language specification
-        variables = get_variables(self.run)
-        if self.compile is not None:
-            variables |= get_variables(self.compile)
-        for unknown in variables - set(Language.VARIABLES):
+        variables = self.run.variables() | self.compile.variables()
+        for unknown in variables - set(TemplateCommand.VARIABLES):
             bar.error(f"Unknown meta variable {unknown} for '{code}'.")
             self.ok = False
-        entry_points = variables & set(Language.ENTRY_POINTS)
-        if len(entry_points) != 1:
-            bar.error(f"Expected exactly one entry point for '{code}'.")
-            self.ok = False
-
-        def get_exe(key: str, command: str) -> Optional[str]:
-            try:
-                exe = shlex.split(command)[0]
-                if exe and exe[0] != "{":
-                    return exe
-            except (IndexError, ValueError):
-                bar.error(f"invalid value for key '{key}' for '{code}'")
-                self.ok = False
-            return None
-
-        self.compile_exe = get_exe("compile", self.compile) if self.compile else None
-        self.run_exe = get_exe("run", self.run)
 
         parser.check_unknown_keys()
         self.ok &= parser.errors == 0
@@ -123,23 +154,8 @@ class Language:
         return (score, source_files)
 
     def is_installed(self) -> bool:
-        # Make sure we can compile programs for this language.
-        if self.compile_exe is not None and shutil.which(self.compile_exe) is None:
-            if self.compile_exe not in Language.warn_cache and config.args.verbose:
-                Language.warn_cache.add(self.compile_exe)
-                bar.verbose(
-                    f"Compile program {self.compile_exe} not found for language {self.name}. Falling back to lower priority languages."
-                )
-            return False
-        # Make sure we can run programs for this language.
-        if self.run_exe is not None and shutil.which(self.run_exe) is None:
-            if self.run_exe not in Language.warn_cache and config.args.verbose:
-                Language.warn_cache.add(self.run_exe)
-                bar.verbose(
-                    f"Run program {self.run_exe} not found for language {self.name}. Falling back to lower priority languages."
-                )
-            return False
-        return True
+        # Make sure we can compile/run programs for this language.
+        return self.compile.is_installed() and self.run.is_installed()
 
     def warn_fallback(self) -> None:
         if self.warned_fallback:
