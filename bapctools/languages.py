@@ -113,6 +113,10 @@ class Language:
         for unknown in variables - set(TemplateCommand.VARIABLES):
             bar.error(f"Unknown meta variable {unknown} for '{code}'.")
             self.ok = False
+        entry_points = variables & set(TemplateCommand.ENTRY_POINTS)
+        if len(entry_points) != 1:
+            bar.error(f"Expected exactly one entry point for '{code}'.")
+            self.ok = False
 
         parser.check_unknown_keys()
         self.ok &= parser.errors == 0
