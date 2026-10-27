@@ -260,7 +260,6 @@ def _ryaml() -> YAML:
     ryaml.indent(mapping=2, sequence=4, offset=2)
     ryaml.width = sys.maxsize
     ryaml.preserve_quotes = True
-    ryaml.load("2025-02-29")
     return ryaml
 
 
