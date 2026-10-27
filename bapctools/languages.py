@@ -25,55 +25,45 @@ class TemplateCommand:
         return {f for _, f, _, _ in string.Formatter().parse(command) if f is not None}
 
     def __init__(self, name: str, command: Optional[str]) -> None:
-        self.name = name
         self.ok = True
+        self.name = name
+        self.command = command
 
-        try:
-            parts = shlex.split(command or "")
-        except ValueError:
-            bar.error(f"invalid value for key '{self.name}'")
-            self.ok = False
-            parts = []
+        self.exe = None
+        self._exe = None
 
-        if not parts:
-            self.exe = None
-            self._installed = False
-        elif TemplateCommand.find_variables(parts[0]):
-            self.exe = None
-            self._installed = True
-        else:
-            self.exe = shutil.which(parts[0])
-            self._installed = self.exe is not None
-
-        if self.exe is None:
-            self.resolved = []
-            self.template = parts
-        else:
-            self.resolved = [self.exe]
-            self.template = parts[1:]
+        if command is not None:
+            try:
+                exe = shlex.split(command)[0]
+                if not TemplateCommand.find_variables(exe):
+                    self._exe = exe
+                    self.exe = shutil.which(exe)
+            except (IndexError, ValueError):
+                bar.error(f"invalid value for key '{self.name}'")
+                self.ok = False
 
     def variables(self) -> set[str]:
-        variables = set()
-        for part in self.template:
-            variables |= TemplateCommand.find_variables(part)
-        return variables
+        return TemplateCommand.find_variables(self.command or "")
 
     def substitute(self, vars: Mapping[str, object]) -> list[str]:
         assert set(vars) <= set(TemplateCommand.VARIABLES)
-        return self.resolved + [part.format(**vars) for part in self.template]
+        ret = shlex.split((self.command or "").format(**vars))
+        if self.exe is not None:
+            ret[0] = self.exe
+        return ret
 
     def is_installed(self) -> bool:
         if (
-            not self._installed
-            and self.exe is not None
-            and self.exe not in TemplateCommand.warn_cache
+            self.exe is None
+            and self._exe is not None
+            and self._exe not in TemplateCommand.warn_cache
             and config.args.verbose
         ):
-            TemplateCommand.warn_cache.add(self.exe)
+            TemplateCommand.warn_cache.add(self._exe)
             bar.verbose(
-                f"Compile program {self.name} not found. Falling back to lower priority languages."
+                f"{self.name.title()} program {self._exe} not found. Falling back to lower priority languages."
             )
-        return self._installed
+        return self.exe is not None or self._exe is None
 
 
 class Language:
