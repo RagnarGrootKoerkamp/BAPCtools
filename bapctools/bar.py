@@ -298,14 +298,20 @@ class ProgressBar(BaseBar):
         self.i: int = 0
         self.needs_leading_newline: bool = needs_leading_newline
         self.logged: bool = False
+        self.finalized: bool = False
         self.in_progress: set[ItemType] = set()
         # thread local data used between bar.start() and bar.done()
         self.local = ProgressBarLocal()
 
-    def bar_width(self) -> int:
-        assert self.prefix is not None
-        assert self.item_width is not None
-        return COLUMNS - len(self.prefix) - 2 - self.item_width
+    def __enter__(self) -> None:
+        super().__enter__()
+        if BaseBar.lock_depth == 1:
+            self.clearline()
+
+    def __exit__(self, *args: Any) -> None:
+        if BaseBar.lock_depth == 1:
+            self._resume()
+        super().__exit__(*args)
 
     def clearline(self) -> None:
         assert self._is_locked()
@@ -318,27 +324,20 @@ class ProgressBar(BaseBar):
         return action(self.prefix, item, self.item_width, COLUMNS)
 
     def get_bar(self) -> str:
-        bar_width = self.bar_width()
+        assert self.prefix is not None
+        assert self.item_width is not None
+        bar_width = COLUMNS - len(self.prefix) - 2 - self.item_width
         if self.count is None or bar_width < 4:
             return ""
+        bar_width -= len("[]")
         # self.i is the number of started items
-        done = (self.i - 1) * (bar_width - 2) // self.count
-        text = f" {self.i}/{self.count}"
-        fill = "#" * done + "-" * (bar_width - 2 - done)
-        if len(text) <= len(fill):
-            fill = fill[: -len(text)] + text
-        return f"[{fill}]"
-
-    def draw_bar(self) -> None:
-        assert self._is_locked()
-        if config.args.no_bar:
-            return
-        bar = self.get_bar()
-        prefix = self.get_prefix()
-        if bar == "":
-            self.eprint(prefix, end="\r", flush=True)
-        else:
-            self.eprint(prefix, bar, sep="", end="\r", flush=True)
+        done = self.i - len(self.in_progress)
+        fill = (done * bar_width + self.count // 2) // self.count
+        bar = "#" * fill + "-" * (bar_width - fill)
+        text = f" {done}/{self.count}"
+        if len(text) <= len(bar):
+            bar = bar[: -len(text)] + text
+        return f"[{bar}]"
 
     # Remove the current item from in_progress.
     def _release_item(self) -> None:
@@ -348,21 +347,26 @@ class ProgressBar(BaseBar):
             self.item = None
         self.local.item = None
 
-    # Resume the ongoing progress bar after a log/done.
+    # Resume the ongoing progress bar after a print.
     def _resume(self) -> None:
         assert self._is_locked()
-        if config.args.no_bar:
+        if config.args.no_bar or self.finalized:
             return
         if self.item not in self.in_progress:
             self.item = next(iter(self.in_progress), None)
-        self.draw_bar()
+        # draw bar
+        bar = self.get_bar()
+        prefix = self.get_prefix()
+        if bar == "":
+            self.eprint(prefix, end="\r", flush=True)
+        else:
+            self.eprint(prefix, bar, sep="", end="\r", flush=True)
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     @override
     def _log(self, message: str, data: Optional[str] = None, color: str = Fore.GREEN) -> None:
         with self:
-            self.clearline()
             self.logged = True
             self.local.log()
 
@@ -379,13 +383,11 @@ class ProgressBar(BaseBar):
                 sep="",
                 flush=True,
             )
-            self._resume()
 
     # Skip an item.
     def skip(self) -> None:
         with self:
             self.i += 1
-            self.draw_bar()
 
     # For parallel contexts, start() will return a copy to preserve the item name.
     # The parent still holds some global state:
@@ -404,7 +406,6 @@ class ProgressBar(BaseBar):
             self.local.item = item
             self.local.logged = False
             self.in_progress.add(item)
-            self.draw_bar()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(
@@ -420,7 +421,6 @@ class ProgressBar(BaseBar):
         if not success:
             assert message
         with self:
-            self.clearline()
             if not print_item:
                 self._release_item()
 
@@ -436,7 +436,6 @@ class ProgressBar(BaseBar):
 
             if print_item:
                 self._release_item()
-            self._resume()
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
@@ -448,7 +447,7 @@ class ProgressBar(BaseBar):
         suppress_newline: bool = False,
     ) -> None:
         with self:
-            self.clearline()
+            self.finalized = True
             assert self.count is None or self.i == self.count, (
                 f"Bar has done only {self.i} of {self.count} items"
             )
