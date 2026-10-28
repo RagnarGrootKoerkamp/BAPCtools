@@ -157,7 +157,7 @@ class TestCaseExpectation:
                 )
             bar.warn("Scoring is not implemented in BAPCtools.")
 
-        self.message: Optional[str] = parser.extract_optional("message", str)
+        self.judge_message: Optional[str] = parser.extract_optional("judge_message", str)
 
         use_for_time_limit = parser.extract_optional("use_for_time_limit", str)
         if use_for_time_limit not in [None, "lower", "upper"]:

@@ -64,9 +64,9 @@ match_wa.py:
 "*/nested_wa.py":
   required: [WA]
 
-# check message
+# check judge_message
 wa/hello.py:
-  message: hello
+  judge_message: hello
 
 # check time limit
 tle:

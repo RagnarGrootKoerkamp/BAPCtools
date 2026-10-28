@@ -57,7 +57,7 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "message": {
+                "judge_message": {
                     "type": "string",
                     "description": "Must appear as a substring in at least one judgemessage.txt."
                 },

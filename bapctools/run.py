@@ -563,7 +563,7 @@ class Submission(Program):
         passed_required = True
         for expectation in self.expectations.all_matches():
             passed_cur_required = False
-            message = expectation.message
+            expected_message = expectation.judge_message
             got = set()
             for run in runs:
                 test_case = run.test_case
@@ -577,16 +577,16 @@ class Submission(Program):
                     # the spec explicitly says judgemessage, not cerr/cout
                     judgemessage = run.feedbackdir / "judgemessage.txt"
                     if (
-                        message is not None
+                        expected_message is not None
                         and judgemessage.is_file()
-                        and message in judgemessage.read_text(errors="replace")
+                        and expected_message in judgemessage.read_text(errors="replace")
                     ):
-                        message = None
+                        expected_message = None
                 else:
                     # if we do not have verdict we skipped that case
                     # that case could satisfy our constraints => do not warn
                     passed_cur_required = True
-                    message = None
+                    expected_message = None
             if not passed_cur_required:
                 requiredmsg = ",".join([v.short for v in expectation.required])
                 gotmsg = ",".join([v.short for v in got])
@@ -595,8 +595,8 @@ class Submission(Program):
                     msg.append(f"for {expectation.glob}")
                 bar.warn(f"{' '.join(msg)}, got: [{gotmsg}]")
                 passed_required = False
-            if message is not None:
-                bar.warn(f"missing '{crop_line(message, 15)}' in judgemessage.txt")
+            if expected_message is not None:
+                bar.warn(f"missing '{crop_line(expected_message, 15)}' in judgemessage.txt")
 
         verdict = verdicts[Path()]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
