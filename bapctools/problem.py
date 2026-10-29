@@ -483,7 +483,7 @@ class Problem:
         if not Problem.SHORTNAME_REGEX.fullmatch(self.name):
             bar.warn(f"name does not match {Problem.SHORTNAME_REGEX.pattern}")
 
-        # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
+        # Read problem.yaml into self.settings Namespace object.
         self._read_settings()
 
         # Some caches.
