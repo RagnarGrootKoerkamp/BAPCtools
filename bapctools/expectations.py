@@ -78,22 +78,22 @@ class Glob:
         suspicious = []
         parsed = []
 
-        def recurse(depth: int = 0) -> None:
+        def parse_recursive(depth: int = 0) -> None:
             nonlocal suspicious_braces
 
             choice = False
             for token in token_stream:
-                part = token.group()
-                match part:
+                text = token.group()
+                match text:
                     case "*":
-                        # stars match anything exept '/''
+                        # stars match anything exept '/'
                         parsed.append("[^/]*")
                     case "**":
-                        suspicious.append(part)
+                        suspicious.append(text)
                         parsed.append("[^/]*")
                     case "{":
                         parsed.append("(?:")
-                        recurse(depth + 1)
+                        parse_recursive(depth + 1)
                         parsed.append(")")
                     case "}":
                         if depth == 0:
@@ -104,13 +104,13 @@ class Glob:
                         choice = True
                         parsed.append("|")
                     case _:
-                        suspicious.extend(Glob.SUSPICIOUS_REGEX.findall(part))
-                        parsed.append(re.escape(part))
-            if depth != 0:
+                        suspicious.extend(Glob.SUSPICIOUS_REGEX.findall(text))
+                        parsed.append(re.escape(text))
+            if depth > 0:
                 raise ValueError(f"unexpected end of glob in `{raw}`")
 
         try:
-            recurse()
+            parse_recursive()
         except RecursionError:
             bar.error(f"braces nested too deep in `{raw}`")
             return False
