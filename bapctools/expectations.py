@@ -62,62 +62,85 @@ KNOWN_EXPECTATION_VERDICTS: Final[Mapping[str, Verdict]] = {
     v.short: v for v in EXPECTATION_VERDICTS
 }
 
-SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
-
 
 class Glob:
+    SUSPICIOUS_REGEX: Final[re.Pattern[str]] = re.compile(r"[^a-zA-Z0-9_./-]|//")
+    TOKEN_REGEX: Final[re.Pattern[str]] = re.compile(r"\*\*|[{,}*]|[^*{,}]+")
+
     @staticmethod
-    def _compile(raw: Optional[str]) -> Optional[re.Pattern[str]]:
+    def _compile(raw: Optional[str]) -> bool | re.Pattern[str]:
         if raw is None:
-            return None
+            return True
 
-        suspicious: Optional[str] = None
+        # Note: dir/ and dir should match the same
+        token_stream = Glob.TOKEN_REGEX.finditer(raw.removesuffix("/"))
+        suspicious_braces = False
+        suspicious = []
+        parsed = []
 
-        def check_suspicious(token: str) -> None:
-            nonlocal suspicious
-            match = SUSPICIOUS_GLOB_REGEX.search(token)
-            if suspicious is None and match is not None:
-                suspicious = match.group()
+        def recurse(depth: int = 0) -> None:
+            nonlocal suspicious_braces
 
-        glob = raw
-        # dir/ and dir should match the same
-        glob = glob.removesuffix("/")
-        parts = re.split("{([^{}]*)}", glob)
-        for i, part in enumerate(parts):
-            if i % 2 == 0:
-                check_suspicious(part)
-                part = re.escape(part)
-            else:
-                sub_parts = list(part.split(","))
-                for j, sub_part in enumerate(sub_parts):
-                    sub_part = sub_part.strip()
-                    check_suspicious(sub_part)
-                    sub_part = re.escape(sub_part)
-                    sub_parts[j] = sub_part
-                part = f"({'|'.join(sub_parts)})"
-            parts[i] = part
-        glob = "".join(parts)
-        # stars match anything exept /
-        glob = glob.replace(re.escape("*"), "[^/]*")
+            choice = False
+            for token in token_stream:
+                part = token.group()
+                match part:
+                    case "*":
+                        # stars match anything exept '/''
+                        parsed.append("[^/]*")
+                    case "**":
+                        suspicious.append(part)
+                        parsed.append("[^/]*")
+                    case "{":
+                        parsed.append("(?:")
+                        recurse(depth + 1)
+                        parsed.append(")")
+                    case "}":
+                        if depth == 0:
+                            raise ValueError(f"unmatched {{ in `{raw}`")
+                        suspicious_braces |= not choice
+                        return
+                    case "," if depth > 0:
+                        choice = True
+                        parsed.append("|")
+                    case _:
+                        suspicious.extend(Glob.SUSPICIOUS_REGEX.findall(part))
+                        parsed.append(re.escape(part))
+            if depth != 0:
+                raise ValueError(f"unexpected end of glob in `{raw}`")
+
+        try:
+            recurse()
+        except RecursionError:
+            bar.error(f"braces nested too deep in `{raw}`")
+            return False
+        except ValueError as e:
+            bar.error(str(e))
+            return False
+
+        if suspicious_braces:
+            bar.warn(f"found brace with only one option in `{raw}`")
+        if suspicious:
+            s = "s" if len(suspicious) > 1 else ""
+            bar.warn(f"found suspicious sequence{s} `{'`, `'.join(set(suspicious))}` in `{raw}`")
+
+        glob = "".join(parsed)
         # match from start and only match complete directories
-        glob = f"^{glob}(/|$)"
-        if suspicious is not None:
-            bar.warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
-        return re.compile(glob)
+        return re.compile(rf"^{glob}(/|$)")
 
     def __init__(self, glob: Optional[str]) -> None:
-        self.glob = glob
-        self.regex = Glob._compile(glob)
+        self.glob: Optional[str] = glob
+        self.regex: bool | re.Pattern[str] = Glob._compile(glob)
 
     def __str__(self) -> str:
         return self.glob or ""
 
     def is_root(self) -> bool:
-        return self.regex is None
+        return self.glob is None
 
     def matches(self, path: str) -> bool:
-        if self.regex is None:
-            return True
+        if isinstance(self.regex, bool):
+            return self.regex
         return self.regex.match(path) is not None
 
 
@@ -176,6 +199,8 @@ class TestCaseExpectation:
 # This stores all test case globs
 class SubmissionExpectation:
     def __init__(self, glob: str, yaml_data: Optional[dict[object, object]] = None) -> None:
+        if glob.startswith("/"):
+            bar.warn(f"submisison glob `{glob}` starts with `/`")
         self.glob = Glob(glob)
 
         parser = YamlParser(yaml_data or {}, glob)
@@ -203,7 +228,10 @@ class SubmissionExpectation:
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
-        return self.glob.matches(submission.name)
+        base_path = submission.problem.path.absolute() / "submissions"
+        assert submission.path.absolute().is_relative_to(base_path)
+        source_files = [f.absolute().relative_to(base_path) for f in submission.source_files]
+        return any(self.glob.matches(f.as_posix()) for f in source_files)
 
     def all_matches(self, test_case: Optional[TestCase] = None) -> list[TestCaseExpectation]:
         if test_case is None:
