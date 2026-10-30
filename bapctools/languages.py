@@ -67,7 +67,7 @@ class TemplateCommand:
 
 
 class Language:
-    CODE_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
+    CODE_REGEX: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9]*")
 
     def __init__(self, code: str, conf: dict[object, object], *, internal: bool = False) -> None:
         self.ok = True

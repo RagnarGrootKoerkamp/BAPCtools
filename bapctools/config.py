@@ -54,15 +54,15 @@ KNOWN_LICENSES: Final[Sequence[str]] = (
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD: Final[int] = 4
 
-FILE_NAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}")
+FILE_NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}")
 
-CONSTANT_NAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
+CONSTANT_NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
 CONSTANT_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
-    f"\\{{\\{{({CONSTANT_NAME_REGEX.pattern}|{CONSTANT_NAME_REGEX.pattern}\\.{CONSTANT_NAME_REGEX.pattern})\\}}\\}}"
+    rf"\{{\{{({CONSTANT_NAME_REGEX.pattern}|{CONSTANT_NAME_REGEX.pattern}\.{CONSTANT_NAME_REGEX.pattern})\}}\}}"
 )
 
 BAPCTOOLS_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
-    f"\\{{%({CONSTANT_NAME_REGEX.pattern})%\\}}"
+    rf"\{{%({CONSTANT_NAME_REGEX.pattern})%\}}"
 )
 
 

@@ -459,8 +459,8 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
-INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
+INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(rb"[^\t\r\v\f\n\x20-\x7e]")
+INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(rb"[^\n\x20-\x7e]")
 
 
 def _has_invalid_byte(file_bytes: bytes, *, other_whitespaces: bool = False) -> bool:

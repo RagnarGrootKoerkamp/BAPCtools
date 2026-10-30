@@ -276,7 +276,7 @@ class Submission(Program):
 
         self.verdict: Optional[Verdict] = None
 
-        if self.path.absolute().is_relative_to((problem.path / "submissions").absolute()):
+        if self.path.absolute().is_relative_to(problem.path.absolute() / "submissions"):
             self.expectations: expectations.SubmissionExpectation = (
                 problem.expectations().all_matches(self)
             )

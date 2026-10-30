@@ -466,7 +466,7 @@ class ProblemSettings:
 
 # A problem.
 class Problem:
-    SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile("[a-z0-9]{1,255}")
+    SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile(r"[a-z0-9]{1,255}")
 
     @bar.restore
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):

@@ -244,7 +244,7 @@ def make_environment(builddir: Path) -> dict[str, str]:
 
 
 TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(
-    "^%\\ ?!tex\\s+program\\s*=\\s*(.*)$", re.IGNORECASE
+    r"^%\ ?!tex\s+program\s*=\s*(.*)$", re.IGNORECASE
 )
 
 
