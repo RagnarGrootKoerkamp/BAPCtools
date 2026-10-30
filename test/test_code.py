@@ -65,6 +65,8 @@ def test_inc_label():
 
 def test_glob():
     cases = [
+        # root
+        (None, "test//xxx?$*!", True),
         # Parents
         ("a", "a", True),  # exact match
         ("a", "ab", False),  # do not match partially
@@ -92,10 +94,13 @@ def test_glob():
         ("{a,*}", "b", True),
         ("{a,*}b", "c/b", False),
         # Nested braces
-        ("{a,{b,c}}", "{a,b}", True),
-        ("{a,{b,c}}", "{a,c}", True),
+        ("{a,{b,c}}", "a", True),
+        ("{a,{b,c}}", "b", True),
+        ("{a,{b,c}}", "ab", False),
+        ("{a,{b,c}}", "{a,b}", False),
+        ("{a,{b,c}}", "{a,c}", False),
         ("{a,{b,c}}", "{a,{b,c}}", False),
-        ("{a,{b,c}}", "a", False),
+        ("{a,{b,c}}", "a", True),
         # Literal matches
         ("a,b", "a,b", True),
         ("a,b", "a", False),
@@ -114,3 +119,9 @@ def test_glob():
     for glob, path, expected in cases:
         got = expectations.Glob(glob).matches(path)
         assert expected == got, f"{glob} {path} {expected}"
+
+
+def test_invalid_glob():
+    globs = ["{", "}", "{{}", "{}}"]
+    for glob in globs:
+        assert expectations.Glob(glob).regex is False, glob
