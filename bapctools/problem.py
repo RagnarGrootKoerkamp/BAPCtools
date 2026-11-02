@@ -1494,7 +1494,7 @@ class Problem:
                     local_bar.done()
                     return
                 # use nextpass.in as input and check again
-                shutil.move(nextpass, test_case.in_path)
+                shutil.move(nextpass, run.test_case.in_path)
 
         parallel.run_tasks(run, runs, pin=True)
         local_bar.finalize(print_done=True)
