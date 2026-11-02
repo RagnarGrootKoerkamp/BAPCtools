@@ -70,7 +70,7 @@ def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict) -> 
                 has_low |= c[1]
                 has_high |= c[2]
                 vmin = min(c[3], vmin)
-                vmax = max(c[4], vmin)
+                vmax = max(c[4], vmax)
                 low = min(c[5], low)
                 high = max(c[6], high)
             constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
