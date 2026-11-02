@@ -82,16 +82,6 @@ def action(
     return f"{prefix}{text:<{width}}"
 
 
-def process_warning(message: str, item: Optional[ItemType]) -> str:
-    if message in config.args.ignore_warning:
-        return f"{message} (ignored)"
-    item_name = action(None, item, None, None)
-    if item_name and f"{item_name} {message}" in config.args.ignore_warning:
-        return f"{message} (ignored)"
-    config.n_warn += 1
-    return message
-
-
 def crop_output(output: str) -> str:
     if config.args.error:
         return output
@@ -156,6 +146,15 @@ class BaseBar(ABC):
     def _is_locked(self) -> bool:
         return BaseBar.lock_depth > 0
 
+    def process_warning(self, message: str) -> str:
+        if message in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        item_name = action(None, self.item, None, None)
+        if item_name and f"{item_name} {message}" in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        config.n_warn += 1
+        return message
+
     # we almost always want to print to stderr
     def eprint(self, *args: Any, **kwargs: Any) -> None:
         with self:
@@ -175,7 +174,7 @@ class BaseBar(ABC):
 
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
-            message = process_warning(message, self.item)
+            message = self.process_warning(message)
             self._log(message, data, Fore.YELLOW)
 
     def error(self, message: str, data: Optional[str] = None) -> None:
@@ -206,7 +205,7 @@ class BaseBar(ABC):
         if not success:
             assert message
             if warn_instead_of_error:
-                process_warning(message, self.item)
+                self.process_warning(message)
             else:
                 config.n_error += 1
         if config.args.verbose or not success:
@@ -238,7 +237,7 @@ class EmptyBar(BaseBar):
     @override
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
-            message = process_warning(message, None)
+            message = self.process_warning(message)
             self.log(f"WARNING: {message}", data, Fore.YELLOW)
 
     @override
@@ -312,6 +311,16 @@ class ProgressBar(BaseBar):
         if BaseBar.lock_depth == 1:
             self._resume()
         super().__exit__(*args)
+
+    @override
+    def process_warning(self, message: str) -> str:
+        if message in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        item_name = action(None, self.local.item, None, None)
+        if item_name and f"{item_name} {message}" in config.args.ignore_warning:
+            return f"{message} (ignored)"
+        config.n_warn += 1
+        return message
 
     def clearline(self) -> None:
         assert self._is_locked()
