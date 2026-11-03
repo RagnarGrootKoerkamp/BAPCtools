@@ -49,7 +49,7 @@ from bapctools.util import (
 from bapctools.validate import (
     AnswerValidator,
     AnyValidator,
-    ConstraintsDict,
+    Constraint,
     InputValidator,
     OutputValidator,
 )
@@ -1503,13 +1503,13 @@ class Problem:
     def validate_data(
         self,
         mode: validate.Mode,
-        constraints: bool | ConstraintsDict = False,
+        constraints: bool | dict[str, Constraint] = False,
     ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
             mode: validate.Mode
-            constraints: bool | ConstraintsDict. True means "do check constraints but discard the result."
+            constraints: bool | dict[str, Constraint]. True means "do check constraints but discard the result."
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1678,7 +1678,7 @@ class Problem:
     def _validate_data(
         self,
         mode: validate.Mode,
-        constraints: bool | ConstraintsDict,
+        constraints: bool | dict[str, Constraint],
         action: str,
         test_cases: Sequence[TestCase],
         *,
@@ -1689,7 +1689,7 @@ class Problem:
             return True
 
         if constraints is True:
-            constraints_dict: Optional[ConstraintsDict] = {}
+            constraints_dict: Optional[dict[str, Constraint]] = {}
         elif constraints is False:
             constraints_dict = None
         else:
@@ -1751,18 +1751,16 @@ class Problem:
 
         # Make sure all constraints are satisfied.
         if constraints_dict is not None:
-            for loc, value in sorted(constraints_dict.items()):
-                loc = Path(loc).name
-                name, has_low, has_high, vmin, vmax, low, high = value
-                if not has_low:
+            for _, c in sorted(constraints_dict.items()):
+                if not c.has_low:
                     success = False
                     local_bar.warn(
-                        f"BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}"
+                        f"BOUND NOT REACHED: `{c.name}` never equals lower bound {c.low}. Min value found: {c.vmin}"
                     )
-                if not has_high:
+                if not c.has_high:
                     success = False
                     local_bar.warn(
-                        f"BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}"
+                        f"BOUND NOT REACHED: `{c.name}` never equals upper bound {c.high}. Max value found: {c.vmax}"
                     )
 
         return success

@@ -1,6 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
@@ -39,42 +40,57 @@ class Mode(Enum):
         }[self]
 
 
-# loc -> (name, has_low, has_high, vmin, vmax, low, high)
-ConstraintsDict = dict[
-    str, tuple[str, bool, bool, int | float, int | float, int | float, int | float]
-]
+@dataclass
+class Constraint:
+    id: str
+    name: str
+    has_low: bool
+    has_high: bool
+    vmin: int | float
+    vmax: int | float
+    low: int | float
+    high: int | float
+
+    def update(self, other: "Constraint") -> None:
+        assert self.id == other.id
+        assert self.name == other.name
+        self.has_low |= other.has_low
+        self.has_high |= other.has_high
+        self.vmin = min(self.vmin, other.vmin)
+        self.vmax = max(self.vmax, other.vmax)
+        self.low = min(self.low, other.low)
+        self.high = max(self.high, other.high)
+
+    @staticmethod
+    def parse(raw: str) -> "Constraint":
+        def _to_number(s: str) -> int | float:
+            try:
+                return int(s)
+            except ValueError:
+                return float(s)
+
+        id, name, *rest = raw.split()
+        if len(rest) != 6:
+            raise ValueError
+        has_low = bool(int(rest[0]))
+        has_high = bool(int(rest[1]))
+        vmin = _to_number(rest[2])
+        vmax = _to_number(rest[3])
+        low = _to_number(rest[4])
+        high = _to_number(rest[5])
+        return Constraint(id, name, has_low, has_high, vmin, vmax, low, high)
 
 
-def _to_number(s: str) -> int | float:
-    try:
-        return int(s)
-    except ValueError:
-        return float(s)
-
-
-def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict) -> None:
+def _merge_constraints(constraints_path: Path, constraints: dict[str, Constraint]) -> None:
     # Merge with previous constraints.
     if constraints_path.is_file():
-        for line in constraints_path.read_text().splitlines():
-            loc, *rest = line.split()
-            assert len(rest) == 7
-            name = rest[0]
-            has_low = bool(int(rest[1]))
-            has_high = bool(int(rest[2]))
-            vmin = _to_number(rest[3])
-            vmax = _to_number(rest[4])
-            low = _to_number(rest[5])
-            high = _to_number(rest[6])
-            if loc in constraints:
-                c = constraints[loc]
-                has_low |= c[1]
-                has_high |= c[2]
-                vmin = min(c[3], vmin)
-                vmax = max(c[4], vmax)
-                low = min(c[5], low)
-                high = max(c[6], high)
-            constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
-
+        for line, raw in enumerate(constraints_path.read_text().splitlines()):
+            try:
+                c = Constraint.parse(raw)
+                constraints.setdefault(c.id, c)
+                constraints[c.id].update(c)
+            except ValueError:
+                bar.error(f"Invalid constraint in line {line + 1}: {raw}")
         constraints_path.unlink()
 
 
@@ -133,7 +149,7 @@ class Validator(ABC, Program):
         self,
         mode: "Mode | Run | Path",
         test_case: "TestCase",
-        constraints: Optional[ConstraintsDict],
+        constraints: Optional[dict[str, Constraint]],
         args: Optional[Sequence[str | Path]],
     ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
@@ -246,7 +262,7 @@ class Validator(ABC, Program):
         self,
         test_case: "TestCase",
         mode: Mode,
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult: ...
 
@@ -276,7 +292,7 @@ class InputValidator(Validator):
         self,
         test_case: "TestCase",
         mode: Mode = Mode.INPUT,
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """
@@ -340,7 +356,7 @@ class AnswerValidator(Validator):
         self,
         test_case: "TestCase",
         mode: Mode = Mode.ANSWER,
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
@@ -395,7 +411,7 @@ class OutputValidator(Validator):
         self,
         test_case: "TestCase",
         mode: "Mode | Run | Path",
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """

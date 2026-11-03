@@ -23,7 +23,7 @@ from bapctools.util import (
 from bapctools.validate import (
     AnswerValidator,
     AnyValidator,
-    ConstraintsDict,
+    Constraint,
     InputValidator,
     OutputValidator,
 )
@@ -347,7 +347,7 @@ class TestCase:
         self,
         mode: validate.Mode,
         *,
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
         check_constraints = constraints is not None
@@ -435,7 +435,7 @@ class TestCase:
         validators: Sequence[AnyValidator],
         *,
         expect_rejection: bool,
-        constraints: Optional[ConstraintsDict] = None,
+        constraints: Optional[dict[str, Constraint]] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
         results = []

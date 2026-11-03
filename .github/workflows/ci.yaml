@@ -7,12 +7,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # Make sure that `git describe` (used by Hatch to dynamically generate the version) knows the Git history.
+          fetch-depth: 0
           fetch-tags: true
       - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
-      # Make sure that `git describe` (used by Hatch to dynamically generate the version) knows the Git history, but no data about trees/blobs is needed.
-      - run: git fetch --prune --unshallow --filter=tree:0
       - run: python3 -m pip install --editable . --group types
       - uses: pre-commit/action@v3.0.1
 
