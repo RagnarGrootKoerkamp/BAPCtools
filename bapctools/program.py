@@ -199,17 +199,17 @@ class Program:
             bar.warn(f"selected language {language.code} is not permitted for this program")
         self.language = language
 
-    def _get_entry_point(self, files: list[Path]) -> tuple[Path, Path, str]:
+    def _get_main_file(self, files: list[Path]) -> tuple[Path, Path, str]:
         binary = self.tmpdir / languages.BINARY_NAME
-        mainfile = None
         if not self.has_deps:
             assert files
-            for f in sorted(files):
-                if f.name.lower().startswith("main"):
-                    mainfile = f
-                    break
-            if mainfile is None:
+            mainfiles = [f for f in sorted(files) if f.name.lower().startswith("main.")]
+            if not mainfiles:
                 mainfile = sorted(files)[0]
+            else:
+                mainfile = mainfiles[0]
+            if len(mainfiles) > 1:
+                bar.error(f"main file is not unique, picked {mainfile}")
         else:
             mainfile = self.tmpdir / self.source_files[0].name
         mainclass = mainfile.with_suffix("").name
@@ -229,7 +229,7 @@ class Program:
                 lang.warn_fallback()
 
             self._set_language(lang)
-            binary, mainfile, mainclass = self._get_entry_point(files)
+            binary, mainfile, mainclass = self._get_main_file(files)
             self.env = {
                 "path": str(self.tmpdir),
                 # NOTE: This only contains files matching the winning language.

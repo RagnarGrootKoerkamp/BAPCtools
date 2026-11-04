@@ -206,7 +206,7 @@ class SubmissionExpectation:
         parser = YamlParser(yaml_data or {}, glob)
 
         self.language: Optional[str] = parser.extract_optional("language", str)
-        self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
+        self.main_file: Optional[str] = parser.extract_optional("main_file", str)
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
@@ -282,7 +282,7 @@ class Expectations:
     @once_per_instance
     def all_matches(self, submission: "Submission") -> SubmissionExpectation:
         languages = set()
-        entrypoints = set()
+        main_files = set()
         authors = set()
 
         # A submission can be matched by multiple submissions globs
@@ -295,23 +295,21 @@ class Expectations:
             found_match = True
             if expectation.language is not None:
                 languages.add(expectation.language)
-            if expectation.entrypoint is not None:
-                entrypoints.add(expectation.entrypoint)
+            if expectation.main_file is not None:
+                main_files.add(expectation.main_file)
             if expectation.authors:
                 authors.add(tuple(expectation.authors))
             combined.model_solution |= expectation.model_solution
             combined.expectations += expectation.expectations
 
         combined.language = min(languages, default=combined.language)
-        combined.entrypoint = min(entrypoints, default=combined.entrypoint)
+        combined.main_file = min(main_files, default=combined.main_file)
         combined.authors = list(min(authors, default=combined.authors))
 
         if len(languages) > 1:
             bar.warn(f"found multiple languages for {submission.name}, using {combined.language}")
-        if len(entrypoints) > 1:
-            bar.warn(
-                f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}"
-            )
+        if len(main_files) > 1:
+            bar.warn(f"found multiple main files for {submission.name}, using {combined.main_file}")
         if len(authors) > 1:
             names = ", ".join([a.name for a in combined.authors])
             bar.warn(f"found multiple authors for {submission.name}, using {names}")

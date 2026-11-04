@@ -374,12 +374,12 @@ class Submission(Program):
         super()._set_language(language)
 
     @override
-    def _get_entry_point(self, files: list[Path]) -> tuple[Path, Path, str]:
-        if self.expectations.entrypoint is None:
-            return super()._get_entry_point(files)
-        entrypoint = self.expectations.entrypoint
-        file = self.tmpdir / entrypoint
-        return (file, file, entrypoint)
+    def _get_main_file(self, files: list[Path]) -> tuple[Path, Path, str]:
+        if self.expectations.main_file is None:
+            return super()._get_main_file(files)
+        main_file = self.expectations.main_file
+        file = self.tmpdir / main_file
+        return (file, file, main_file)
 
     # Run submission on in_path, writing stdout to out_path.
     # args is used by SubmissionInvocation to pass on additional arguments.
