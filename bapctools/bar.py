@@ -238,7 +238,7 @@ class EmptyBar(BaseBar):
     def warn(self, message: str, data: Optional[str] = None) -> None:
         if config.args.suppress_warnings < 1:
             message = self.process_warning(message)
-            self.log(f"WARNING: {message}", data, Fore.YELLOW)
+            self._log(f"WARNING: {message}", data, Fore.YELLOW)
 
     @override
     def error(self, message: str, data: Optional[str] = None) -> None:
