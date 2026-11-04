@@ -230,8 +230,9 @@ class SubmissionExpectation:
     def matches(self, submission: "Submission") -> bool:
         base_path = submission.problem.path.absolute() / "submissions"
         assert submission.path.absolute().is_relative_to(base_path)
-        source_files = [f.absolute().relative_to(base_path) for f in submission.source_files]
-        return any(self.glob.matches(f.as_posix()) for f in source_files)
+        paths = [f.absolute().relative_to(base_path).as_posix() for f in submission.source_files]
+        paths.append(submission.name)
+        return any(self.glob.matches(f) for f in paths)
 
     def all_matches(self, test_case: Optional[TestCase] = None) -> list[TestCaseExpectation]:
         if test_case is None:
