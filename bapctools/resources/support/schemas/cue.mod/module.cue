@@ -4,6 +4,6 @@ language: {
 }
 deps: {
 	"github.com/thorehusfeldt/ppf-schemas/problempackageformat@v0": {
-		v: "v0.1.6"
+		v: "v0.1.7"
 	}
 }

@@ -305,7 +305,7 @@ class ProblemSettings:
                 mode = {"pass-fail"}
         else:
             bar.fatal("`type` must be a string or a sequence")
-        unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
+        unrecognized_type = mode - {"pass-fail", "file-output", "interactive", "multi-pass"}
         if unrecognized_type:
             bar.fatal(
                 f"""unrecognized value{"" if len(unrecognized_type) == 1 else "s"} for `type`: {
@@ -314,11 +314,16 @@ class ProblemSettings:
             )
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
+        self.file_output: bool = "file-output" in mode  # ignored by BAPCtools
         self.custom_output: bool = (
             self.interactive
             or self.multi_pass
             or (problem.path / OutputValidator.source_dir).is_dir()
         )
+
+        # TODO: more checks if scoring is added
+        if self.interactive and self.file_output:
+            bar.error("invalid type, cannot use file-output with interactive")
 
         names: dict[object, object] = parser.extract("name", {"en": ""})
         self.name: dict[str, str] = {}
@@ -365,9 +370,6 @@ class ProblemSettings:
         self.languages: list[str] = parser.extract_optional_list(
             "languages", str, allow_empty=False
         )
-
-        # Not implemented in BAPCtools
-        self.allow_file_writing: bool = parser.extract("allow_file_writing", False)
 
         constants: dict[object, object] = parser.extract("constants", {})
         self.constants: dict[str, str] = {}
