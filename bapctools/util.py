@@ -282,9 +282,17 @@ def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool 
 def read_yaml(
     path: Path, *, empty: Optional[object] = None, suppress_errors: bool = False
 ) -> object:
-    assert path.is_file(), f"File {path} does not exist"
     assert suppress_errors is False or empty is None, "cannot use `empty` with suppress_errors"
-    ret = parse_yaml(path.read_text(), path=path, suppress_errors=suppress_errors)
+    try:
+        ret = parse_yaml(path.read_text(), path=path, suppress_errors=suppress_errors)
+    except Exception as e:
+        if suppress_errors:
+            ret = None
+        elif empty is not None and isinstance(e, FileNotFoundError):
+            ret = None
+        else:
+            bar.eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}")
+            bar.fatal(f"Failed to parse yaml file {path}.")
     return empty if ret is None else ret
 
 
