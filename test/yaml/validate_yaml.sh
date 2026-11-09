@@ -11,8 +11,9 @@ all_valid_yaml=(../../doc ../problems ../../bapctools/resources/config generator
 all_invalid_yaml=(generators/invalid_yaml languages/invalid_yaml)
 schemadir="../../bapctools/resources/support/schemas"
 
-# Most schemas are owned by ppf-schemas (spec-derived, not BAPCtools-specific): #Problem/#Submissions/
-# #test_group_configuration/#test_case_configuration:
+# #Problem and #Submissions are owned by ppf-schemas (spec-derived, not BAPCtools-specific).
+# #test_group_configuration/#test_case_configuration are BAPCtools-local: they extend the ppf
+# definitions with answer_validator_args.
 ppf_module="github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 
 # Temp directory for snippets
@@ -55,8 +56,6 @@ declare -A schema_map=(
 declare -A ppf_schemas=(
 ["#Problem"]=1
 ["#Submissions"]=1
-["#test_group_configuration"]=1
-["#test_case_configuration"]=1
 )
 
 schema_for_file() {

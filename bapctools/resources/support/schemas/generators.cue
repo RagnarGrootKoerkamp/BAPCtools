@@ -43,9 +43,22 @@ import "github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 	retries?: int
 }
 
+// answer_validator_args is a BAPCtools extension to the problem package format.
+#answer_validator_args: [...string] | {[string]: [...string]}
+
+#test_group_configuration: {
+	problempackageformat.#test_group_configuration...
+	answer_validator_args?: #answer_validator_args
+}
+
+#test_case_configuration: {
+	problempackageformat.#test_case_configuration...
+	answer_validator_args?: #answer_validator_args
+}
+
 #test_group_config: {
 	#config...
-	"test_group.yaml": problempackageformat.#test_group_configuration
+	"test_group.yaml": #test_group_configuration
 }
 
 #test_case:
@@ -118,7 +131,7 @@ import "github.com/thorehusfeldt/ppf-schemas/problempackageformat"
 		"ans.download"?:  literal_or_ans_link
 
 		interaction?: =~"^([<>][^\\n]*\\n|---\\n)+$"
-		yaml?:        problempackageformat.#test_case_configuration
+		yaml?:        #test_case_configuration
 
 		#config...
 	}
