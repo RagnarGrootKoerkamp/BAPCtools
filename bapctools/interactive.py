@@ -2,7 +2,6 @@ import io
 import itertools
 import os
 import select
-import signal
 import subprocess
 import sys
 import threading
@@ -287,6 +286,7 @@ class Wait4:
         returncode = os.waitstatus_to_exitcode(status)
         for process in self.process_list:
             if process.pid == pid:
+                # set the returncode to synchronice the process state
                 process.returncode = returncode
         return pid, returncode, rusage.ru_utime + rusage.ru_stime
 
@@ -313,6 +313,24 @@ class ThreadedWait:
         if isinstance(res, Exception):
             raise res
         return res
+
+
+def close(pipe: Optional[IO[bytes]]) -> None:
+    if pipe:
+        pipe.close()
+
+
+def safe_kill(process: subprocess.Popen[bytes]) -> None:
+    with suppress(ProcessLookupError, PermissionError):
+        process.kill()
+
+
+def clean_process(process: subprocess.Popen[bytes]) -> None:
+    safe_kill(process)
+    process.wait()
+    close(process.stdin)
+    close(process.stdout)
+    close(process.stderr)
 
 
 # Return a ExecResult object amended with verdict.
@@ -403,29 +421,6 @@ def run_interactive_test_case(
         max_duration = 0.0
         tle_result = None
         for pass_id in itertools.count(1):
-            # mixing os and subprocess functions is unsafe so we store which
-            # PIDs have been reaped manually
-            reaped: list[int] = []
-            reaped_lock = threading.Lock()
-
-            def close(pipe: Optional[IO[bytes]]) -> None:
-                if pipe:
-                    pipe.close()
-
-            def kill(process: subprocess.Popen[bytes]) -> None:
-                with reaped_lock:
-                    is_reaped = process.pid in reaped
-                if not is_reaped:
-                    with suppress(ProcessLookupError, PermissionError):
-                        os.kill(process.pid, signal.SIGKILL)
-
-            def clean_process(process: subprocess.Popen[bytes]) -> None:
-                kill(process)
-                process.wait()
-                close(process.stdin)
-                close(process.stdout)
-                close(process.stderr)
-
             with ExitStack() as cleanup:
                 try:
                     validator = subprocess.Popen(
@@ -484,12 +479,12 @@ def run_interactive_test_case(
                     if stop_kill_handler.wait(timeout + 1):
                         return
                     submission_time = timeout + 1.0
-                    kill(submission)
+                    safe_kill(submission)
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
                     validator_time = validation_time + 1.0
-                    kill(validator)
+                    safe_kill(validator)
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
@@ -499,8 +494,6 @@ def run_interactive_test_case(
                 wait = Wait4(gid, process_list) if USE_WAIT4 else ThreadedWait(process_list)
                 while validator.returncode is None or submission.returncode is None:
                     pid, returncode, duration = wait.wait()
-                    with reaped_lock:
-                        reaped.append(pid)
 
                     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
                     if returncode == -2:
@@ -521,7 +514,7 @@ def run_interactive_test_case(
                         # Kill the team submission and everything else in case we already know it's WA.
                         if validator.returncode != config.RTV_AC:
                             stop_kill_handler.set()
-                            kill(submission)
+                            safe_kill(submission)
                     else:
                         assert pid == submission.pid
                         if first is None:
@@ -703,8 +696,7 @@ def interactor_prints_unprompted(
             cwd=validator_dir,
         )
         time.sleep(wait)
-        with suppress(ProcessLookupError, PermissionError):
-            validator_process.kill()
+        safe_kill(validator_process)
         stdout, _ = validator_process.communicate()
         return bool(stdout)
     except (PermissionError, OSError):
