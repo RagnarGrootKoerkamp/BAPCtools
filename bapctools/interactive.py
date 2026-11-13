@@ -412,15 +412,16 @@ def run_interactive_test_case(
                 if pipe:
                     pipe.close()
 
-            def kill(pid: int) -> None:
+            def kill(process: subprocess.Popen[bytes]) -> None:
                 with reaped_lock:
-                    is_reaped = pid in reaped
+                    is_reaped = process.pid in reaped
                 if not is_reaped:
                     with suppress(ProcessLookupError, PermissionError):
-                        os.kill(pid, signal.SIGKILL)
+                        os.kill(process.pid, signal.SIGKILL)
 
             def clean_process(process: subprocess.Popen[bytes]) -> None:
-                kill(process.pid)
+                kill(process)
+                process.wait()
                 close(process.stdin)
                 close(process.stdout)
                 close(process.stderr)
@@ -483,12 +484,12 @@ def run_interactive_test_case(
                     if stop_kill_handler.wait(timeout + 1):
                         return
                     submission_time = timeout + 1.0
-                    kill(submission.pid)
+                    kill(submission)
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
                     validator_time = validation_time + 1.0
-                    kill(validator.pid)
+                    kill(validator)
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
@@ -520,7 +521,7 @@ def run_interactive_test_case(
                         # Kill the team submission and everything else in case we already know it's WA.
                         if validator.returncode != config.RTV_AC:
                             stop_kill_handler.set()
-                            kill(submission.pid)
+                            kill(submission)
                     else:
                         assert pid == submission.pid
                         if first is None:
