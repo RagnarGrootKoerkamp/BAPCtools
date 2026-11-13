@@ -278,29 +278,34 @@ USE_RELAY: Final[bool] = not is_windows()
 
 
 class Wait4:
-    def __init__(self, gid: int) -> None:
+    def __init__(self, gid: int, process_list: Sequence[subprocess.Popen[bytes]]) -> None:
         self.gid = gid
+        self.process_list = process_list
 
     def wait(self) -> tuple[int, int, float]:
         pid, status, rusage = os.wait4(-self.gid, 0)
-        return pid, status, rusage.ru_utime + rusage.ru_stime
+        returncode = os.waitstatus_to_exitcode(status)
+        for process in self.process_list:
+            if process.pid == pid:
+                process.returncode = returncode
+        return pid, returncode, rusage.ru_utime + rusage.ru_stime
 
 
 class ThreadedWait:
-    def __init__(self, pids: Sequence[int]) -> None:
+    def __init__(self, process_list: Sequence[subprocess.Popen[bytes]]) -> None:
         self.finished = SimpleQueue[tuple[int, int, float] | Exception]()
         self.tstart = time.monotonic()
 
-        def wait_thread(pid: int) -> None:
+        def wait_thread(process: subprocess.Popen[bytes]) -> None:
             try:
-                res = os.waitpid(pid, 0)
+                process.wait()
                 tend = time.monotonic()
-                self.finished.put((*res, tend - self.tstart))
+                self.finished.put((process.pid, process.returncode, tend - self.tstart))
             except Exception as e:
                 self.finished.put(e)
 
-        for pid in pids:
-            t = threading.Thread(target=wait_thread, args=(pid,), daemon=True)
+        for process in process_list:
+            t = threading.Thread(target=wait_thread, args=(process,), daemon=True)
             t.start()
 
     def wait(self) -> tuple[int, int, float]:
@@ -488,26 +493,21 @@ def run_interactive_test_case(
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
 
-                validator_status = None
-                submission_status = None
+                process_list = [validator, submission]
                 first: Optional[Literal["validator", "submission"]] = None
-                wait = Wait4(gid) if USE_WAIT4 else ThreadedWait([validator.pid, submission.pid])
-                while validator_status is None or submission_status is None:
-                    pid, status, duration = wait.wait()
+                wait = Wait4(gid, process_list) if USE_WAIT4 else ThreadedWait(process_list)
+                while validator.returncode is None or submission.returncode is None:
+                    pid, returncode, duration = wait.wait()
                     with reaped_lock:
                         reaped.append(pid)
 
-                    # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
-                    status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-
                     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
-                    if status == -2:
+                    if returncode == -2:
                         raise KeyboardInterrupt()
 
                     if pid == validator.pid:
                         if first is None:
                             first = "validator"
-                        validator_status = status
                         if relay is not None:
                             relay.close_validator()
                         else:
@@ -518,14 +518,13 @@ def run_interactive_test_case(
                             validator_time = duration
 
                         # Kill the team submission and everything else in case we already know it's WA.
-                        if validator_status != config.RTV_AC:
+                        if validator.returncode != config.RTV_AC:
                             stop_kill_handler.set()
                             kill(submission.pid)
                     else:
                         assert pid == submission.pid
                         if first is None:
                             first = "submission"
-                        submission_status = status
                         if relay is not None:
                             relay.close_submission()
                         else:
@@ -554,7 +553,7 @@ def run_interactive_test_case(
                 if relay.vs.transmitted > transmission_limit * mib:
                     bar.warn(f"Validator wrote over {transmission_limit}MiB")
                 if (
-                    validator_status == config.RTV_AC
+                    validator.returncode == config.RTV_AC
                     and relay.sv.transmitted > transmission_limit * mib
                 ):
                     bar.warn(f"Submission wrote over {transmission_limit}MiB")
@@ -574,13 +573,13 @@ def run_interactive_test_case(
             # - team TLE/RTE -> TLE/RTE
             # - else AC
 
-            if validator_status not in [config.RTV_AC, config.RTV_WA]:
+            if validator.returncode not in [config.RTV_AC, config.RTV_WA]:
                 if validator_time > validation_time:
                     bar.error(f"Validator TIMEOUT after {validator_time:.1f}s")
                 else:
                     config.n_error += 1
                 verdict = Verdict.JUDGE_ERROR
-            elif validator_status == config.RTV_WA and has_nextpass:
+            elif validator.returncode == config.RTV_WA and has_nextpass:
                 bar.error("got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.JUDGE_ERROR
             elif aborted:
@@ -589,9 +588,9 @@ def run_interactive_test_case(
                 # WA has priority because validator reported it first.
                 if did_timeout:
                     verdict = Verdict.TIME_LIMIT_EXCEEDED
-                elif validator_status == config.RTV_WA:
+                elif validator.returncode == config.RTV_WA:
                     verdict = Verdict.WRONG_ANSWER
-                elif submission_status != 0:
+                elif submission.returncode != 0:
                     verdict = Verdict.RUNTIME_ERROR
                 else:
                     verdict = Verdict.ACCEPTED
@@ -602,11 +601,11 @@ def run_interactive_test_case(
                         )
             else:
                 assert first == "submission"
-                if submission_status != 0:
+                if submission.returncode != 0:
                     verdict = Verdict.RUNTIME_ERROR
                 elif did_timeout:
                     verdict = Verdict.TIME_LIMIT_EXCEEDED
-                elif validator_status == config.RTV_WA:
+                elif validator.returncode == config.RTV_WA:
                     verdict = Verdict.WRONG_ANSWER
                 else:
                     verdict = Verdict.ACCEPTED
@@ -624,7 +623,7 @@ def run_interactive_test_case(
                         pass_id if run.problem.multi_pass else None,
                     )
                 tle_result.timeout_expired |= aborted
-                if not run._continue_pass(submission_status == 0, max_duration >= timeout):
+                if not run._continue_pass(submission.returncode == 0, max_duration >= timeout):
                     break
 
             elif verdict != Verdict.ACCEPTED or not has_nextpass:
