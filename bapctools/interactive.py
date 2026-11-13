@@ -419,6 +419,7 @@ def run_interactive_test_case(
                 close(process.stdin)
                 close(process.stdout)
                 close(process.stderr)
+                process.wait()
 
             with ExitStack() as cleanup:
                 try:
