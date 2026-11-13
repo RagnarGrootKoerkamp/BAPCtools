@@ -8,7 +8,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Sequence
-from contextlib import ExitStack, nullcontext, suppress
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
 from queue import SimpleQueue
 from typing import Final, IO, Literal, Optional, TYPE_CHECKING
@@ -320,19 +320,6 @@ def close(pipe: Optional[IO[bytes]]) -> None:
         pipe.close()
 
 
-def safe_kill(process: subprocess.Popen[bytes]) -> None:
-    with suppress(ProcessLookupError, PermissionError):
-        process.kill()
-
-
-def clean_process(process: subprocess.Popen[bytes]) -> None:
-    safe_kill(process)
-    process.wait()
-    close(process.stdin)
-    close(process.stdout)
-    close(process.stderr)
-
-
 # Return a ExecResult object amended with verdict.
 def run_interactive_test_case(
     run: "Run",
@@ -437,7 +424,8 @@ def run_interactive_test_case(
                             0,
                         ),
                     )
-                    cleanup.callback(clean_process, validator)
+                    cleanup.enter_context(validator)
+                    cleanup.callback(validator.kill)
                 except (PermissionError, OSError) as e:
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
@@ -456,7 +444,8 @@ def run_interactive_test_case(
                         cwd=submission_dir,
                         preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                     )
-                    cleanup.callback(clean_process, submission)
+                    cleanup.enter_context(submission)
+                    cleanup.callback(submission.kill)
                 except (PermissionError, OSError) as e:
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
@@ -479,12 +468,12 @@ def run_interactive_test_case(
                     if stop_kill_handler.wait(timeout + 1):
                         return
                     submission_time = timeout + 1.0
-                    safe_kill(submission)
+                    submission.kill()
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
                     validator_time = validation_time + 1.0
-                    safe_kill(validator)
+                    validator.kill()
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
@@ -492,7 +481,7 @@ def run_interactive_test_case(
                 process_list = [validator, submission]
                 first: Optional[Literal["validator", "submission"]] = None
                 wait = Wait4(gid, process_list) if USE_WAIT4 else ThreadedWait(process_list)
-                while validator.returncode is None or submission.returncode is None:
+                for _ in range(2):
                     pid, returncode, duration = wait.wait()
 
                     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
@@ -514,7 +503,7 @@ def run_interactive_test_case(
                         # Kill the team submission and everything else in case we already know it's WA.
                         if validator.returncode != config.RTV_AC:
                             stop_kill_handler.set()
-                            safe_kill(submission)
+                            submission.kill()
                     else:
                         assert pid == submission.pid
                         if first is None:
@@ -527,6 +516,9 @@ def run_interactive_test_case(
                         # Possibly already written by the alarm.
                         if submission_time is None:
                             submission_time = duration
+
+                assert validator.returncode is not None
+                assert submission.returncode is not None
 
                 stop_kill_handler.set()
                 if relay is not None:
@@ -696,7 +688,7 @@ def interactor_prints_unprompted(
             cwd=validator_dir,
         )
         time.sleep(wait)
-        safe_kill(validator_process)
+        validator_process.kill()
         stdout, _ = validator_process.communicate()
         return bool(stdout)
     except (PermissionError, OSError):
