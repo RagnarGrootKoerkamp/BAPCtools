@@ -2,6 +2,7 @@ import io
 import itertools
 import os
 import select
+import signal
 import subprocess
 import sys
 import threading
@@ -409,6 +410,12 @@ def run_interactive_test_case(
         tle_result = None
         for pass_id in itertools.count(1):
             with ExitStack() as cleanup:
+                # process.kill might call poll() which is unsafe in combination with wait4
+                def kill(process: subprocess.Popen[bytes]) -> None:
+                    if process.returncode is not None:
+                        return
+                    os.kill(process.pid, signal.SIGKILL)
+
                 try:
                     validator = subprocess.Popen(
                         validator_command,
@@ -425,7 +432,7 @@ def run_interactive_test_case(
                         ),
                     )
                     cleanup.enter_context(validator)
-                    cleanup.callback(validator.kill)
+                    cleanup.callback(kill, validator)
                 except (PermissionError, OSError) as e:
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
@@ -445,7 +452,7 @@ def run_interactive_test_case(
                         preexec_fn=limit_setter(submission_command, timeout, memory, gid),
                     )
                     cleanup.enter_context(submission)
-                    cleanup.callback(submission.kill)
+                    cleanup.callback(kill, submission)
                 except (PermissionError, OSError) as e:
                     # File is likely not executable / probably doesn't exist.
                     return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
@@ -468,12 +475,12 @@ def run_interactive_test_case(
                     if stop_kill_handler.wait(timeout + 1):
                         return
                     submission_time = timeout + 1.0
-                    submission.kill()
+                    kill(submission)
                     time_gap = validation_time - timeout + 1
                     if time_gap > 0 and stop_kill_handler.wait(time_gap):
                         return
                     validator_time = validation_time + 1.0
-                    validator.kill()
+                    kill(validator)
 
                 kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
                 kill_handler.start()
@@ -503,7 +510,7 @@ def run_interactive_test_case(
                         # Kill the team submission and everything else in case we already know it's WA.
                         if validator.returncode != config.RTV_AC:
                             stop_kill_handler.set()
-                            submission.kill()
+                            kill(submission)
                     else:
                         assert pid == submission.pid
                         if first is None:
