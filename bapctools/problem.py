@@ -53,6 +53,7 @@ from bapctools.validate import (
     InputValidator,
     OutputValidator,
 )
+from bapctools.verdicts import RunUntil, Verdict, VerdictTable
 from bapctools.visualize import AnyVisualizer, InputVisualizer, OutputVisualizer
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -1151,11 +1152,11 @@ class Problem:
         test_cases: Sequence[TestCase],
         submissions: Sequence[Submission],
         skip_run: Callable[[Submission, TestCase], bool] = lambda s, t: False,
-    ) -> tuple[bool, verdicts.VerdictTable]:
+    ) -> tuple[bool, VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
-        verdict_table = verdicts.VerdictTable(submissions, test_cases)
+        verdict_table = VerdictTable(submissions, test_cases)
         for submission in submissions:
             ok &= submission.run_test_cases(
                 max_submission_len,
@@ -1165,16 +1166,16 @@ class Problem:
             )
         return ok, verdict_table
 
-    def run_until(self) -> verdicts.RunUntil:
+    def run_until(self) -> RunUntil:
         if config.args.all == 2 or config.args.reorder:
-            return verdicts.RunUntil.ALL
+            return RunUntil.ALL
         if (
             config.args.all == 1
             or config.args.verbose
             or config.args.action in ["all", "time_limit"]
         ):
-            return verdicts.RunUntil.DURATION
-        return verdicts.RunUntil.FIRST_ERROR
+            return RunUntil.DURATION
+        return RunUntil.FIRST_ERROR
 
     # called by bt run
     @bar.restore
@@ -1205,18 +1206,36 @@ class Problem:
         if config.args.overview and not config.args.tree:
             verdict_table.print(new_lines=1)
 
-        if self.run_until() in [verdicts.RunUntil.DURATION, verdicts.RunUntil.ALL]:
+        if self.run_until() in [RunUntil.DURATION, RunUntil.ALL]:
+            only_tle = {Verdict.TIME_LIMIT_EXCEEDED}
             time_sensitive_lower = self.limits.time_limit / self.limits.ac_to_time_limit
             time_sensitive_upper = self.limits.time_limit * self.limits.time_limit_to_tle
             time_sensitive = False
-            for row in verdict_table.results:
-                durations = [d for d in row.duration.values() if d is not None]
-                if durations:
-                    time_sensitive |= time_sensitive_lower < max(durations) < time_sensitive_upper
+            is_warning = False
+
+            for submission, row in zip(submissions, verdict_table.results, strict=True):
+                for test_case in test_cases:
+                    duration = row.duration.get(test_case.short_path)
+                    if duration is None:
+                        continue
+                    if duration <= time_sensitive_lower or time_sensitive_upper <= duration:
+                        continue
+                    time_sensitive = True
+
+                    permitted = submission.expectations.all_permitted(test_case)
+                    if Verdict.TIME_LIMIT_EXCEEDED not in permitted or permitted == only_tle:
+                        is_warning = True
+
+                    required = {e.required for e in submission.expectations.all_matches(test_case)}
+                    if only_tle in required:
+                        is_warning = True
+
             if time_sensitive:
-                bar.warn(
-                    f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f}s and {time_sensitive_upper:.1f}s)"
-                )
+                msg = f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f}s and {time_sensitive_upper:.1f}s)"
+                if is_warning:
+                    bar.warn(msg)
+                else:
+                    bar.log(msg)
 
         if config.args.table:
             Problem._print_table(verdict_table.results, test_cases)
@@ -1271,10 +1290,10 @@ class Problem:
         for dct in verdict_table:
             failures = 0
             for t in test_cases:
-                if dct[t.short_path] != verdicts.Verdict.ACCEPTED:
+                if dct[t.short_path] != Verdict.ACCEPTED:
                     failures += 1
             for t in test_cases:
-                if dct[t.short_path] != verdicts.Verdict.ACCEPTED:
+                if dct[t.short_path] != Verdict.ACCEPTED:
                     scores[t.short_path] += 1.0 / failures
         scores_list = sorted(scores.values())
 
@@ -1283,18 +1302,18 @@ class Problem:
             "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed."
         )
         fail = (
-            verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
-            + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
-            + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
+            verdicts.to_char(Verdict.WRONG_ANSWER)
+            + verdicts.to_char(Verdict.TIME_LIMIT_EXCEEDED)
+            + verdicts.to_char(Verdict.RUNTIME_ERROR)
         )
         bar.eprint(f"{fail}: submission fails test case")
-        bar.eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes test case\n")
+        bar.eprint(f"{verdicts.to_char(Verdict.ACCEPTED)}: submission passes test case\n")
 
         name_col_width = min(50, max([len(test_case.name) for test_case in test_cases]))
 
         for case in test_cases:
             # Skip all AC test cases
-            if all(row[case.short_path] == verdicts.Verdict.ACCEPTED for row in verdict_table):
+            if all(row[case.short_path] == Verdict.ACCEPTED for row in verdict_table):
                 continue
 
             name = case.name
