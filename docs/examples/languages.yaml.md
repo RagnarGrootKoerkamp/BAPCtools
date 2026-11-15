@@ -74,8 +74,8 @@ kotlin:
     name: 'Kotlin'
     priority: 250
     files: '*.kt'
-    compile: 'kotlinc -d {path}/ -- {files}'
-    run: 'kotlin -Dfile.encoding=UTF-8 -J-XX:+UseSerialGC -J-Xss64m -J-Xms{memlim}m -J-Xmx{memlim}m -cp {path}/ {Mainclass}Kt'
+    compile: 'kotlinc -include-runtime -d {path}/run.jar -- {files}'
+    run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path}/run.jar {Mainclass}Kt'
 
 lisp:
     name: 'Common Lisp'
