@@ -306,8 +306,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     def problem_source_dir(problem: Problem) -> Path:
         return problem.path.absolute().relative_to(git_root_path)
 
-    header_name = "header_latest_bt.yaml" if config.args.latest_bt else "header_docker_bt.yaml"
-    header_yml = (config.RESOURCES_ROOT / "skel" / "gitlab_ci" / header_name).read_text()
+    header_yml = (config.RESOURCES_ROOT / "skel" / "gitlab_ci" / "header.yaml").read_text()
     print(header_yml)
 
     contest_yml = (config.RESOURCES_ROOT / "skel" / "gitlab_ci" / "contest.yaml").read_text()
@@ -346,18 +345,15 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
 
     src = config.RESOURCES_ROOT / "skel" / "forgejo_actions"
 
-    setup_action = ""
-    if config.args.latest_bt:
-        setup_action_target = forgejo / "actions" / "setup" / "action.yml"
-        setup_action_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(src / "setup.yaml", setup_action_target)
-        setup_action = "      - uses: ./.forgejo/actions/setup\n"
+    setup_action_target = forgejo / "actions" / "setup" / "action.yml"
+    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src / "setup.yaml", setup_action_target)
 
     # Copy the contest-level workflow.
     contest_workflow_source = (src / "contest.yaml").read_text()
     contest_workflow = substitute(
         contest_workflow_source,
-        {"contest": contest, "contest_path": str(contest_path), "setup_action": setup_action},
+        {"contest": contest, "contest_path": str(contest_path), "actions_dir": ".forgejo"},
     )
     contest_workflow_target = forgejo / "workflows" / contest / "_contest.yaml"
     contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
@@ -370,7 +366,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
         problem_path = contest_path / problem
         problem_workflow = substitute(
             problem_workflow_source,
-            {"problem": problem, "problem_path": str(problem_path), "setup_action": setup_action},
+            {"problem": problem, "problem_path": str(problem_path), "actions_dir": ".forgejo"},
         )
         problem_workflow_target = forgejo / "workflows" / contest / f"{problem}.yaml"
         problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
@@ -380,9 +376,6 @@ def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
 # Differences with forgejo:
 # - flat structure, with all workflows directly in `.github/workflows`.
 def create_github_actions(contest: str, problems: list[Problem]) -> None:
-    if config.args.latest_bt:
-        bar.fatal("Caching the latest BAPCtools is not supported for github actions.")
-
     if Path(".git").is_dir():
         contest_path = Path()
         github = Path(".github")
@@ -396,11 +389,15 @@ def create_github_actions(contest: str, problems: list[Problem]) -> None:
 
     skel_dir = config.RESOURCES_ROOT / "skel" / "forgejo_actions"
 
+    setup_action_target = github / "actions" / "setup" / "action.yml"
+    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(skel_dir / "setup.yaml", setup_action_target)
+
     # Copy the contest-level workflow.
     contest_workflow_source = (skel_dir / "contest.yaml").read_text()
     contest_workflow = substitute(
         contest_workflow_source,
-        {"contest": contest, "contest_path": str(contest_path), "setup_action": ""},
+        {"contest": contest, "contest_path": str(contest_path), "actions_dir": ".github"},
     )
     contest_workflow_name = f"{contest}.yaml" if nest else "contest.yaml"
     contest_workflow_target = github / "workflows" / contest_workflow_name
@@ -414,7 +411,7 @@ def create_github_actions(contest: str, problems: list[Problem]) -> None:
         problem_path = contest_path / problem
         problem_workflow = substitute(
             problem_workflow_source,
-            {"problem": problem, "problem_path": str(problem_path), "setup_action": ""},
+            {"problem": problem, "problem_path": str(problem_path), "actions_dir": ".github"},
         )
         problem_workflow_name = f"{contest}_{problem}.yaml" if nest else f"{problem}.yaml"
         problem_workflow_target = github / "workflows" / problem_workflow_name

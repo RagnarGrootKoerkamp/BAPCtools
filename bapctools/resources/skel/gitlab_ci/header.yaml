@@ -1,0 +1,9 @@
+image:
+  name: ragnargrootkoerkamp/bapctools
+  entrypoint: [""]
+
+default:
+  before_script:
+    # - PIP_CACHE_DIR="$CI_PROJECT_DIR/.cache/pip" pipx install --force git+https://github.com/RagnarGrootKoerkamp/BAPCtools.git
+    # - PIP_CACHE_DIR="$CI_PROJECT_DIR/.cache/pip" pipx upgrade bapctools
+    - ln -sf "$(command -v bt)" bt

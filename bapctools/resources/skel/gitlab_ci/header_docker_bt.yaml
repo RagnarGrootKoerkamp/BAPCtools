@@ -1,7 +1,0 @@
-image:
-  name: ragnargrootkoerkamp/bapctools
-  entrypoint: [""]
-
-default:
-  before_script:
-    - ln -sf "$(command -v bt)" bt

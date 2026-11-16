@@ -5,4 +5,7 @@ runs:
     - name: update BAPCtools
       shell: bash
       run: |
-        PIP_CACHE_DIR=/opt/hostedtoolcache/pip pipx upgrade bapctools
+        # To pull latest version from pip:
+        # PIP_CACHE_DIR=/opt/hostedtoolcache/pip pipx upgrade bapctools
+        # To pull latest version from github:
+        # PIP_CACHE_DIR=/opt/hostedtoolcache/pip pipx install --force git+https://github.com/RagnarGrootKoerkamp/BAPCtools.git

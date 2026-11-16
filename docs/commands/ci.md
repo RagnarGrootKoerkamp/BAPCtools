@@ -6,7 +6,7 @@
 This can be piped into the `.gitlab-ci.yml` file in the root of the repository.
 When there are multiple contests, just append the `bt gitlabci` of each of them, but deduplicate the top level `image:` and `default:` keys.
 
-Use the `--latest-bt` flag to pull the latest version of BAPCtools before each run.
+The generated CI configuration includes commented commands to get the latest BAPCtools version from pypi or git.
 By default, the version in the docker image is used.
 
 Example output:
@@ -88,7 +88,7 @@ We use the following configuration for the gitlab runners:
 `bt forgejo_actions` writes Forgejo Actions workflows for the current contest to the `.forgejo` directory in the root of the git repository.
 When there are multiple contests, run `bt forgejo_actions` once for each contest (either in the contest directory, or by passing `--contest <contest>`).
 
-Use the `--latest-bt` flag to pull the latest version of BAPCtools before each run.
+The generated CI configuration includes commented commands to get the latest BAPCtools version from pypi or git.
 By default, the version in the docker image is used.
 
 The generated workflows are similar to those for `bt gitlabci` described above.

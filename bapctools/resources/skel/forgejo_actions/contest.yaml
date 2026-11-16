@@ -14,7 +14,7 @@ jobs:
       image: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
-{%setup_action%}
+      - uses: ./{%actions_dir%}/actions/setup
       - run: |
           bt pdf --cp --error --no-bar --contest {%contest_path%}
           bt solutions --cp --error --no-bar --contest {%contest_path%}

@@ -772,29 +772,20 @@ Run this from one of:
         help="When given, the solve stats will include submissions from after the scoreboard freeze.",
     )
 
-    gitlab_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "gitlabci", parents=[global_parser], help="Print a list of jobs for the given contest."
     )
-    gitlab_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
-    )
 
-    forgejo_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "forgejo_actions",
         parents=[global_parser],
         help="Setup Forgejo Actions workflows in .forgejo.",
     )
-    forgejo_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
-    )
 
-    github_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "github_actions",
         parents=[global_parser],
         help="Setup Github Actions workflows in .github.",
-    )
-    github_parser.add_argument(
-        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
     )
 
     create_slack_channel_parser = subparsers.add_parser(
