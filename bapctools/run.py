@@ -591,7 +591,7 @@ class Submission(Program):
                 requiredmsg = ",".join([v.short for v in expectation.required])
                 gotmsg = ",".join([v.short for v in got])
                 msg = [f"required: [{requiredmsg}]"]
-                if not expectation.glob.is_root():
+                if not expectation.glob.is_universal():
                     msg.append(f"for {expectation.glob}")
                 bar.warn(f"{' '.join(msg)}, got: [{gotmsg}]")
                 passed_required = False

@@ -18,6 +18,7 @@ from bapctools import (
     bar,
     check_testing_tool,
     config,
+    expectations,
     interactive,
     latex,
     parallel,
@@ -1214,21 +1215,27 @@ class Problem:
             is_warning = False
 
             for submission, row in zip(submissions, verdict_table.results, strict=True):
-                for test_case in test_cases:
-                    duration = row.duration.get(test_case.short_path)
-                    if duration is None:
-                        continue
-                    if duration <= time_sensitive_lower or time_sensitive_upper <= duration:
-                        continue
-                    time_sensitive = True
+                permitted = set(expectations.EXPECTATION_VERDICTS)
+                required = []
+                for expectation in submission.expectations.universal_expectations():
+                    permitted &= expectation.permitted
+                    required.append(expectation.required)
 
-                    permitted = submission.expectations.all_permitted(test_case)
-                    if Verdict.TIME_LIMIT_EXCEEDED not in permitted or permitted == only_tle:
-                        is_warning = True
+                durations = [d for d in row.duration.values() if d is not None]
+                if not durations:
+                    continue
+                duration = max(durations)
+                if duration <= time_sensitive_lower or time_sensitive_upper <= duration:
+                    continue
 
-                    required = [e.required for e in submission.expectations.all_matches(test_case)]
-                    if only_tle in required:
-                        is_warning = True
+                time_sensitive = True
+
+                if Verdict.TIME_LIMIT_EXCEEDED not in permitted:
+                    is_warning = True
+                if permitted == only_tle:
+                    is_warning = True
+                if only_tle in required:
+                    is_warning = True
 
             if time_sensitive:
                 msg = f"Some submissions are sensitive to timelimit (between {time_sensitive_lower:.1f}s and {time_sensitive_upper:.1f}s)"

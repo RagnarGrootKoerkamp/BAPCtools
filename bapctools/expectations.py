@@ -135,7 +135,7 @@ class Glob:
     def __str__(self) -> str:
         return self.glob or ""
 
-    def is_root(self) -> bool:
+    def is_universal(self) -> bool:
         return self.glob is None
 
     def matches(self, path: str) -> bool:
@@ -245,14 +245,14 @@ class SubmissionExpectation:
             permitted &= e.permitted
         return permitted
 
-    def root_expectations(self) -> list[TestCaseExpectation]:
-        return [e for e in self.expectations if e.glob.is_root()]
+    def universal_expectations(self) -> list[TestCaseExpectation]:
+        return [e for e in self.expectations if e.glob.is_universal()]
 
     def is_accepted(self) -> bool:
         """
-        A submission is considered accepted if its root TestCaseExpectation only permits AC
+        A submission is considered accepted if its universal TestCaseExpectation only permits AC
         """
-        return any(e.permitted == {Verdict.ACCEPTED} for e in self.root_expectations())
+        return any(e.permitted == {Verdict.ACCEPTED} for e in self.universal_expectations())
 
 
 # This stores all data in the submissions.yaml
