@@ -1226,7 +1226,7 @@ class Problem:
                     if Verdict.TIME_LIMIT_EXCEEDED not in permitted or permitted == only_tle:
                         is_warning = True
 
-                    required = {e.required for e in submission.expectations.all_matches(test_case)}
+                    required = [e.required for e in submission.expectations.all_matches(test_case)]
                     if only_tle in required:
                         is_warning = True
 
