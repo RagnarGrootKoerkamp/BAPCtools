@@ -1,4 +1,5 @@
 import os
+import shlex
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
@@ -233,7 +234,7 @@ class Program:
             self.env = {
                 "path": str(self.tmpdir),
                 # NOTE: This only contains files matching the winning language.
-                "files": " ".join(str(f) for f in files),
+                "files": shlex.join(str(f) for f in files),
                 "binary": binary,
                 "mainfile": mainfile,
                 "mainclass": mainclass,
