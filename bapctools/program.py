@@ -1,5 +1,4 @@
 import os
-import shlex
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
@@ -8,7 +7,7 @@ from typing import Any, Final, Optional, TYPE_CHECKING
 from colorama import Fore
 
 from bapctools import bar, config, languages
-from bapctools.languages import Language
+from bapctools.languages import Language, TemplateCommand
 from bapctools.util import (
     combine_hashes,
     copy_and_substitute,
@@ -216,7 +215,7 @@ class Program:
         mainclass = mainfile.with_suffix("").name
         return (binary, mainfile, str(mainclass))
 
-    # Sets self.language and self.env['mainfile']
+    # Sets self.language and self.env
     def _get_language(self) -> bool:
         candidates = self._get_language_candidates()
 
@@ -232,9 +231,9 @@ class Program:
             self._set_language(lang)
             binary, mainfile, mainclass = self._get_main_file(files)
             self.env = {
-                "path": str(self.tmpdir),
+                "path": self.tmpdir,
                 # NOTE: This only contains files matching the winning language.
-                "files": shlex.join(str(f) for f in files),
+                "files": " ".join(str(f) for f in files),
                 "binary": binary,
                 "mainfile": mainfile,
                 "mainclass": mainclass,
@@ -413,22 +412,31 @@ class Program:
 
         self._checks()
 
-        # A file containing the compile command and hash.
-        meta_path = self.tmpdir / "meta_.yaml"
+        def substitute(command: TemplateCommand) -> list[str]:
+            try:
+                return command.substitute(self.env)
+            except (IndexError, KeyError, ValueError):
+                self.ok = False
+                bar.error(f"Error in `{command.key}` for language {self.language.code}")
+                return []
 
-        self.compile_command = self.language.compile.substitute(self.env)
-        self.run_command = self.language.run.substitute(self.env)
+        self.compile_command = substitute(self.language.compile)
+        self.run_command = substitute(self.language.run)
+
+        if not self.ok:
+            return False  # type: ignore[unreachable]
 
         if (
             self.subdir == "submissions"
             and config.args.sanitizer
             and self.language.code in SANITIZER_FLAGS
         ):
-            sanitizer = SANITIZER_FLAGS[self.language.code]
-            if "compile" in sanitizer:
-                self.compile_command += sanitizer["compile"]
-            if "run" in sanitizer:
-                self.run_command += sanitizer["run"]
+            flags = SANITIZER_FLAGS[self.language.code]
+            self.compile_command.extend(flags.get("compile", []))
+            self.run_command.extend(flags.get("run", []))
+
+        # A file containing the compile command and hash.
+        meta_path = self.tmpdir / "meta_.yaml"
 
         # Compare the hash to the last build.
         up_to_date = False
@@ -444,8 +452,8 @@ class Program:
                 return False
 
         if self.path in self.problem.program_callbacks:
-            for c in self.problem.program_callbacks[self.path]:
-                c(self)
+            for callback in self.problem.program_callbacks[self.path]:
+                callback(self)
 
         if "code" in self.limits:
             size = sum(f.stat().st_size for f in self.source_files)

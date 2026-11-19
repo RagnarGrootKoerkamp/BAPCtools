@@ -46,7 +46,7 @@ class TemplateCommand:
         return TemplateCommand.find_variables(self.command or "")
 
     def substitute(self, vars: Mapping[str, object]) -> list[str]:
-        assert set(vars) <= TemplateCommand.VARIABLES
+        assert set(vars) == TemplateCommand.VARIABLES
         ret = shlex.split((self.command or "").format(**vars))
         if self.exe is not None:
             ret[0] = self.exe
