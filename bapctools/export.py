@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from bapctools import bar, config
+from bapctools import bar, config, expectations
 from bapctools.bar import PrintBar
 from bapctools.contest import (
     call_api,
@@ -271,7 +271,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     f.unlink()
                     f.write_text(text)
 
-    bar.use_globally(PrintBar("Zip", item=f"{problem.name}.zip"))
+    base_bar = PrintBar("Zip", item=f"{problem.name}.zip")
+    bar.use_globally(base_bar)
 
     # move pdfs
     if not config.args.kattis:
@@ -404,33 +405,46 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
         # add @EXPECTED_RESULTS@ to submissions in non-standard legacy directories
         for submission in problem.submissions():
+            local_bar = base_bar.with_item(submission)
             p = Path(submission.path)
-            if p.parts[2] not in [
+            if p.parts[2] in [
                 "accepted",
                 "run_time_error",
                 "time_limit_exceeded",
                 "wrong_answer",
             ]:
-                f = export_dir.joinpath(*p.parts[1:])
-                t = f.read_text()
-                shebang = ""
-                if t.startswith("#!"):
-                    shebang, _, t = t.partition("\n")
-                comment = "#" if f.suffix == ".py" else "//"
-
-                # Domjudge uses "RUN_TIME_ERROR" instead of "RUNTIME_ERROR"
-                # https://github.com/DOMjudge/domjudge/blob/9.0.1/webapp/src/Service/SubmissionService.php#L43
-                def domjudge_verdict(v: Verdict) -> str:
-                    if v == Verdict.RUNTIME_ERROR:
-                        return "RUN_TIME_ERROR"
-                    return v.name
-
-                expected_results = ", ".join(
-                    sorted(domjudge_verdict(v) for v in submission.expectations.all_permitted())
-                )
-                t = f"{shebang}{comment} @EXPECTED_RESULTS@: {expected_results}\n{t}"
+                continue
+            f = export_dir.joinpath(*p.parts[1:])
+            if not f.is_file():
+                local_bar.warn("Cannot set @EXPECTED_RESULTS@ for this submission. SKIPPED.")
                 f.unlink()
-                f.write_text(t)
+                continue
+
+            t = f.read_text()
+            shebang = ""
+            if t.startswith("#!"):
+                shebang, _, t = t.partition("\n")
+            comment = "#" if f.suffix == ".py" else "//"
+
+            # Domjudge uses "RUN_TIME_ERROR" instead of "RUNTIME_ERROR"
+            # https://github.com/DOMjudge/domjudge/blob/9.0.1/webapp/src/Service/SubmissionService.php#L43
+            def domjudge_verdict(v: Verdict) -> str:
+                if v == Verdict.RUNTIME_ERROR:
+                    return "RUN_TIME_ERROR"
+                return v.name
+
+            verdicts = set(expectations.EXPECTATION_VERDICTS)
+            for expectation in submission.expectations.universal_expectations():
+                verdicts &= expectation.required
+            if not verdicts:
+                local_bar.warn("Could not determine @EXPECTED_RESULTS@ for legacy export. SKIPPED.")
+                f.unlink()
+                continue
+
+            expected_results = ", ".join(sorted(domjudge_verdict(v) for v in verdicts))
+            t = f"{shebang}{comment} @EXPECTED_RESULTS@: {expected_results}\n{t}"
+            f.unlink()
+            f.write_text(t)
 
     # handle yaml updates
     yaml_path.unlink()
