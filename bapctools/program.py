@@ -7,7 +7,7 @@ from typing import Any, Final, Optional, TYPE_CHECKING
 from colorama import Fore
 
 from bapctools import bar, config, languages
-from bapctools.languages import Language, TemplateCommand
+from bapctools.languages import Language, TemplateCommand, TemplateCommandVariables
 from bapctools.util import (
     combine_hashes,
     copy_and_substitute,
@@ -157,12 +157,12 @@ class Program:
         self.compile_command: Optional[Sequence[str | Path]] = None
         self.run_command: Optional[Sequence[str | Path]] = None
         self.hash: Optional[str] = None
-        self.env: dict[str, int | str | Path] = {}
+        self.vars: Optional[TemplateCommandVariables] = None
         self.limits: dict[str, int] = {} if limits is None else limits
         self.substitute_constants: bool = substitute_constants
 
-        self.ok = True
-        self.built = False
+        self.ok: bool = True
+        self.built: bool = False
 
         # Detect language, dependencies, and main file
         if deps:
@@ -215,7 +215,7 @@ class Program:
         mainclass = mainfile.with_suffix("").name
         return (binary, mainfile, str(mainclass))
 
-    # Sets self.language and self.env
+    # Sets self.language and self.vars
     def _get_language(self) -> bool:
         candidates = self._get_language_candidates()
 
@@ -230,17 +230,16 @@ class Program:
 
             self._set_language(lang)
             binary, mainfile, mainclass = self._get_main_file(files)
-            self.env = {
-                "path": self.tmpdir,
+            self.vars = TemplateCommandVariables(
+                path=self.tmpdir,
                 # NOTE: This only contains files matching the winning language.
-                "files": " ".join(str(f) for f in files),
-                "binary": binary,
-                "mainfile": mainfile,
-                "mainclass": mainclass,
-                "Mainclass": mainclass[0].upper() + mainclass[1:],
+                files=files,
+                binary=binary,
+                mainfile=mainfile,
+                mainclass=mainclass,
                 # Memory limit in MB.
-                "memlim": self.limits.get("memory", config.DEFAULT_MEMORY),
-            }
+                memlim=self.limits.get("memory", config.DEFAULT_MEMORY),
+            )
 
             return True
 
@@ -413,8 +412,9 @@ class Program:
         self._checks()
 
         def substitute(command: TemplateCommand) -> list[str]:
+            assert self.vars is not None
             try:
-                return command.substitute(self.env)
+                return command.substitute(self.vars)
             except (IndexError, KeyError, ValueError):
                 self.ok = False
                 bar.error(f"Error in `{command.key}` for language {self.language.code}")
@@ -422,7 +422,6 @@ class Program:
 
         self.compile_command = substitute(self.language.compile)
         self.run_command = substitute(self.language.run)
-
         if not self.ok:
             return False  # type: ignore[unreachable]
 

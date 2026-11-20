@@ -5,13 +5,63 @@ import shlex
 import shutil
 import string
 import sys
-from collections.abc import Mapping, Sequence, Set
+from collections.abc import Sequence, Set
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Optional
 
 from bapctools import bar, config
 from bapctools.bar import PrintBar
 from bapctools.util import home_config_dir, once, read_yaml, YamlParser
+
+
+@dataclass
+class TemplateCommandVariables:
+    path: Path
+    files: list[Path]
+    binary: Path
+    mainfile: Path
+    mainclass: str
+    memlim: int
+
+    @property
+    def Mainclass(self) -> str:  # noqa: N802
+        return self.mainclass[:1].upper() + self.mainclass[1:]
+
+    def substitute(self, command: str) -> list[str]:
+        files: dict[str, object] = {f"file_{i}": file for i, file in enumerate(self.files)}
+
+        def unformat(field: str, conversion: Optional[str], spec: Optional[str]) -> str:
+            conversion = f"!{conversion}" if conversion else ""
+            spec = f":{spec}" if spec else ""
+            return f"{{{field}{conversion}{spec}}}"
+
+        # preparse the template to replace {files} with {file_0} {file_1} ...
+        # before we do the shlex.split()
+        parts = []
+        for literal, field, spec, conversion in string.Formatter().parse(command):
+            parts.append(literal)
+            if field is None:
+                continue
+
+            if field == "files":
+                fields = [unformat(file, spec, conversion) for file in files]
+                parts.append(" ".join(fields))
+            else:
+                parts.append(unformat(field, spec, conversion))
+
+        parts = shlex.split("".join(parts))
+
+        vars = {
+            "path": self.path,
+            # files=self.files,
+            "binary": self.binary,
+            "mainfile": self.mainfile,
+            "mainclass": self.mainclass,
+            "Mainclass": self.Mainclass,
+            "memlim": self.memlim,
+        }
+        return [p.format(**vars, **files) for p in parts]
 
 
 class TemplateCommand:
@@ -45,9 +95,8 @@ class TemplateCommand:
     def variables(self) -> set[str]:
         return TemplateCommand.find_variables(self.command or "")
 
-    def substitute(self, vars: Mapping[str, object]) -> list[str]:
-        assert set(vars) == TemplateCommand.VARIABLES
-        ret = shlex.split((self.command or "").format(**vars))
+    def substitute(self, vars: TemplateCommandVariables) -> list[str]:
+        ret = vars.substitute(self.command or "")
         if self.exe is not None:
             ret[0] = self.exe
         return ret
@@ -109,13 +158,17 @@ class Language:
         self.ok &= self.run.ok
 
         # check the language specification
-        variables = self.run.variables() | self.compile.variables()
-        for unknown in variables - TemplateCommand.VARIABLES:
-            bar.error(f"Unknown meta variable {unknown} for '{code}'.")
-            self.ok = False
-        entry_points = variables & TemplateCommand.ENTRY_POINTS
-        if len(entry_points) != 1:
-            bar.error(f"Expected exactly one entry point for '{code}'.")
+        try:
+            variables = self.run.variables() | self.compile.variables()
+            for unknown in variables - TemplateCommand.VARIABLES:
+                bar.error(f"Unknown meta variable {unknown} for '{code}'.")
+                self.ok = False
+            entry_points = variables & TemplateCommand.ENTRY_POINTS
+            if len(entry_points) != 1:
+                bar.error(f"Expected exactly one entry point for '{code}'.")
+                self.ok = False
+        except ValueError:
+            bar.error(f"Invalid template command for '{code}'.")
             self.ok = False
 
         parser.check_unknown_keys()
