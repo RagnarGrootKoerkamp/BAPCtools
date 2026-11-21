@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from bapctools import bar, config, expectations
+from bapctools import bar, config
 from bapctools.bar import PrintBar
 from bapctools.contest import (
     call_api,
@@ -433,9 +433,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     return "RUN_TIME_ERROR"
                 return v.name
 
-            verdicts = set(expectations.EXPECTATION_VERDICTS)
-            for expectation in submission.expectations.universal_expectations():
-                verdicts &= expectation.required
+            verdicts = submission.expectations.universal_verdict()
             if not verdicts:
                 local_bar.warn("Could not determine @EXPECTED_RESULTS@ for legacy export. SKIPPED.")
                 f.unlink()

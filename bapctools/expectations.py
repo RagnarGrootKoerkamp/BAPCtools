@@ -248,11 +248,19 @@ class SubmissionExpectation:
     def universal_expectations(self) -> list[TestCaseExpectation]:
         return [e for e in self.expectations if e.glob.is_universal()]
 
+    def universal_verdict(self) -> set[Verdict]:
+        required = set()
+        permitted = set(EXPECTATION_VERDICTS)
+        for expectation in self.universal_expectations():
+            permitted &= expectation.permitted
+            required |= expectation.required
+        return required & required
+
     def is_accepted(self) -> bool:
         """
-        A submission is considered accepted if its universal TestCaseExpectation only permits AC
+        A submission is considered accepted if its universal verdict only permits AC
         """
-        return any(e.permitted == {Verdict.ACCEPTED} for e in self.universal_expectations())
+        return self.universal_verdict() == {Verdict.ACCEPTED}
 
 
 # This stores all data in the submissions.yaml
